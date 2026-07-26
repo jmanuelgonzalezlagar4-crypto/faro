@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>FARO — mantén la luz, salva los barcos</title>
+<meta name="description" content="Eres un faro. Mantén pulsado para detener la luz e iluminar cada barco antes de que llegue a las rocas.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#070f1d">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #070f1d; }
+  canvas { display: block; touch-action: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<noscript><p style="color:#eaf2fa;font-family:sans-serif;padding:2em">FARO necesita JavaScript.</p></noscript>
+<script>
+// ===== src/config.mjs =====
+// FARO — Configuración centralizada. Todas las unidades de distancia están
+// normalizadas al radio de juego (1.0 = borde donde aparecen los barcos).
+// Ángulos en radianes, tiempos en segundos.
+
+const CONFIG = {
+  island: {
+    radius: 0.14, // radio de las rocas: un barco que llega aquí = derrota
+  },
+  beam: {
+    omega: 2.4,      // velocidad angular del haz cuando gira libre (rad/s, un solo sentido)
+    halfWidth: 0.22, // semiángulo del cono de luz (rad)
+    range: 1.0,      // el haz solo ilumina barcos ya visibles (dist <= range)
+    dwell: 0.25,     // segundos de luz sostenida para salvar un barco
+  },
+  ship: {
+    radius: 0.035,           // radio físico del barco (para hitbox angular)
+    baseSpeed: [0.06, 0.24], // velocidad radial [dificultad 0, dificultad 1]
+    corsairSpeedMult: 1.6,
+  },
+  spawn: {
+    interval: [3.4, 0.85], // segundos entre patrones [D=0, D=1]
+    maxConcurrent: [1, 6], // barcos simultáneos máximos [D=0, D=1]
+    firstDelay: 1.2,       // margen antes del primer barco
+  },
+  difficulty: {
+    timeScale: 90,   // constante de tiempo de la rampa exponencial
+    timeWeight: 0.6,
+    savesWeight: 0.4,
+    savesCap: 50,    // rescates que saturan el término de rescates
+    adaptBonus: 0.1, // subida de riqueza de patrones tras racha "al límite"
+    adaptStreak: 3,  // rescates al límite seguidos que activan la adaptación
+  },
+  validator: {
+    // Margen de seguridad sobre cada deadline: 15 % al empezar (holgado) y
+    // 2 % con dificultad máxima. Siempre factible; el final exige perfección.
+    margin: [0.15, 0.02],
+    maxTries: 8,     // reintentos de recolocación antes de descartar patrón
+  },
+  score: {
+    base: 10,
+    corsairBase: 20,
+    zoneMid: 0.66,    // dist < zoneMid  → ×2
+    zoneClose: 0.38,  // dist < zoneClose → ×3 ("al límite")
+    comboWindow: 3.5, // s entre rescates para mantener la cadena
+    comboStep: 5,     // cada N rescates encadenados sube el multiplicador
+    comboMax: 4,      // multiplicador de combo máximo
+  },
+  wave: {
+    size: 10,     // rescates por ola
+    lull: 2.5,    // descanso sin apariciones tras cada ola
+  },
+  shield: {
+    max: 2,        // escudos acumulables (los otorga el barco guardián)
+    graceLull: 1.2, // respiro sin apariciones tras perder un escudo
+  },
+  zone: {
+    wavesPerZone: 2, // cada N olas se cambia de escenario
+  },
+  restart: {
+    lockout: 0.4, // s tras la derrota antes de aceptar la pulsación de reinicio
+  },
+};
+
+
+// ===== src/core.mjs =====
+// FARO — Núcleo de juego 100 % headless (sin DOM, sin canvas).
+// Contiene: RNG con semilla, dificultad, patrones, validador de factibilidad,
+// puntuación, estado de partida y bot greedy (usado por QA).
+//
+// MECÁNICA (v2, tras QA): el haz del faro gira solo, siempre en el mismo
+// sentido. MANTENER PULSADO detiene el haz: los barcos dentro del cono se
+// cargan de luz y se salvan tras `dwell` segundos iluminados. Soltar reanuda
+// el giro. No pulsar nunca = derrota; pulsar siempre = derrota.
+// (La v1 "tocar invierte el giro" se descartó: la estrategia pasiva de no
+// tocar nada era inmortal — el barrido continuo lo salvaba todo solo.)
+
+
+const TAU = Math.PI * 2;
+
+// ---------- RNG determinista (mulberry32) ----------
+
+/** @param {number} seed @returns {() => number} uniforme [0,1) */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Semilla numérica a partir de una cadena (p. ej. fecha para el reto diario). */
+function hashSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// ---------- Geometría angular ----------
+
+/** Normaliza un ángulo a [0, TAU). */
+function wrap(a) {
+  a %= TAU;
+  return a < 0 ? a + TAU : a;
+}
+
+/** Distancia angular mínima entre dos ángulos, en [0, PI]. */
+function angDist(a, b) {
+  const d = Math.abs(wrap(a) - wrap(b));
+  return d > Math.PI ? TAU - d : d;
+}
+
+/** Distancia angular AVANZANDO en el sentido del haz (de a hacia b), [0, TAU). */
+function angForward(a, b) {
+  return wrap(b - a);
+}
+
+// ---------- Dificultad ----------
+
+/**
+ * Dificultad D en [0,1]: rampa exponencial por tiempo + término por rescates.
+ * @param {number} t segundos de partida
+ * @param {number} saves rescates acumulados
+ */
+function difficulty(t, saves, cfg = CONFIG) {
+  const d = cfg.difficulty;
+  const byTime = 1 - Math.exp(-t / d.timeScale);
+  const bySaves = Math.min(1, saves / d.savesCap);
+  return Math.min(1, Math.max(0, d.timeWeight * byTime + d.savesWeight * bySaves));
+}
+
+/** Interpolación lineal entre par [inicio, final] según D. */
+function lerpByD(pair, D) {
+  return pair[0] + (pair[1] - pair[0]) * D;
+}
+
+// ---------- Barcos y patrones ----------
+
+let nextShipId = 1;
+
+/**
+ * @param {number} angle @param {number} dist @param {number} speed
+ * @param {'normal'|'corsair'|'guardian'} type
+ */
+function makeShip(angle, dist, speed, type = 'normal') {
+  return { id: nextShipId++, angle: wrap(angle), dist, speed, type, born: 0, charge: 0 };
+}
+
+/** Escenario (zona) que corresponde a un número de olas superadas. */
+function zoneIndexFor(wavesCleared, cfg = CONFIG) {
+  return Math.floor(wavesCleared / cfg.zone.wavesPerZone);
+}
+
+/**
+ * Biblioteca de patrones. Cada patrón devuelve una lista de barcos candidatos
+ * (dist >= 1.0; los escalonados nacen más allá del borde y navegan hacia él).
+ * minD = dificultad mínima para que el patrón pueda aparecer.
+ */
+const PATTERNS = [
+  {
+    name: 'single', minD: 0,
+    build: (rng, speed) => [makeShip(rng() * TAU, 1.0, speed)],
+  },
+  {
+    // Barco guardián: rescatarlo otorga un escudo (absorbe un choque).
+    // Poco frecuente (weight) para que el escudo se sienta valioso.
+    name: 'guardian', minD: 0.18, weight: 0.2,
+    build: (rng, speed) => [makeShip(rng() * TAU, 1.0, speed, 'guardian')],
+  },
+  {
+    name: 'pair_opposite', minD: 0.15,
+    build: (rng, speed) => {
+      const a = rng() * TAU;
+      return [makeShip(a, 1.0, speed), makeShip(a + Math.PI, 1.16, speed)];
+    },
+  },
+  {
+    name: 'corsair', minD: 0.25,
+    build: (rng, speed, cfg) =>
+      [makeShip(rng() * TAU, 1.0, speed * cfg.ship.corsairSpeedMult, 'corsair')],
+  },
+  {
+    name: 'fan', minD: 0.35,
+    build: (rng, speed) => {
+      const a = rng() * TAU;
+      return [
+        makeShip(a, 1.0, speed),
+        makeShip(a - 0.55, 1.12, speed),
+        makeShip(a + 0.55, 1.12, speed),
+      ];
+    },
+  },
+  {
+    // Uno justo por delante del haz y otro justo por detrás: el de detrás
+    // exige casi una vuelta completa → decisión de orden dramática.
+    name: 'pincer', minD: 0.45,
+    build: (rng, speed, cfg, beamAngle) => [
+      makeShip(beamAngle + Math.PI / 2, 1.0, speed),
+      makeShip(beamAngle - Math.PI / 2, 1.14, speed),
+    ],
+  },
+  {
+    // Convoy angularmente apretado: cabe entero en el cono → rescate múltiple.
+    name: 'convoy', minD: 0.5,
+    build: (rng, speed) => {
+      const a = rng() * TAU;
+      return [
+        makeShip(a, 1.0, speed),
+        makeShip(a + 0.12, 1.18, speed),
+        makeShip(a - 0.12, 1.36, speed),
+      ];
+    },
+  },
+];
+
+// ---------- Validador de factibilidad ----------
+
+/**
+ * Certificado de justicia: simula un plan greedy por deadline (EDF) con el
+ * movimiento real del haz: solo avanza en un sentido y debe detenerse `dwell`
+ * segundos sobre cada barco. Cada barco debe poder alcanzarse e iluminarse
+ * antes de que llegue a las rocas, con margen de seguridad.
+ * Es conservador (un orden más listo podría superar algo que EDF no):
+ * conservador = nunca se cuela un patrón injusto.
+ * @param {Array<{angle:number,dist:number,speed:number}>} ships activos + candidatos
+ * @param {number} beamAngle ángulo actual del haz
+ * @param {number} [marginFrac] margen de seguridad (por defecto, el más holgado)
+ * @returns {boolean} true si el conjunto es superable
+ */
+function isFeasible(ships, beamAngle, cfg = CONFIG, marginFrac = cfg.validator.margin[0]) {
+  const islandR = cfg.island.radius;
+  const margin = 1 - marginFrac;
+  const omega = cfg.beam.omega;
+  const half = cfg.beam.halfWidth;
+  const dwell = cfg.beam.dwell;
+  const list = ships
+    .map((s) => ({
+      angle: s.angle,
+      deadline: (s.dist - islandR) / s.speed, // s hasta las rocas
+    }))
+    .sort((a, b) => a.deadline - b.deadline);
+
+  let t = 0;
+  let at = beamAngle;
+  for (const s of list) {
+    const gap = angForward(at, s.angle);
+    const travel = gap <= half ? 0 : (gap - half) / omega;
+    t += travel + dwell;
+    if (t > s.deadline * margin) return false;
+    at = s.angle;
+  }
+  return true;
+}
+
+/**
+ * Intenta colocar un patrón de forma factible: si el conjunto resultante no
+ * pasa el validador, regenera/rota el patrón y reintenta.
+ * @returns {Array|null} barcos listos para entrar en juego, o null si se descarta
+ */
+function placePattern(pattern, rng, speed, activeShips, beamAngle, cfg = CONFIG,
+  marginFrac = cfg.validator.margin[0]) {
+  for (let i = 0; i < cfg.validator.maxTries; i++) {
+    const candidates = pattern.build(rng, speed, cfg, beamAngle);
+    if (isFeasible([...activeShips, ...candidates], beamAngle, cfg, marginFrac)) {
+      return candidates;
+    }
+  }
+  return null; // ningún patrón infactible entra en juego
+}
+
+// ---------- Puntuación ----------
+
+/** Zona de riesgo según distancia: 1 lejos, 2 media, 3 "al límite". */
+function zoneOf(dist, cfg = CONFIG) {
+  if (dist < cfg.score.zoneClose) return 3;
+  if (dist < cfg.score.zoneMid) return 2;
+  return 1;
+}
+
+/** Multiplicador de combo según longitud de cadena. */
+function comboMult(chain, cfg = CONFIG) {
+  return Math.min(cfg.score.comboMax, 1 + Math.floor(chain / cfg.score.comboStep));
+}
+
+// ---------- Partida ----------
+
+/**
+ * Estado y reglas de una partida. Sin dependencias de navegador.
+ * La UI (o el bot) llama a down()/up() y update(dt) y drena events.
+ */
+class Game {
+  /** @param {number} seed @param {object} cfg */
+  constructor(seed, cfg = CONFIG) {
+    this.cfg = cfg;
+    this.seed = seed >>> 0;
+    this.rng = mulberry32(this.seed);
+    this.state = 'ready'; // ready → playing → over
+    this.time = 0;
+    this.beamAngle = this.rng() * TAU;
+    this.holding = false;
+    /** @type {Array<ReturnType<typeof makeShip>>} */
+    this.ships = [];
+    this.score = 0;
+    this.saves = 0;
+    this.shields = 0;
+    this.zoneIndex = 0;
+    this.chain = 0;
+    this.bestChain = 0;
+    this.lastSaveAt = -Infinity;
+    this.closeStreak = 0;
+    this.adapted = false;
+    this.spawnTimer = cfg.spawn.firstDelay;
+    this.lullUntil = 0;
+    this.wavesCleared = 0;
+    this.deathCause = null;
+    this.overAt = 0;
+    /** Cola de eventos para la capa de presentación. */
+    this.events = [];
+    this.presses = 0;
+  }
+
+  get difficulty() {
+    return difficulty(this.time, this.saves, this.cfg);
+  }
+
+  /** Dificultad usada para elegir patrones (incluye adaptación positiva). */
+  get patternD() {
+    return Math.min(1, this.difficulty + (this.adapted ? this.cfg.difficulty.adaptBonus : 0));
+  }
+
+  /** Pulsación (pointerdown / keydown): empezar, iluminar o pedir reinicio. */
+  down() {
+    if (this.state === 'ready') {
+      this.state = 'playing';
+      this.events.push({ type: 'start' });
+      return;
+    }
+    if (this.state === 'playing') {
+      if (!this.holding) {
+        this.holding = true;
+        this.presses++;
+        this.events.push({ type: 'press' });
+      }
+      return;
+    }
+    // 'over': el reinicio lo gestiona la capa exterior creando un Game nuevo
+    // (garantiza estado limpio); aquí solo se señala si pasó el lockout.
+    if (this.time - this.overAt >= this.cfg.restart.lockout) {
+      this.events.push({ type: 'restart' });
+    }
+  }
+
+  /** Fin de pulsación (pointerup / keyup): el haz reanuda el giro. */
+  up() {
+    if (this.holding) {
+      this.holding = false;
+      this.events.push({ type: 'release' });
+    }
+  }
+
+  /** ¿Está este barco dentro del cono de luz y a la vista? */
+  #lit(s) {
+    const cfg = this.cfg;
+    if (s.dist > cfg.beam.range) return false;
+    const angRad = Math.min(0.5, cfg.ship.radius / Math.max(s.dist, cfg.island.radius));
+    return angDist(this.beamAngle, s.angle) <= cfg.beam.halfWidth + angRad;
+  }
+
+  /** @param {number} dt segundos (la capa exterior lo limita a <= 50 ms) */
+  update(dt) {
+    this.time += dt;
+    if (this.state !== 'playing') return;
+
+    const cfg = this.cfg;
+    const D = this.difficulty;
+
+    // Haz: gira libre; detenido mientras se mantiene pulsado
+    if (!this.holding) {
+      this.beamAngle = wrap(this.beamAngle + cfg.beam.omega * dt);
+    }
+
+    // Barcos: avanzan hacia las rocas; se cargan de luz si están iluminados
+    for (let i = this.ships.length - 1; i >= 0; i--) {
+      const s = this.ships[i];
+      s.dist -= s.speed * dt;
+      if (this.holding && this.#lit(s)) {
+        s.charge += dt;
+        if (s.charge >= cfg.beam.dwell) {
+          this.ships.splice(i, 1);
+          this.#onSave(s);
+          continue;
+        }
+      } else {
+        s.charge = 0;
+      }
+    }
+
+    // Choques: un barco alcanza las rocas → escudo o derrota
+    for (let i = this.ships.length - 1; i >= 0; i--) {
+      const s = this.ships[i];
+      if (s.dist <= cfg.island.radius) {
+        if (this.shields > 0) {
+          this.shields--;
+          this.ships.splice(i, 1);
+          this.lullUntil = Math.max(this.lullUntil, this.time + cfg.shield.graceLull);
+          this.events.push({ type: 'shield_break', ship: s, shields: this.shields });
+        } else {
+          this.#gameOver(s);
+          return;
+        }
+      }
+    }
+
+    // Caducidad del combo
+    if (this.chain > 0 && this.time - this.lastSaveAt > cfg.score.comboWindow) {
+      this.chain = 0;
+      this.events.push({ type: 'combo_lost' });
+    }
+
+    // Generación
+    if (this.time >= this.lullUntil) {
+      this.spawnTimer -= dt;
+      if (this.spawnTimer <= 0) this.#spawn(D);
+    }
+  }
+
+  #onSave(ship) {
+    const cfg = this.cfg;
+    const zone = zoneOf(ship.dist, cfg);
+    if (this.time - this.lastSaveAt <= cfg.score.comboWindow) this.chain++;
+    else this.chain = 1;
+    this.lastSaveAt = this.time;
+    this.bestChain = Math.max(this.bestChain, this.chain);
+
+    const mult = comboMult(this.chain, cfg);
+    const base = ship.type === 'corsair' ? cfg.score.corsairBase : cfg.score.base;
+    const points = base * zone * mult;
+    this.score += points;
+    this.saves++;
+
+    // Adaptación positiva: rachas "al límite" → patrones más ricos
+    this.closeStreak = zone === 3 ? this.closeStreak + 1 : 0;
+    if (this.closeStreak >= cfg.difficulty.adaptStreak) this.adapted = true;
+    if (zone === 1) this.adapted = false;
+
+    this.events.push({
+      type: 'save', ship, zone, points, chain: this.chain, mult,
+      atDist: ship.dist,
+    });
+
+    // Guardián rescatado → escudo (con tope)
+    if (ship.type === 'guardian' && this.shields < cfg.shield.max) {
+      this.shields++;
+      this.events.push({ type: 'shield', shields: this.shields });
+    }
+
+    // Olas, descansos y cambio de escenario
+    if (this.saves % cfg.wave.size === 0) {
+      this.wavesCleared++;
+      this.lullUntil = this.time + cfg.wave.lull;
+      this.events.push({ type: 'wave', n: this.wavesCleared });
+      const zi = zoneIndexFor(this.wavesCleared, cfg);
+      if (zi !== this.zoneIndex) {
+        this.zoneIndex = zi;
+        this.events.push({ type: 'zone', index: zi });
+      }
+    }
+  }
+
+  #spawn(D) {
+    const cfg = this.cfg;
+    const maxShips = Math.round(lerpByD(cfg.spawn.maxConcurrent, D));
+    if (this.ships.length < maxShips) {
+      const pd = this.patternD;
+      const pool = PATTERNS.filter((p) => pd >= p.minD);
+      // Selección ponderada (los patrones raros declaran weight < 1)
+      const total = pool.reduce((acc, p) => acc + (p.weight ?? 1), 0);
+      let roll = this.rng() * total;
+      let pattern = pool[pool.length - 1];
+      for (const p of pool) {
+        roll -= p.weight ?? 1;
+        if (roll <= 0) { pattern = p; break; }
+      }
+      const speed = lerpByD(cfg.ship.baseSpeed, D);
+      const marginFrac = lerpByD(cfg.validator.margin, D);
+      const placed = placePattern(pattern, this.rng, speed, this.ships, this.beamAngle, cfg, marginFrac);
+      if (placed) {
+        for (const s of placed) {
+          s.born = this.time;
+          this.ships.push(s);
+        }
+        this.events.push({ type: 'spawn', pattern: pattern.name, count: placed.length });
+      }
+    }
+    this.spawnTimer = lerpByD(cfg.spawn.interval, D);
+  }
+
+  #gameOver(culprit) {
+    this.state = 'over';
+    this.overAt = this.time;
+    this.holding = false;
+    this.deathCause = {
+      shipId: culprit.id,
+      type: culprit.type,
+      angle: culprit.angle,
+      aliveFor: this.time - culprit.born,
+      atTime: this.time,
+      score: this.score,
+      seed: this.seed,
+    };
+    this.events.push({ type: 'over', culprit, cause: this.deathCause });
+  }
+}
+
+// ---------- Bot greedy (QA) ----------
+
+/**
+ * Política greedy: perseguir siempre el barco visible con el deadline más
+ * próximo; pulsar cuando entra en el cono y mantener hasta salvarlo.
+ * Si el bot muere pese a patrones factibles, la rampa está apretando de veras.
+ */
+class GreedyBot {
+  constructor(game) {
+    this.game = game;
+    /** @type {number|null} id del barco que está iluminando */
+    this.lockedId = null;
+  }
+
+  /** Llamar una vez por tick, después de game.update(). */
+  act() {
+    const g = this.game;
+    if (g.state === 'ready') { g.down(); g.up(); return; }
+    if (g.state !== 'playing') return;
+
+    const cfg = g.cfg;
+    let target = null;
+    let best = Infinity;
+    for (const s of g.ships) {
+      if (s.dist > cfg.beam.range) continue; // aún no visible
+      const deadline = (s.dist - cfg.island.radius) / s.speed;
+      if (deadline < best) { best = deadline; target = s; }
+    }
+
+    if (g.holding) {
+      const locked = g.ships.find((s) => s.id === this.lockedId);
+      if (!locked) { g.up(); this.lockedId = null; return; } // salvado
+      // El haz está congelado: si el objetivo quedó fuera del cono o aún no es
+      // visible, la puntería falló → soltar (comprobación geométrica, sin
+      // depender del orden bot/update).
+      const angRad = Math.min(0.5, cfg.ship.radius / Math.max(locked.dist, cfg.island.radius));
+      const miss = angDist(g.beamAngle, locked.angle) > cfg.beam.halfWidth + angRad ||
+        locked.dist > cfg.beam.range;
+      if (miss) { g.up(); this.lockedId = null; }
+      return; // si no, seguir iluminando
+    }
+
+    if (!target) return;
+    const gap = angDist(g.beamAngle, target.angle);
+    if (gap <= cfg.beam.halfWidth * 0.6) {
+      this.lockedId = target.id;
+      g.down();
+    }
+  }
+}
+
+/**
+ * Simula una partida completa con el bot a paso fijo.
+ * @returns {{time:number, score:number, saves:number, seed:number, cause:object|null, bestChain:number}}
+ */
+function simulate(seed, maxSeconds = 300, cfg = CONFIG) {
+  const game = new Game(seed, cfg);
+  const bot = new GreedyBot(game);
+  const dt = 1 / 120;
+  let guard = Math.ceil(maxSeconds / dt);
+  while (game.state !== 'over' && guard-- > 0) {
+    bot.act();
+    game.update(dt);
+    game.events.length = 0; // drenar como haría la UI
+  }
+  return {
+    time: game.time, score: game.score, saves: game.saves,
+    seed, cause: game.deathCause, bestChain: game.bestChain,
+  };
+}
+
+
+// ===== src/ui.mjs =====
+// FARO — Capa de presentación: canvas, audio, entrada, HUD, debug.
+// Depende del núcleo headless (core.mjs). Sin assets externos: todo el arte
+// es vectorial y todo el sonido se sintetiza con Web Audio.
+
+
+// ---------- Parámetros visuales (identidad) ----------
+const PAL = {
+  skyTop: '#070f1d', skyBottom: '#12263f', sea: '#0e1f33',
+  beam: '255, 214, 140', beamCore: '#ffe8b0',
+  amber: '#ffc46b', foam: '#bfe3f2', danger: '#ff5964',
+  rock: '#1b2a3a', rockDark: '#141f2c', text: '#eaf2fa', dim: '#7d93a8',
+};
+
+// Escenarios: cada 2 olas el mar cambia de zona (solo visual; las reglas no cambian)
+const THEMES = [
+  { name: 'MAR ABIERTO', skyTop: '#070f1d', skyBottom: '#12263f', sea: '#0e1f33' },
+  { name: 'MAR DE FONDO', skyTop: '#041219', skyBottom: '#0b3038', sea: '#0a2830' },
+  { name: 'TORMENTA', skyTop: '#0d0d17', skyBottom: '#232036', sea: '#181a2c', storm: true },
+  { name: 'AURORA', skyTop: '#03131a', skyBottom: '#0e2b26', sea: '#0c2420', aurora: true },
+];
+function themeNow() { return THEMES[game.zoneIndex % THEMES.length]; }
+
+// ---------- Utilidades ----------
+const params = new URLSearchParams(location.search);
+const DEBUG = params.get('debug') === '1';
+
+/** Almacenamiento con degradación limpia a memoria (p. ej. artefactos sin localStorage). */
+const store = (() => {
+  const mem = {};
+  let ok = true;
+  try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); }
+  catch { ok = false; }
+  return {
+    get(k, fallback) {
+      try {
+        const v = ok ? localStorage.getItem(k) : mem[k];
+        return v == null ? fallback : JSON.parse(v);
+      } catch { return fallback; }
+    },
+    set(k, v) {
+      try { if (ok) localStorage.setItem(k, JSON.stringify(v)); else mem[k] = JSON.stringify(v); }
+      catch { /* sin persistencia: seguimos en memoria */ }
+    },
+  };
+})();
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ---------- Audio sintetizado ----------
+class Sound {
+  constructor() {
+    this.ctx = null;
+    this.muted = store.get('faro.muted', false);
+    this.chargeOsc = null;
+    // La melodía de la racha: escala pentatónica ascendente
+    this.scale = [220, 246.9, 293.7, 329.6, 392, 440, 493.9, 587.3, 659.3, 784];
+  }
+  ensure() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) this.ctx = new AC();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      const p = this.ctx.resume();
+      if (p && p.catch) p.catch(() => { /* visores sin activación de usuario */ });
+    }
+  }
+  toggleMute() { this.muted = !this.muted; store.set('faro.muted', this.muted); }
+  #env(freq, type, dur, gain = 0.12, when = 0) {
+    if (!this.ctx || this.muted) return;
+    const t0 = this.ctx.currentTime + when;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(this.ctx.destination);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  press() { this.#env(160, 'triangle', 0.06, 0.05); }
+  save(chain, zone) {
+    const i = Math.min(chain - 1, this.scale.length - 1);
+    const f = this.scale[Math.max(0, i)];
+    this.#env(f, 'triangle', 0.28, 0.14);
+    if (zone >= 2) this.#env(f * 1.5, 'sine', 0.22, 0.07, 0.02);
+    if (zone === 3) this.#env(f * 2, 'sine', 0.3, 0.06, 0.04);
+  }
+  wave() { this.#env(523, 'sine', 0.4, 0.08); this.#env(659, 'sine', 0.5, 0.06, 0.12); }
+  comboLost() { this.#env(196, 'sine', 0.15, 0.04); }
+  over() {
+    this.#env(72, 'sine', 0.9, 0.22);
+    this.#env(55, 'sawtooth', 0.7, 0.08, 0.05);
+  }
+  record() { [440, 554, 659, 880].forEach((f, i) => this.#env(f, 'triangle', 0.3, 0.12, i * 0.09)); }
+  shield() { this.#env(392, 'triangle', 0.25, 0.11); this.#env(587, 'triangle', 0.3, 0.1, 0.09); }
+  shieldBreak() { this.#env(110, 'sawtooth', 0.35, 0.14); this.#env(70, 'sine', 0.5, 0.16, 0.02); }
+  zone() { this.#env(330, 'sine', 0.5, 0.07); this.#env(494, 'sine', 0.6, 0.05, 0.15); }
+  setCharging(on) {
+    if (!this.ctx || this.muted) { on = false; }
+    if (on && !this.chargeOsc && this.ctx) {
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(300, this.ctx.currentTime);
+      o.frequency.linearRampToValueAtTime(720, this.ctx.currentTime + CONFIG.beam.dwell);
+      g.gain.value = 0.045;
+      o.connect(g).connect(this.ctx.destination);
+      o.start();
+      this.chargeOsc = { o, g };
+    } else if (!on && this.chargeOsc) {
+      try { this.chargeOsc.g.gain.setValueAtTime(0, this.ctx.currentTime); this.chargeOsc.o.stop(); }
+      catch { /* ya parado */ }
+      this.chargeOsc = null;
+    }
+  }
+}
+
+// ---------- Estado de la app ----------
+const canvas = document.getElementById('game');
+const ctx2d = canvas.getContext('2d');
+const sound = new Sound();
+
+const records = {
+  best: store.get('faro.best', 0),
+  bestChain: store.get('faro.bestChain', 0),
+  daily: store.get('faro.daily', { date: today(), score: 0 }),
+};
+if (records.daily.date !== today()) records.daily = { date: today(), score: 0 };
+
+const session = { games: 0, restartAt: 0, restartLatencies: [] };
+
+const urlSeed = params.get('seed');
+function newSeed() {
+  if (urlSeed != null) return /^\d+$/.test(urlSeed) ? (Number(urlSeed) >>> 0) : hashSeed(urlSeed);
+  return (Math.random() * 4294967296) >>> 0;
+}
+
+let game = new Game(newSeed());
+let prevBest = records.best;
+let celebrated = false;
+
+// Entidades visuales (no afectan a las reglas)
+let particles = [];
+let popups = [];
+let savedShips = [];
+let stars = [];
+let shake = 0;
+let flash = 0;
+let culpritGhost = null;
+let waveMsg = null;
+let zoneBanner = null;
+let overSince = -1;
+let lastError = null;
+
+// Trampa global: en visores embebidos un error no debe romper el juego;
+// se muestra el mensaje en pantalla para poder diagnosticarlo.
+addEventListener('error', (e) => {
+  lastError = { text: String(e.message || e.error || 'error'), t: performance.now() };
+  if (window.__faro) window.__faro.lastError = lastError.text;
+  e.preventDefault();
+});
+addEventListener('unhandledrejection', (e) => {
+  lastError = { text: 'promesa: ' + String((e.reason && e.reason.message) || e.reason), t: performance.now() };
+  if (window.__faro) window.__faro.lastError = lastError.text;
+  e.preventDefault();
+});
+
+const debugState = { timescale: 1, invincible: false, hitboxes: DEBUG, fps: 0, frames: 0, fpsAt: 0, inputAt: 0, latency: 0 };
+
+function makeStars(seed) {
+  const r = mulberry32(seed ^ 0x5f3759df);
+  stars = Array.from({ length: 90 }, () => ({ x: r(), y: r() * 0.6, s: 0.5 + r() * 1.3, tw: r() * TAU }));
+}
+makeStars(game.seed);
+
+function resetVisuals() {
+  particles = []; popups = []; savedShips = [];
+  shake = 0; flash = 0; culpritGhost = null; waveMsg = null; zoneBanner = null;
+  celebrated = false; prevBest = records.best; overSince = -1;
+  makeStars(game.seed);
+}
+
+function restart() {
+  game = new Game(newSeed());
+  resetVisuals();
+  session.games++;
+  if (session.restartAt) {
+    const lat = (performance.now() - session.restartAt) / 1000;
+    session.restartLatencies.push(lat);
+    if (DEBUG) console.debug(`[FARO] reinicio en ${lat.toFixed(2)} s`);
+  }
+  game.down(); // la misma pulsación que reinicia ya arranca la partida
+}
+
+// ---------- Entrada ----------
+let pressed = false;
+
+function layout() {
+  const w = innerWidth, h = innerHeight;
+  return { w, h, cx: w / 2, cy: h / 2 + Math.min(w, h) * 0.02, R: Math.min(w, h) * 0.42 };
+}
+
+function muteRect() {
+  const { w } = layout();
+  return { x: w - 54, y: 10, s: 40 };
+}
+
+function onDown(e) {
+  sound.ensure();
+  debugState.inputAt = performance.now();
+  if (e && e.clientX != null) {
+    const m = muteRect();
+    if (e.clientX >= m.x && e.clientX <= m.x + m.s && e.clientY >= m.y && e.clientY <= m.y + m.s) {
+      sound.toggleMute();
+      return;
+    }
+  }
+  if (pressed) return;
+  pressed = true;
+  if (game.state === 'playing') sound.press();
+  game.down();
+}
+function onUp() {
+  if (!pressed) return;
+  pressed = false;
+  game.up();
+}
+
+addEventListener('pointerdown', onDown);
+addEventListener('pointerup', onUp);
+addEventListener('pointercancel', onUp);
+addEventListener('blur', onUp);
+addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); onDown(null); }
+  else if (e.key === 'm' || e.key === 'M') sound.toggleMute();
+  else if (DEBUG && e.key === '[') debugState.timescale = Math.max(0.1, debugState.timescale - 0.15);
+  else if (DEBUG && e.key === ']') debugState.timescale = Math.min(3, debugState.timescale + 0.15);
+  else if (DEBUG && (e.key === 'i' || e.key === 'I')) debugState.invincible = !debugState.invincible;
+  else if (DEBUG && (e.key === 'h' || e.key === 'H')) debugState.hitboxes = !debugState.hitboxes;
+});
+addEventListener('keyup', (e) => {
+  if (e.code === 'Space' || e.code === 'Enter') onUp();
+});
+
+// ---------- Eventos del núcleo → efectos ----------
+/** Rectángulo redondeado compatible (ctx.roundRect no existe en todos los visores). */
+function roundedRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/** Vibración háptica opcional; algunos visores embebidos la bloquean lanzando. */
+function vibrate(ms) {
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch { /* opcional */ }
+}
+
+function shipXY(s, L) {
+  return { x: L.cx + Math.cos(s.angle) * s.dist * L.R, y: L.cy + Math.sin(s.angle) * s.dist * L.R };
+}
+
+function burst(x, y, color, n, speed = 90) {
+  for (let i = 0; i < n && particles.length < 350; i++) {
+    const a = Math.random() * TAU, v = speed * (0.3 + Math.random());
+    particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.5 + Math.random() * 0.5, t: 0, color, size: 1.5 + Math.random() * 2.5 });
+  }
+}
+
+function handleEvents(L) {
+  for (const ev of game.events) {
+    if (ev.type === 'save') {
+      const p = shipXY(ev.ship, L);
+      const label = `+${ev.points}`;
+      const sub = ev.zone === 3 ? '¡AL LÍMITE!' : ev.zone === 2 ? '¡bien cerca!' : null;
+      popups.push({ x: p.x, y: p.y, text: label, sub, t: 0, color: ev.zone === 3 ? PAL.danger : PAL.amber });
+      burst(p.x, p.y, ev.zone === 3 ? PAL.danger : PAL.amber, ev.zone * 8);
+      savedShips.push({ ...ev.ship, t: 0 });
+      sound.save(ev.chain, ev.zone);
+      vibrate(10);
+      if (!celebrated && prevBest > 0 && game.score > prevBest) {
+        celebrated = true;
+        popups.push({ x: L.cx, y: L.cy - L.R * 0.6, text: '¡NUEVO RÉCORD!', sub: null, t: 0, color: PAL.beamCore, big: true });
+        burst(L.cx, L.cy - L.R * 0.5, PAL.beamCore, 40, 140);
+        sound.record();
+      }
+    } else if (ev.type === 'shield') {
+      popups.push({ x: L.cx, y: L.cy - L.R * 0.35, text: '+ESCUDO ♥', sub: 'un choque perdonado', t: 0, color: PAL.beamCore });
+      burst(L.cx, L.cy, PAL.beamCore, 18, 110);
+      sound.shield();
+    } else if (ev.type === 'shield_break') {
+      const p = shipXY(ev.ship, L);
+      popups.push({ x: p.x, y: p.y, text: '♥ ESCUDO PERDIDO', sub: null, t: 0, color: PAL.danger });
+      burst(p.x, p.y, PAL.danger, 30, 130);
+      shake = 0.8; flash = 0.6;
+      sound.shieldBreak();
+      vibrate(40);
+    } else if (ev.type === 'zone') {
+      zoneBanner = { text: `ZONA ${ev.index + 1} · ${THEMES[ev.index % THEMES.length].name}`, t: 0 };
+      sound.zone();
+    } else if (ev.type === 'wave') {
+      waveMsg = { n: ev.n, t: 0 };
+      sound.wave();
+    } else if (ev.type === 'combo_lost') {
+      sound.comboLost();
+    } else if (ev.type === 'over') {
+      const p = shipXY(ev.culprit, L);
+      culpritGhost = { ...ev.culprit, t: 0 };
+      burst(p.x, p.y, PAL.danger, 26, 120);
+      shake = 1; flash = 1;
+      overSince = performance.now();
+      session.restartAt = performance.now();
+      sound.setCharging(false);
+      sound.over();
+      vibrate(80);
+      // Registro local de la causa (analítica de calidad, solo en consola)
+      console.debug('[FARO] derrota', ev.cause);
+      records.best = Math.max(records.best, game.score);
+      records.bestChain = Math.max(records.bestChain, game.bestChain);
+      records.daily.score = Math.max(records.daily.score, game.score);
+      store.set('faro.best', records.best);
+      store.set('faro.bestChain', records.bestChain);
+      store.set('faro.daily', records.daily);
+    } else if (ev.type === 'restart') {
+      restart();
+    }
+  }
+  game.events.length = 0;
+}
+
+// ---------- Render ----------
+function draw(L, dt) {
+  const { w, h, cx, cy, R } = L;
+  const g = ctx2d;
+
+  // Sacudida
+  let ox = 0, oy = 0;
+  if (shake > 0) {
+    shake = Math.max(0, shake - dt * 2.2);
+    ox = (Math.random() - 0.5) * 10 * shake;
+    oy = (Math.random() - 0.5) * 10 * shake;
+  }
+  g.save();
+  g.translate(ox, oy);
+
+  // Cielo (según el escenario de la zona actual)
+  const theme = themeNow();
+  const sky = g.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, theme.skyTop);
+  sky.addColorStop(1, theme.skyBottom);
+  g.fillStyle = sky;
+  g.fillRect(-20, -20, w + 40, h + 40);
+
+  // Detalles del escenario
+  const nowS = performance.now() / 1000;
+  if (theme.aurora) {
+    const ag = g.createLinearGradient(0, 0, 0, h * 0.4);
+    ag.addColorStop(0, 'rgba(80,230,170,0.16)');
+    ag.addColorStop(1, 'rgba(80,230,170,0)');
+    g.fillStyle = ag;
+    g.beginPath();
+    g.moveTo(0, h * 0.05);
+    for (let x = 0; x <= w; x += 24) {
+      g.lineTo(x, h * (0.10 + 0.05 * Math.sin(x / 90 + nowS * 0.6)));
+    }
+    g.lineTo(w, h * 0.4); g.lineTo(0, h * 0.4);
+    g.closePath(); g.fill();
+  }
+  if (theme.storm && Math.random() < 0.006) {
+    g.fillStyle = 'rgba(200,210,255,0.10)';
+    g.fillRect(-20, -20, w + 40, h + 40);
+  }
+
+  // Estrellas (titilan)
+  const now = performance.now() / 1000;
+  for (const s of stars) {
+    const a = 0.35 + 0.3 * Math.sin(now * 1.5 + s.tw);
+    g.globalAlpha = a;
+    g.fillStyle = PAL.foam;
+    g.fillRect(s.x * w, s.y * h, s.s, s.s);
+  }
+  g.globalAlpha = 1;
+
+  // Luna
+  g.fillStyle = '#dfe9f2';
+  g.beginPath(); g.arc(w * 0.82, h * 0.14, 26, 0, TAU); g.fill();
+  g.fillStyle = PAL.skyTop; g.globalAlpha = 0.85;
+  g.beginPath(); g.arc(w * 0.82 - 10, h * 0.14 - 4, 22, 0, TAU); g.fill();
+  g.globalAlpha = 1;
+
+  // Mar (área de juego)
+  g.fillStyle = theme.sea;
+  g.beginPath(); g.arc(cx, cy, R + 6, 0, TAU); g.fill();
+
+  // Anillos de zona (sutiles)
+  g.lineWidth = 1;
+  g.strokeStyle = 'rgba(191,227,242,0.10)';
+  g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneMid, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(255,89,100,0.18)';
+  g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneClose, 0, TAU); g.stroke();
+
+  // Haz de luz
+  const beamA = game.state === 'ready' ? now * 0.8 : game.beamAngle;
+  const holding = game.holding;
+  const half = CONFIG.beam.halfWidth * (holding ? 0.92 : 1);
+  const glow = holding ? 0.4 : 0.22;
+  const grad = g.createRadialGradient(cx, cy, R * 0.05, cx, cy, R);
+  grad.addColorStop(0, `rgba(${PAL.beam}, ${glow + 0.25})`);
+  grad.addColorStop(1, `rgba(${PAL.beam}, 0)`);
+  g.fillStyle = grad;
+  g.beginPath();
+  g.moveTo(cx, cy);
+  g.arc(cx, cy, R, beamA - half, beamA + half);
+  g.closePath();
+  g.fill();
+  // Línea central del haz
+  g.strokeStyle = `rgba(${PAL.beam}, ${holding ? 0.6 : 0.3})`;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(cx + Math.cos(beamA) * R * 0.12, cy + Math.sin(beamA) * R * 0.12);
+  g.lineTo(cx + Math.cos(beamA) * R, cy + Math.sin(beamA) * R);
+  g.stroke();
+
+  // Isla y faro
+  g.fillStyle = PAL.rockDark;
+  g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius, 0, TAU); g.fill();
+  g.fillStyle = PAL.rock;
+  g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius * 0.75, 0, TAU); g.fill();
+  const lh = R * 0.085; // alto del faro
+  const squash = holding ? 0.92 : 1;
+  g.save();
+  g.translate(cx, cy);
+  g.scale(1, squash);
+  for (let i = 0; i < 3; i++) {
+    g.fillStyle = i % 2 === 0 ? '#e8edf2' : PAL.danger;
+    const y0 = -lh + (i * lh * 2) / 3;
+    const wTop = lh * 0.55 * (0.75 + 0.25 * (i / 3));
+    g.fillRect(-wTop / 2, y0, wTop, (lh * 2) / 3 + 0.5);
+  }
+  g.fillStyle = PAL.beamCore;
+  g.beginPath(); g.arc(0, -lh, lh * 0.32, 0, TAU); g.fill();
+  g.restore();
+
+  // Barcos salvados (se alejan y desvanecen)
+  for (let i = savedShips.length - 1; i >= 0; i--) {
+    const s = savedShips[i];
+    s.t += dt;
+    s.dist += dt * 0.35;
+    if (s.t > 1.2 || s.dist > 1.15) { savedShips.splice(i, 1); continue; }
+    drawShip(g, s, L, Math.max(0, 1 - s.t / 1.2), true);
+  }
+
+  // Barcos activos
+  for (const s of game.ships) {
+    if (s.dist > 1.04) continue;
+    drawShip(g, s, L, 1, false);
+  }
+
+  // Barco culpable resaltado
+  if (culpritGhost) {
+    culpritGhost.t += dt;
+    if (culpritGhost.t < 1.4) {
+      const p = shipXY(culpritGhost, L);
+      const pulse = 0.5 + 0.5 * Math.sin(culpritGhost.t * 18);
+      g.strokeStyle = `rgba(255,89,100,${0.4 + 0.5 * pulse})`;
+      g.lineWidth = 3;
+      g.beginPath(); g.arc(p.x, p.y, 16 + 5 * pulse, 0, TAU); g.stroke();
+    }
+  }
+
+  // Partículas
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.t += dt;
+    if (p.t > p.life) { particles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.96; p.vy *= 0.96;
+    g.globalAlpha = 1 - p.t / p.life;
+    g.fillStyle = p.color;
+    g.fillRect(p.x, p.y, p.size, p.size);
+  }
+  g.globalAlpha = 1;
+
+  // Popups de puntos
+  g.textAlign = 'center';
+  for (let i = popups.length - 1; i >= 0; i--) {
+    const p = popups[i];
+    p.t += dt;
+    if (p.t > 1.1) { popups.splice(i, 1); continue; }
+    const a = Math.max(0, 1 - p.t / 1.1);
+    g.globalAlpha = a;
+    g.fillStyle = p.color;
+    g.font = `${p.big ? 'bold 30px' : 'bold 20px'} system-ui, sans-serif`;
+    g.fillText(p.text, p.x, p.y - 14 - p.t * 30);
+    if (p.sub) {
+      g.font = 'bold 13px system-ui, sans-serif';
+      g.fillText(p.sub, p.x, p.y + 4 - p.t * 30);
+    }
+  }
+  g.globalAlpha = 1;
+
+  // Mensaje de ola
+  if (waveMsg) {
+    waveMsg.t += dt;
+    if (waveMsg.t > 2) waveMsg = null;
+    else {
+      g.globalAlpha = Math.min(1, 2 - waveMsg.t);
+      g.fillStyle = PAL.foam;
+      g.font = 'bold 16px system-ui, sans-serif';
+      g.fillText(`OLA ${waveMsg.n} SUPERADA`, cx, cy - R - 14);
+      g.globalAlpha = 1;
+    }
+  }
+
+  // Banner de cambio de zona
+  if (zoneBanner) {
+    zoneBanner.t += dt;
+    if (zoneBanner.t > 2.6) zoneBanner = null;
+    else {
+      const a = Math.min(1, zoneBanner.t * 3) * Math.min(1, (2.6 - zoneBanner.t));
+      g.globalAlpha = a;
+      g.textAlign = 'center';
+      g.fillStyle = PAL.beamCore;
+      g.font = 'bold 22px system-ui, sans-serif';
+      g.fillText(zoneBanner.text, cx, cy - R - 40);
+      g.globalAlpha = 1;
+    }
+  }
+
+  drawHUD(g, L);
+
+  if (game.state === 'ready') drawReady(g, L, now);
+  if (game.state === 'over') drawOver(g, L);
+
+  // Flash de derrota
+  if (flash > 0) {
+    flash = Math.max(0, flash - dt * 3);
+    g.fillStyle = `rgba(255,89,100,${flash * 0.25})`;
+    g.fillRect(-20, -20, w + 40, h + 40);
+  }
+
+  // Aviso de error atrapado (diagnóstico; desaparece a los 12 s)
+  if (lastError && performance.now() - lastError.t < 12000) {
+    g.textAlign = 'left';
+    g.fillStyle = PAL.danger;
+    g.font = '11px monospace';
+    g.fillText(('⚠ ' + lastError.text).slice(0, 90), 8, h - 8);
+  }
+
+  if (DEBUG) drawDebug(g, L);
+  g.restore();
+}
+
+function drawShip(g, s, L, alpha, saved) {
+  const p = shipXY(s, L);
+  const toCenter = Math.atan2(L.cy - p.y, L.cx - p.x);
+  const heading = saved ? toCenter + Math.PI : toCenter;
+  const size = 11 + (s.type === 'corsair' ? 0 : 2);
+  const lit = game.holding && game.state === 'playing' &&
+    s.dist <= CONFIG.beam.range &&
+    angDist(game.beamAngle, s.angle) <= CONFIG.beam.halfWidth + 0.06;
+  g.save();
+  g.translate(p.x, p.y);
+  g.rotate(heading);
+  g.globalAlpha = alpha;
+  // Estela
+  g.fillStyle = 'rgba(191,227,242,0.25)';
+  g.fillRect(-size - 8, -1, 6, 2);
+  // Casco
+  g.fillStyle = s.type === 'corsair' ? '#c8b7ff'
+    : s.type === 'guardian' ? '#fff3d6'
+    : (lit ? '#ffe9c2' : '#dce8f2');
+  g.beginPath();
+  g.moveTo(size, 0);
+  g.lineTo(-size * 0.7, size * 0.55);
+  g.lineTo(-size * 0.7, -size * 0.55);
+  g.closePath();
+  g.fill();
+  // Vela
+  g.fillStyle = s.type === 'corsair' ? '#8f7bd8'
+    : s.type === 'guardian' ? PAL.amber
+    : '#9fb8cc';
+  g.beginPath();
+  g.moveTo(size * 0.1, 0);
+  g.lineTo(-size * 0.35, -size * 0.9);
+  g.lineTo(-size * 0.35, 0);
+  g.closePath();
+  g.fill();
+  // Farolillo
+  g.fillStyle = PAL.amber;
+  g.beginPath(); g.arc(size * 0.4, 0, 2.2, 0, TAU); g.fill();
+  g.restore();
+  g.globalAlpha = 1;
+
+  // Corazón flotante del guardián (se ve de un vistazo qué barco da escudo)
+  if (s.type === 'guardian' && !saved) {
+    const bob = Math.sin(performance.now() / 250) * 2;
+    g.globalAlpha = alpha;
+    g.fillStyle = PAL.beamCore;
+    g.font = 'bold 13px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.fillText('♥', p.x, p.y - 18 + bob);
+    g.globalAlpha = 1;
+  }
+
+  // Anillo de carga
+  if (s.charge > 0) {
+    const frac = Math.min(1, s.charge / CONFIG.beam.dwell);
+    g.strokeStyle = PAL.beamCore;
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(p.x, p.y, 16, -Math.PI / 2, -Math.PI / 2 + frac * TAU);
+    g.stroke();
+  }
+  // Aviso de peligro cerca de las rocas
+  if (!saved && s.dist < CONFIG.score.zoneClose && game.state === 'playing') {
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 90);
+    g.strokeStyle = `rgba(255,89,100,${0.25 + 0.35 * pulse})`;
+    g.lineWidth = 1.5;
+    g.beginPath(); g.arc(p.x, p.y, 14, 0, TAU); g.stroke();
+  }
+}
+
+function drawHUD(g, L) {
+  const { w, cx } = L;
+  g.textAlign = 'center';
+  // Puntuación (solo cuando hay partida)
+  if (game.state !== 'ready') {
+    g.fillStyle = PAL.text;
+    g.font = 'bold 34px system-ui, sans-serif';
+    g.fillText(String(game.score), cx, 46);
+  }
+  // Combo
+  if (game.chain >= 2 && game.state === 'playing') {
+    g.fillStyle = PAL.amber;
+    g.font = 'bold 15px system-ui, sans-serif';
+    const m = Math.min(CONFIG.score.comboMax, 1 + Math.floor(game.chain / CONFIG.score.comboStep));
+    g.fillText(`racha ${game.chain} · ×${m}`, cx, 66);
+  }
+  // Escudos
+  if (game.shields > 0 && game.state !== 'ready') {
+    g.fillStyle = PAL.beamCore;
+    g.font = '16px system-ui, sans-serif';
+    g.fillText('♥'.repeat(game.shields), cx, game.chain >= 2 ? 86 : 66);
+  }
+  // Barra de récord
+  if (records.best > 0) {
+    const frac = Math.min(1, game.score / records.best);
+    g.fillStyle = 'rgba(255,255,255,0.10)';
+    g.fillRect(0, 0, w, 4);
+    g.fillStyle = frac >= 1 ? PAL.beamCore : PAL.amber;
+    g.fillRect(0, 0, w * frac, 4);
+    g.textAlign = 'left';
+    g.fillStyle = PAL.dim;
+    g.font = '12px system-ui, sans-serif';
+    g.fillText(`RÉCORD ${records.best} · HOY ${records.daily.score}`, 12, 22);
+  }
+  // Botón de silencio
+  const m = muteRect();
+  g.textAlign = 'center';
+  g.font = '20px system-ui, sans-serif';
+  g.globalAlpha = 0.75;
+  g.fillText(sound.muted ? '🔇' : '🔊', m.x + m.s / 2, m.y + m.s / 2 + 7);
+  g.globalAlpha = 1;
+}
+
+function drawReady(g, L, now) {
+  const { cx, cy, R } = L;
+  g.textAlign = 'center';
+  g.fillStyle = PAL.text;
+  g.font = `bold ${Math.round(R * 0.28)}px Georgia, serif`;
+  g.fillText('FARO', cx, cy - R * 0.62);
+  g.fillStyle = PAL.dim;
+  g.font = '16px system-ui, sans-serif';
+  g.fillText('Mantén pulsado para detener la luz e iluminar los barcos', cx, cy - R * 0.44);
+  g.fillText('No dejes que ninguno llegue a las rocas', cx, cy - R * 0.32);
+  const a = 0.55 + 0.45 * Math.sin(now * 3.5);
+  g.globalAlpha = a;
+  g.fillStyle = PAL.amber;
+  g.font = 'bold 18px system-ui, sans-serif';
+  g.fillText('toca para empezar', cx, cy + R * 0.7);
+  g.globalAlpha = 1;
+}
+
+function drawOver(g, L) {
+  const { w, h, cx, cy } = L;
+  g.fillStyle = 'rgba(7,15,29,0.72)';
+  g.fillRect(-20, -20, w + 40, h + 40);
+  g.textAlign = 'center';
+
+  const isRecord = game.score >= records.best && game.score > 0;
+  g.fillStyle = isRecord ? PAL.beamCore : PAL.text;
+  g.font = 'bold 26px system-ui, sans-serif';
+  g.fillText(isRecord ? '¡NUEVO RÉCORD!' : 'NAUFRAGIO', cx, cy - 96);
+
+  g.fillStyle = PAL.text;
+  g.font = 'bold 56px system-ui, sans-serif';
+  g.fillText(String(game.score), cx, cy - 36);
+
+  g.fillStyle = PAL.dim;
+  g.font = '16px system-ui, sans-serif';
+  if (!isRecord && records.best > 0) {
+    const gap = records.best - game.score;
+    g.fillText(`Récord: ${records.best} — te faltaron ${gap}`, cx, cy - 6);
+  } else if (isRecord && prevBest > 0) {
+    g.fillText(`Récord anterior: ${prevBest}`, cx, cy - 6);
+  }
+  g.fillText(`mejor racha ${game.bestChain} · rescates ${game.saves}`, cx, cy + 18);
+
+  // Botón grande OTRA VEZ (toda la pantalla acepta la pulsación)
+  const ready = performance.now() - overSince >= CONFIG.restart.lockout * 1000;
+  const bw = 220, bh = 58;
+  g.fillStyle = ready ? PAL.amber : 'rgba(255,196,107,0.35)';
+  roundedRect(g, cx - bw / 2, cy + 44, bw, bh, 14);
+  g.fill();
+  g.fillStyle = '#1a1206';
+  g.font = 'bold 24px system-ui, sans-serif';
+  g.fillText('OTRA VEZ', cx, cy + 44 + bh / 2 + 8);
+
+  g.fillStyle = PAL.dim;
+  g.font = '12px system-ui, sans-serif';
+  g.fillText(`semilla ${game.seed} · partidas hoy ${session.games + 1}`, cx, h - 16);
+}
+
+function drawDebug(g, L) {
+  const gme = game;
+  g.textAlign = 'left';
+  g.fillStyle = '#9fe8a0';
+  g.font = '12px monospace';
+  const lines = [
+    `fps ${debugState.fps.toFixed(0)}  ts ×${debugState.timescale.toFixed(2)}${debugState.invincible ? '  INVENCIBLE' : ''}`,
+    `D ${gme.difficulty.toFixed(3)}  barcos ${gme.ships.length}  t ${gme.time.toFixed(1)}s`,
+    `semilla ${gme.seed}  presses ${gme.presses}  lat.entrada ${debugState.latency.toFixed(1)}ms`,
+    `[ ] velocidad · I invencible · H hitboxes`,
+  ];
+  lines.forEach((l, i) => g.fillText(l, 10, L.h - 64 + i * 15));
+  if (debugState.hitboxes) {
+    g.strokeStyle = 'rgba(159,232,160,0.5)';
+    g.lineWidth = 1;
+    for (const s of gme.ships) {
+      const p = shipXY(s, L);
+      g.beginPath(); g.arc(p.x, p.y, CONFIG.ship.radius * L.R, 0, TAU); g.stroke();
+    }
+    const a = gme.beamAngle, hw = CONFIG.beam.halfWidth;
+    g.beginPath();
+    g.moveTo(L.cx, L.cy);
+    g.lineTo(L.cx + Math.cos(a - hw) * L.R, L.cy + Math.sin(a - hw) * L.R);
+    g.moveTo(L.cx, L.cy);
+    g.lineTo(L.cx + Math.cos(a + hw) * L.R, L.cy + Math.sin(a + hw) * L.R);
+    g.stroke();
+  }
+}
+
+// ---------- Bucle principal ----------
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = innerWidth * dpr;
+  canvas.height = innerHeight * dpr;
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+  ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+resize();
+
+let lastT = performance.now();
+function frame(t) {
+  let dt = Math.min(0.05, (t - lastT) / 1000) * debugState.timescale;
+  lastT = t;
+
+  if (debugState.inputAt) {
+    debugState.latency = performance.now() - debugState.inputAt;
+    debugState.inputAt = 0;
+  }
+  debugState.frames++;
+  if (t - debugState.fpsAt > 500) {
+    debugState.fps = (debugState.frames * 1000) / (t - debugState.fpsAt);
+    debugState.frames = 0; debugState.fpsAt = t;
+  }
+
+  if (debugState.invincible && game.state === 'playing') {
+    game.ships = game.ships.filter((s) => s.dist > CONFIG.island.radius + 0.01);
+  }
+
+  const L = layout();
+  game.update(dt);
+  handleEvents(L);
+  sound.setCharging(game.state === 'playing' && game.holding && game.ships.some((s) => s.charge > 0));
+  draw(L, dt);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Gancho para pruebas automatizadas y depuración (no afecta al juego normal).
+window.__faro = {
+  get game() { return game; },
+  get records() { return records; },
+  get session() { return session; },
+  debugState,
+  GreedyBot,
+  lastError: null,
+};
+
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {/* sin SW seguimos jugando */});
+  });
+}
+</script>
+</body>
+</html>
