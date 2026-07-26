@@ -1,0 +1,1 @@
+[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "android_app", "package_name": "io.github.jmanuelgonzalezlagar4_crypto.faro", "sha256_cert_fingerprints": ["0A:88:A7:3C:62:A0:CA:33:42:F2:BC:CF:EF:B1:E0:9C:3D:9E:94:84:69:45:1B:11:F5:E0:48:8D:0B:70:AF:AD"] } }]
