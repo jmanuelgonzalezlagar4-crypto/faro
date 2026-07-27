@@ -1864,6 +1864,175 @@ function vibrate(ms) {
   try { if (navigator.vibrate) navigator.vibrate(ms); } catch { /* opcional */ }
 }
 
+// ---------- Motor WebGL: agua y cielo con iluminación por píxel ----------
+// Shader propio (sin librerías): reconstruye EXACTAMENTE la cámara del juego
+// en la GPU, así el agua iluminada coincide con la geometría de la jugabilidad.
+// Si WebGL falla (visores, equipos antiguos), el juego usa el mar 2D de siempre.
+const GL = (() => {
+  try {
+    const cv = document.createElement('canvas');
+    cv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;display:block;pointer-events:none;';
+    const gameCv = document.getElementById('game');
+    gameCv.style.position = 'relative';
+    gameCv.style.zIndex = '1';
+    document.body.insertBefore(cv, gameCv);
+    const gl = cv.getContext('webgl', { antialias: false, alpha: false, depth: false, powerPreference: 'high-performance' });
+    if (!gl) { cv.remove(); return null; }
+
+    const VS = 'attribute vec2 aP;void main(){gl_Position=vec4(aP,0.,1.);}';
+    const FS = `precision highp float;
+uniform vec2 uRes;
+uniform float uTime,uCamY,uCamZ,uCp,uSp,uF,uAx,uAy,uHor;
+uniform vec3 uSkyTop,uSkyHor,uSea,uSeaLit,uMoonCol,uBeamCol;
+uniform vec2 uMoon;
+uniform float uMoonR,uBeamA,uBeamHalf,uBeamGlow,uDanger,uOct,uStarSeed;
+
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+
+float wH(vec2 p,float t){
+  float h=sin(p.x*1.1+p.y*1.4+t*0.55)*0.035
+        +sin(p.x*0.5-t*0.35+p.y)*0.025;
+  if(uOct>2.5){
+    h+=sin(p.x*2.3-p.y*1.7+t*0.9)*0.012
+      +sin((p.x+p.y)*3.7+t*1.4)*0.007;
+  }
+  return h;
+}
+
+void main(){
+  float x=gl_FragCoord.x;
+  float yTop=uRes.y-gl_FragCoord.y;
+  float kk=(uAy-yTop)/uF;
+  float denom=kk*uCp+uSp;
+  float dz=uCamY*(kk*uSp-uCp)/denom;
+  float z1=-uCamY*uSp+dz*uCp;
+  vec3 col;
+  if(abs(denom)<1e-5||z1<=0.05){
+    // CIELO: gradiente + estrellas titilantes + luna con halo + peligro rojo
+    float tt=clamp(yTop/max(uHor,1.0),0.,1.);
+    col=mix(uSkyTop,uSkyHor,tt);
+    vec2 cell=floor(gl_FragCoord.xy/3.0);
+    float st=hash(cell+uStarSeed);
+    if(st>0.997&&tt<0.92){
+      float tw=0.5+0.5*sin(uTime*2.0+st*40.0);
+      col+=vec3(0.85,0.9,0.95)*tw*0.8*smoothstep(0.997,1.0,st)*8.0*(1.0-tt);
+    }
+    float md=distance(vec2(x,yTop),uMoon);
+    col+=uMoonCol*0.55*exp(-md*md/(uMoonR*uMoonR*14.0));
+    if(md<uMoonR){
+      col=uMoonCol*(0.92-0.25*smoothstep(uMoonR*0.2,uMoonR,md)
+        *hash(floor(vec2(x,yTop)/4.0))*0.4);
+    }
+    col=mix(col,vec3(0.36,0.07,0.12),uDanger*(1.0-tt)*0.75);
+  }else{
+    // AGUA: intersección exacta con el plano del mar de la jugabilidad
+    float wx=(x-uAx)*z1/uF;
+    float wz=dz+uCamZ;
+    vec2 P=vec2(wx,wz);
+    float e=0.05;
+    float h0=wH(P,uTime);
+    float nx=(wH(P+vec2(e,0.),uTime)-h0)/e;
+    float nz=(wH(P+vec2(0.,e),uTime)-h0)/e;
+    vec3 N=normalize(vec3(-nx,1.0,-nz));
+    vec3 Wp=vec3(wx,h0,wz);
+    vec3 camP=vec3(0.,uCamY,uCamZ);
+    vec3 V=normalize(camP-Wp);
+    // Luz lunar direccional (arriba-derecha, hacia la cámara)
+    vec3 L=normalize(vec3(0.55,0.75,-0.35));
+    float dif=max(dot(N,L),0.);
+    vec3 Hh=normalize(L+V);
+    float spec=pow(max(dot(N,Hh),0.),120.0);
+    col=mix(uSea,uSeaLit,dif*0.55)+uMoonCol*spec*0.7;
+    // HAZ DEL FARO: mismo ángulo y anchura que la jugabilidad
+    float ang=atan(wz,wx);
+    float ad=abs(atan(sin(ang-uBeamA),cos(ang-uBeamA)));
+    float d2=length(P);
+    if(ad<uBeamHalf*1.15&&d2<1.12){
+      float k2=(1.0-smoothstep(uBeamHalf*0.7,uBeamHalf*1.15,ad))*(1.0-d2*0.82)*uBeamGlow;
+      col+=uBeamCol*k2*(0.55+0.45*dif);
+      // La cresta dentro del haz brilla más (luz rasante)
+      col+=uBeamCol*spec*k2*2.0;
+    }
+    // Niebla por distancia hacia el color del horizonte
+    float fog=1.0-exp(-max(wz+1.7,0.)*0.34);
+    col=mix(col,uSkyHor,clamp(fog,0.,0.92));
+    // Reflejo rojizo del cielo en peligro + oscurecer muy cerca de cámara
+    col=mix(col,col*vec3(1.35,0.62,0.62),uDanger*0.28);
+    col*=1.0-0.25*exp(-max(wz+2.3,0.)*2.0);
+  }
+  gl_FragColor=vec4(col,1.0);
+}`;
+    const mk = (type, src) => {
+      const sh = gl.createShader(type);
+      gl.shaderSource(sh, src); gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+      return sh;
+    };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, mk(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, mk(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const aP = gl.getAttribLocation(prog, 'aP');
+    gl.enableVertexAttribArray(aP);
+    gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+    const U = {};
+    for (const n of ['uRes', 'uTime', 'uCamY', 'uCamZ', 'uCp', 'uSp', 'uF', 'uAx', 'uAy', 'uHor',
+      'uSkyTop', 'uSkyHor', 'uSea', 'uSeaLit', 'uMoonCol', 'uBeamCol', 'uMoon', 'uMoonR',
+      'uBeamA', 'uBeamHalf', 'uBeamGlow', 'uDanger', 'uOct', 'uStarSeed']) {
+      U[n] = gl.getUniformLocation(prog, n);
+    }
+    const c3 = (loc, hex) => { const c = hexRGB(hex); gl.uniform3f(loc, c[0] / 255, c[1] / 255, c[2] / 255); };
+    let scale = 1;
+    const api = {
+      cv, on: false,
+      resize() {
+        scale = Math.min(prefs.lowFx ? 1 : 1.5, window.devicePixelRatio || 1);
+        cv.width = Math.max(2, Math.round(innerWidth * scale));
+        cv.height = Math.max(2, Math.round(innerHeight * scale));
+        gl.viewport(0, 0, cv.width, cv.height);
+      },
+      render(cam, theme, p) {
+        try {
+          gl.uniform2f(U.uRes, cv.width, cv.height);
+          gl.uniform1f(U.uTime, p.time);
+          gl.uniform1f(U.uCamY, cam.y);
+          gl.uniform1f(U.uCamZ, cam.z);
+          gl.uniform1f(U.uCp, cam.cp);
+          gl.uniform1f(U.uSp, cam.sp);
+          gl.uniform1f(U.uF, cam.f * scale);
+          gl.uniform1f(U.uAx, cam.ax * scale);
+          gl.uniform1f(U.uAy, cam.ay * scale);
+          gl.uniform1f(U.uHor, Math.max(1, cam.horizon) * scale);
+          c3(U.uSkyTop, theme.skyTop);
+          c3(U.uSkyHor, theme.skyBottom);
+          c3(U.uSea, theme.sea);
+          const seaL = mix3(hexRGB(theme.sea), [128, 168, 200], 0.55);
+          gl.uniform3f(U.uSeaLit, seaL[0] / 255, seaL[1] / 255, seaL[2] / 255);
+          gl.uniform3f(U.uMoonCol, p.moonCol[0], p.moonCol[1], p.moonCol[2]);
+          gl.uniform2f(U.uMoon, p.moonX * scale, p.moonY * scale);
+          gl.uniform1f(U.uMoonR, 20 * scale);
+          gl.uniform3f(U.uBeamCol, p.beamCol[0], p.beamCol[1], p.beamCol[2]);
+          gl.uniform1f(U.uBeamA, p.beamA);
+          gl.uniform1f(U.uBeamHalf, p.beamHalf);
+          gl.uniform1f(U.uBeamGlow, p.beamGlow);
+          gl.uniform1f(U.uDanger, p.danger);
+          gl.uniform1f(U.uOct, prefs.lowFx ? 2 : 4);
+          gl.uniform1f(U.uStarSeed, p.starSeed);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+          api.on = true;
+        } catch { api.on = false; }
+      },
+    };
+    api.resize();
+    return api;
+  } catch { return null; }
+})();
+
 // ---------- Cámara del juego: PERSPECTIVA REAL (lo lejano, pequeño) ----------
 // La cámara está detrás y por encima del borde cercano del mar, inclinada
 // hacia el faro. Todo el campo de juego se proyecta con perspectiva de verdad:
@@ -2603,17 +2772,24 @@ function draw(L, dt) {
   g.save();
   g.translate(ox, oy);
 
-  // Cielo (según el escenario de la zona actual)
+  // ¿Está el motor WebGL pintando agua y cielo por píxel debajo?
+  const glOn = !!(GL && GL.on);
   const theme = themeNow();
+  const dNow = game.state === 'playing' ? game.difficulty : 0;
+  if (glOn) {
+    // La GPU ya pintó cielo+agua: el lienzo 2D queda transparente encima
+    g.clearRect(-30, -30, w + 60, h + 60);
+  } else {
+  // Cielo (según el escenario de la zona actual)
   const sky = g.createLinearGradient(0, 0, 0, h);
   sky.addColorStop(0, theme.skyTop);
   sky.addColorStop(1, theme.skyBottom);
   g.fillStyle = sky;
   g.fillRect(-20, -20, w + 40, h + 40);
+  }
 
-  // El cielo se ENCIENDE con el peligro: a partir de D 0,5 vira a rojo ascua
-  const dNow = game.state === 'playing' ? game.difficulty : 0;
-  if (dNow > 0.5) {
+  // El cielo se ENCIENDE con el peligro (en WebGL lo hace el shader)
+  if (!glOn && dNow > 0.5) {
     const heat = Math.min(1, (dNow - 0.5) / 0.5);
     const hg = g.createLinearGradient(0, 0, 0, h);
     hg.addColorStop(0, `rgba(140,30,45,${0.22 * heat})`);
@@ -2644,9 +2820,9 @@ function draw(L, dt) {
     g.fillRect(-20, -20, w + 40, h + 40);
   }
 
-  // Estrellas (titilan)
+  // Estrellas (titilan) — con WebGL las pinta el shader
   const now = performance.now() / 1000;
-  for (const s of stars) {
+  if (!glOn) for (const s of stars) {
     const a = 0.35 + 0.3 * Math.sin(now * 1.5 + s.tw);
     g.globalAlpha = a;
     g.fillStyle = PAL.foam;
@@ -2657,7 +2833,9 @@ function draw(L, dt) {
   // Luna (llena si está comprada; DE SANGRE cuando la dificultad aprieta)
   const moonColor = bloodMoon ? '#f0b3a6' : '#dfe9f2';
   const moonGlow = bloodMoon ? '224,120,100' : '223,233,242';
-  if (prefs.fxOn.lunallena) {
+  if (!prefs.fxOn.lunallena && glOn) {
+    // la luna base la pinta el shader
+  } else if (prefs.fxOn.lunallena) {
     const mg = g.createRadialGradient(w * 0.82, h * 0.14, 10, w * 0.82, h * 0.14, 70);
     mg.addColorStop(0, `rgba(${moonGlow},${bloodMoon ? 0.45 : 0.35})`);
     mg.addColorStop(1, `rgba(${moonGlow},0)`);
@@ -2708,7 +2886,8 @@ function draw(L, dt) {
     // Costa de la región (siluetas en dos capas sobre el horizonte)
     drawCoast(g, w, h, hor, theme);
 
-    // Océano: gradiente desde el horizonte (niebla) hasta el borde inferior
+    // Océano 2D (solo si no hay WebGL)
+    if (!glOn) {
     const og = g.createLinearGradient(0, hor, 0, h);
     og.addColorStop(0, rgb3(mix3(seaRGB, fogRGB, 0.75)));
     og.addColorStop(0.22, rgb3(mix3(seaRGB, fogRGB, 0.35)));
@@ -2767,6 +2946,8 @@ function draw(L, dt) {
         g.ellipse(mgx + Math.sin(i2 * 2.1) * 6 * kk2, yy2, ww2, 1.6 + 2.4 * kk2, 0, 0, TAU);
         g.fill();
       }
+    }
+
     }
 
     // Borde del campo de juego, apenas insinuado (aquí nacen los barcos)
@@ -3972,8 +4153,9 @@ function resize() {
   canvas.style.height = innerHeight + 'px';
   ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-addEventListener('resize', resize);
+addEventListener('resize', () => { resize(); if (GL) GL.resize(); });
 resize();
+if (GL) GL.resize();
 
 let lastT = performance.now();
 function frame(t) {
@@ -4001,6 +4183,41 @@ function frame(t) {
   }
 
   const L = layout();
+
+  // Motor WebGL: agua y cielo con iluminación por píxel (fuera de la intro).
+  // Vigilancia de rendimiento: si el equipo no puede con el shader (p. ej.
+  // render por software), el juego vuelve solo al mar 2D y recupera los 60 fps.
+  if (GL && !GL.disabled && GL.on) {
+    if (!GL.checkAt) GL.checkAt = t + 4000;
+    else if (t > GL.checkAt && debugState.fps > 1 && debugState.fps < 42) {
+      GL.disabled = true;
+      GL.on = false;
+      GL.cv.style.display = 'none';
+      console.debug('[FARO] WebGL desactivado por rendimiento (fps', debugState.fps.toFixed(0), ') → mar 2D');
+    }
+  }
+  if (GL && !GL.disabled && !intro.active) {
+    GC = gameCamera(L);
+    const th2 = themeNow();
+    const dNow2 = game.state === 'playing' ? game.difficulty : 0;
+    const blood2 = dNow2 > 0.75;
+    const superOn2 = game.superActive;
+    const bc = (superOn2 ? '255, 230, 150' : currentSkin().beam).split(',').map(Number);
+    GL.render(GC, th2, {
+      time: t / 1000,
+      moonX: L.w * 0.82, moonY: L.h * 0.14,
+      moonCol: blood2 ? [0.95, 0.68, 0.6] : [0.87, 0.91, 0.95],
+      beamA: game.state === 'ready' ? (t / 1000) * 0.8 : game.beamAngle,
+      beamHalf: game.state === 'ready' ? CONFIG.beam.halfWidth : game.beamHalfWidth,
+      beamGlow: (game.holding ? 0.75 : 0.45) + (superOn2 ? 0.35 : 0),
+      beamCol: [bc[0] / 255, bc[1] / 255, bc[2] / 255],
+      danger: Math.max(0, Math.min(1, (dNow2 - 0.5) / 0.5)),
+      starSeed: game.seed % 97,
+    });
+  } else if (GL) {
+    GL.on = false;
+  }
+
   game.update(dt);
   handleEvents(L);
   sound.setCharging(game.state === 'playing' && game.holding && game.ships.some((s) => s.charge > 0));
