@@ -122,6 +122,19 @@ const CONFIG = {
   inventory: {
     max: 3, // huecos de herramientas guardadas (botones en pantalla)
   },
+  // Duelo local: un jugador defiende (farero) y el otro lanza barcos tocando
+  // la banda exterior (almirante). El validador impide ataques imposibles.
+  duel: {
+    time: 90,        // s que debe aguantar el farero para ganar
+    cooldown: 1.1,   // s entre lanzamientos del almirante
+    margin: 0.1,     // margen de justicia de cada lanzamiento
+    maxShips: 5,     // barcos simultáneos máximos del almirante
+    rampTime: 60,    // s hasta que los barcos lanzados alcanzan velocidad máxima
+    corsairAfter: 30, // a partir de aquí el almirante lanza corsarios (rápidos)
+  },
+  checkpoint: {
+    every: 3, // cada N fases superadas se guarda un punto de control
+  },
 };
 
 
@@ -374,7 +387,10 @@ function comboMult(chain, cfg = CONFIG) {
  * La UI (o el bot) llama a down()/up() y update(dt) y drena events.
  */
 class Game {
-  /** @param {number} seed @param {object} cfg @param {{startZone?: number}} [opts] */
+  /**
+   * @param {number} seed @param {object} cfg
+   * @param {{startZone?: number, startWave?: number, duel?: boolean}} [opts]
+   */
   constructor(seed, cfg = CONFIG, opts = {}) {
     this.cfg = cfg;
     this.seed = seed >>> 0;
@@ -388,12 +404,20 @@ class Game {
     /** @type {Array<ReturnType<typeof makeItem>>} */
     this.items = [];
     this.itemTimer = 6;
-    this.startZone = Math.max(0, opts.startZone || 0);
+    /** Punto de control: empezar con N fases ya superadas (sin puntos regalados). */
+    this.startWave = Math.max(0, opts.startWave || 0);
+    this.startZone = Math.max(0, opts.startZone || 0, zoneIndexFor(this.startWave, cfg));
+    /** Duelo local: sin generación automática; los barcos los lanza el almirante. */
+    this.duel = !!opts.duel;
+    this.duelCd = 0;
+    this.duelEnded = false;
     /** Herramientas guardadas (ancla/bengala) usables con un toque. */
     this.inventory = [];
     this.bonusCoins = 0;
-    this.taunted = false;
-    this.giftAnnounced = false;
+    // Reinicios desde punto de control y duelo: sin teatro de bienvenida
+    // (ni anuncio de regalos ni "engaño")
+    this.taunted = this.duel || this.startWave > 0;
+    this.giftAnnounced = this.taunted;
     this.power = 0;
     this.superUntil = -1;
     this.anchorUntil = -1;
@@ -408,7 +432,7 @@ class Game {
     this.adapted = false;
     this.spawnTimer = cfg.spawn.firstDelay;
     this.lullUntil = 0;
-    this.wavesCleared = 0;
+    this.wavesCleared = this.startWave;
     this.deathCause = null;
     this.overAt = 0;
     /** Cola de eventos para la capa de presentación. */
@@ -423,10 +447,11 @@ class Game {
     return Math.max(base, floor);
   }
 
-  /** Acto del arco emocional: 'tempest' (difícil aparente) → 'gift' → 'real'. */
+  /** Acto del arco emocional: 'tempest' (difícil aparente) → 'gift' → 'real'.
+   * Los reinicios desde punto de control y el duelo van directos al acto real. */
   get phase() {
     const arc = this.cfg.arc;
-    if (!arc) return 'real';
+    if (!arc || this.startWave > 0 || this.duel) return 'real';
     if (this.time < arc.fakeHardUntil) return 'tempest';
     if (this.time < arc.giftUntil) return 'gift';
     return 'real';
@@ -507,6 +532,19 @@ class Game {
 
     const cfg = this.cfg;
     const D = this.difficulty;
+
+    // Duelo: cuenta atrás del almirante y victoria del farero por resistencia
+    if (this.duel) {
+      this.duelCd = Math.max(0, this.duelCd - dt);
+      if (!this.duelEnded && this.time >= cfg.duel.time) {
+        this.duelEnded = true;
+        this.state = 'over';
+        this.overAt = this.time;
+        this.holding = false;
+        this.events.push({ type: 'duel_end', winner: 'farero' });
+        return;
+      }
+    }
 
     // Haz: gira libre; detenido mientras se mantiene pulsado
     if (!this.holding) {
@@ -589,8 +627,8 @@ class Game {
       this.events.push({ type: 'combo_lost' });
     }
 
-    // Generación de barcos
-    if (this.time >= this.lullUntil) {
+    // Generación de barcos (en duelo los lanza el almirante, no el mar)
+    if (!this.duel && this.time >= this.lullUntil) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0) this.#spawn(D);
     }
@@ -608,7 +646,7 @@ class Game {
     }
 
     // Generación de objetos flotantes (llueven durante la fase de regalos)
-    if (D >= cfg.items.minD || this.phase === 'gift') {
+    if (!this.duel && (D >= cfg.items.minD || this.phase === 'gift')) {
       this.itemTimer -= dt;
       if (this.itemTimer <= 0) {
         const type = ITEM_TYPES[Math.floor(this.rng() * ITEM_TYPES.length)];
@@ -619,6 +657,34 @@ class Game {
         this.itemTimer = lerpByD(cfg.items.interval, D) * giftMult;
       }
     }
+  }
+
+  /**
+   * Lanzamiento del almirante en el duelo: crea un barco en `angle` rumbo al
+   * faro. Respeta cooldown, tope de barcos y el validador de justicia — el
+   * almirante no puede fabricar situaciones imposibles.
+   * @returns {boolean} true si el barco zarpó
+   */
+  duelSpawn(angle) {
+    if (!this.duel || this.state !== 'playing' || this.duelEnded) return false;
+    const d = this.cfg.duel;
+    if (this.duelCd > 0) { this.events.push({ type: 'duel_cd', angle }); return false; }
+    if (this.ships.length >= d.maxShips) { this.events.push({ type: 'duel_full', angle }); return false; }
+    const k = Math.min(1, this.time / d.rampTime);
+    const base = lerpByD(this.cfg.ship.baseSpeed, k);
+    const corsair = this.time >= d.corsairAfter && this.rng() < 0.35;
+    const ship = makeShip(angle, 1.0,
+      corsair ? base * this.cfg.ship.corsairSpeedMult : base,
+      corsair ? 'corsair' : 'normal');
+    if (!isFeasible([...this.ships, ship], this.beamAngle, this.cfg, d.margin)) {
+      this.events.push({ type: 'duel_reject', angle });
+      return false;
+    }
+    ship.born = this.time;
+    this.ships.push(ship);
+    this.duelCd = d.cooldown;
+    this.events.push({ type: 'duel_spawn', ship });
+    return true;
   }
 
   /** Aplica el efecto de una herramienta (ancla/bengala). */
@@ -1014,6 +1080,8 @@ const session = { games: 0, restartAt: 0, restartLatencies: [] };
 const prefs = {
   xp: store.get('faro.xp', 0),
   zoneUnlocked: store.get('faro.zoneUnlocked', 0),
+  checkpoint: store.get('faro.checkpoint', 0), // fases superadas que abren punto de control
+  startWave: store.get('faro.startWave', 0),   // fase inicial elegida (múltiplo de 3)
   skin: store.get('faro.skin', 0),
   startZone: store.get('faro.startZone', 0),
   superHintSeen: store.get('faro.superHint', false),
@@ -1159,18 +1227,27 @@ const challenge = params.get('reto') ? {
   target: Math.max(0, Number(params.get('puntos')) || 0),
 } : null;
 let dailyMode = store.get('faro.daily.mode', false) && !challenge;
+let duelMode = store.get('faro.duel.mode', false) && !challenge;
+if (duelMode) dailyMode = false;
 function newSeed() {
   if (challenge) return challenge.seed; // reintentar el reto repite la misma partida
   if (dailyMode) return hashSeed('faro-desafio-' + today());
   if (urlSeed != null) return /^\d+$/.test(urlSeed) ? (Number(urlSeed) >>> 0) : hashSeed(urlSeed);
   return (Math.random() * 4294967296) >>> 0;
 }
-function effectiveStartZone() { return dailyMode ? 0 : prefs.startZone; }
+/** Fase inicial elegida (punto de control); los modos especiales empiezan de cero. */
+function effectiveStartWave() {
+  if (dailyMode || duelMode || challenge) return 0;
+  return Math.min(prefs.startWave, prefs.checkpoint);
+}
 
 /** Crea una partida nueva con la configuración y utensilios del jugador. */
 function makeGame() {
-  const g = new Game(newSeed(), cfgForRun(), { startZone: effectiveStartZone() });
-  if (prefs.shop.casco) g.shields = 1;
+  const g = new Game(newSeed(), cfgForRun(), {
+    startWave: effectiveStartWave(),
+    duel: duelMode,
+  });
+  if (prefs.shop.casco && !duelMode) g.shields = 1;
   return g;
 }
 
@@ -1301,9 +1378,20 @@ function onDown(e) {
       doShare();
       return;
     }
+    // DUELO: el almirante toca FUERA del mar para lanzar un barco desde ese
+    // ángulo (segundo dedo: no interfiere con el haz del farero)
+    if (game.state === 'playing' && game.duel) {
+      const L = layout();
+      const dx = e.clientX - L.cx, dy = e.clientY - L.cy;
+      if (Math.hypot(dx, dy) > L.R * 1.02) {
+        game.duelSpawn(Math.atan2(dy, dx));
+        return;
+      }
+    }
   }
   if (pressed) return;
   pressed = true;
+  beamPointer = e && e.pointerId != null ? e.pointerId : 'kb';
   // Doble toque durante la partida → SUPERFARO
   const now = performance.now();
   if (game.state === 'playing' && now - lastDownAt < 320) {
@@ -1313,9 +1401,13 @@ function onDown(e) {
   if (game.state === 'playing') sound.press();
   game.down();
 }
-function onUp() {
+/** Dedo/tecla que sujeta el haz (para que el dedo del almirante no lo suelte). */
+let beamPointer = null;
+function onUp(e) {
   if (!pressed) return;
+  if (e && e.pointerId != null && e.pointerId !== beamPointer) return;
   pressed = false;
+  beamPointer = null;
   game.up();
 }
 
@@ -1399,12 +1491,12 @@ function handleEvents(L) {
         popups.push({ x: L.cx, y: L.cy - L.R * 0.85, text: `¡${mile * 500}!`, sub: null, t: 0, color: PAL.foam, big: true });
       }
       // Aviso de récord cercano (una vez por partida)
-      if (!nearShown && !celebrated && prevBest > 0 && game.score >= prevBest * 0.9 && game.score < prevBest) {
+      if (!nearShown && !celebrated && !game.duel && prevBest > 0 && game.score >= prevBest * 0.9 && game.score < prevBest) {
         nearShown = true;
         popups.push({ x: L.cx, y: L.cy - L.R * 0.6, text: `¡A ${prevBest - game.score + 10} DEL RÉCORD!`, sub: null, t: 0, color: PAL.amber, big: true });
         sound.wave();
       }
-      if (!celebrated && prevBest > 0 && game.score > prevBest) {
+      if (!celebrated && !game.duel && prevBest > 0 && game.score > prevBest) {
         celebrated = true;
         popups.push({ x: L.cx, y: L.cy - L.R * 0.6, text: '¡NUEVO RÉCORD!', sub: null, t: 0, color: PAL.beamCore, big: true });
         burst(L.cx, L.cy - L.R * 0.5, PAL.beamCore, 40, 140);
@@ -1484,6 +1576,34 @@ function handleEvents(L) {
       sound.wave();
       missionAdd('phase3', ev.n, true);
       if (ev.n >= 5) unlock('phase5');
+      // Punto de control cada 3 fases: el próximo reinicio puede empezar aquí
+      if (!game.duel && !dailyMode && !challenge &&
+        ev.n % CONFIG.checkpoint.every === 0 && ev.n > prefs.checkpoint) {
+        prefs.checkpoint = ev.n;
+        prefs.startWave = ev.n;
+        store.set('faro.checkpoint', prefs.checkpoint);
+        store.set('faro.startWave', prefs.startWave);
+        popups.push({ x: L.cx, y: L.cy - L.R * 0.75, text: '🚩 ¡PUNTO DE CONTROL!', sub: `la próxima partida podrá empezar en la FASE ${ev.n + 1}`, t: 0, color: PAL.beamCore, big: true });
+        sound.record();
+      }
+    } else if (ev.type === 'duel_spawn') {
+      const p = shipXY(ev.ship, L);
+      popups.push({ x: p.x, y: p.y, text: ev.ship.type === 'corsair' ? '☠️ ¡CORSARIO!' : '⚓ ¡AL ABORDAJE!', sub: null, t: 0, color: PAL.danger });
+      sound.cargoHit();
+    } else if (ev.type === 'duel_reject') {
+      const px = L.cx + Math.cos(ev.angle) * L.R * 1.02;
+      const py = L.cy + Math.sin(ev.angle) * L.R * 1.02;
+      popups.push({ x: px, y: py, text: '⚖️ INJUSTO', sub: 'el mar no permite ataques imposibles', t: 0, color: PAL.dim });
+      sound.comboLost();
+    } else if (ev.type === 'duel_full') {
+      popups.push({ x: L.cx, y: L.cy - L.R - 24, text: `máx. ${CONFIG.duel.maxShips} barcos a la vez`, sub: null, t: 0, color: PAL.dim });
+    } else if (ev.type === 'duel_end') {
+      overSince = performance.now();
+      session.restartAt = performance.now();
+      sound.setCharging(false);
+      sound.record();
+      burst(L.cx, L.cy, PAL.beamCore, 50, 160);
+      // El duelo no toca récords ni desafío diario (sería trampa fácil)
     } else if (ev.type === 'combo_lost') {
       sound.comboLost();
     } else if (ev.type === 'over') {
@@ -1498,12 +1618,14 @@ function handleEvents(L) {
       vibrate(80);
       // Registro local de la causa (analítica de calidad, solo en consola)
       console.debug('[FARO] derrota', ev.cause);
-      records.best = Math.max(records.best, game.score);
-      records.bestChain = Math.max(records.bestChain, game.bestChain);
-      records.daily.score = Math.max(records.daily.score, game.score);
-      store.set('faro.best', records.best);
-      store.set('faro.bestChain', records.bestChain);
-      store.set('faro.daily', records.daily);
+      if (!game.duel) {
+        records.best = Math.max(records.best, game.score);
+        records.bestChain = Math.max(records.bestChain, game.bestChain);
+        records.daily.score = Math.max(records.daily.score, game.score);
+        store.set('faro.best', records.best);
+        store.set('faro.bestChain', records.bestChain);
+        store.set('faro.daily', records.daily);
+      }
       // Progresión: experiencia, monedas, racha de días y escenarios desbloqueados
       touchStreak();
       lastShareScore = game.score;
@@ -2098,9 +2220,28 @@ function draw(L, dt) {
     }
   }
 
+  // DUELO: banda del almirante, cuenta atrás y recarga
+  if (game.state === 'playing' && game.duel) {
+    // Banda exterior punteada: aquí toca el almirante
+    g.strokeStyle = game.duelCd > 0 ? 'rgba(255,89,100,0.25)' : 'rgba(255,193,94,0.45)';
+    g.lineWidth = 3;
+    g.setLineDash([10, 12]);
+    g.beginPath(); g.arc(cx, cy, R * 1.06, 0, TAU); g.stroke();
+    g.setLineDash([]);
+    // Cuenta atrás del farero
+    const left = Math.max(0, CONFIG.duel.time - game.time);
+    g.textAlign = 'center';
+    g.fillStyle = left < 15 ? PAL.danger : PAL.foam;
+    g.font = 'bold 15px system-ui, sans-serif';
+    g.fillText(`💡 AGUANTA ${Math.ceil(left)} s`, cx, 74);
+    g.fillStyle = PAL.dim;
+    g.font = '11px system-ui, sans-serif';
+    g.fillText(game.duelCd > 0 ? `⚓ recargando… ${game.duelCd.toFixed(1)} s` : '⚓ almirante: toca el borde y lanza', cx, 92);
+  }
+
   // Botones del inventario (herramientas guardadas, a mano con un toque)
   invHits.length = 0;
-  if (game.state === 'playing' && game.cfg.inventory) {
+  if (game.state === 'playing' && game.cfg.inventory && !game.duel) {
     const slots = game.cfg.inventory.max;
     const bs = 52, gap = 14;
     const total = slots * bs + (slots - 1) * gap;
@@ -2415,25 +2556,37 @@ function drawReady(g, L, now) {
   const rows = [
     {
       y: Math.min(h - 96, cy + R * 0.76),
-      label: dailyMode ? `MODO: 🗓️ DESAFÍO DIARIO (hoy: ${records.daily.score})` : 'MODO: NORMAL',
+      label: duelMode ? 'MODO: ⚔️ DUELO (2 jugadores, 1 pantalla)'
+        : dailyMode ? `MODO: 🗓️ DESAFÍO DIARIO (hoy: ${records.daily.score})` : 'MODO: NORMAL',
       locked: false,
-      hint: null,
-      move: () => {
-        dailyMode = !dailyMode;
+      hint: duelMode ? 'uno ilumina · el otro toca el borde y lanza barcos' : null,
+      move: (dir) => {
+        // Ciclo NORMAL → DESAFÍO DIARIO → DUELO
+        const modes = ['normal', 'daily', 'duel'];
+        const cur = duelMode ? 2 : dailyMode ? 1 : 0;
+        const nxt = modes[(cur + dir + 3) % 3];
+        dailyMode = nxt === 'daily';
+        duelMode = nxt === 'duel';
         store.set('faro.daily.mode', dailyMode);
+        store.set('faro.duel.mode', duelMode);
         game = makeGame();
         makeStars(game.seed);
       },
     },
     {
       y: Math.min(h - 64, cy + R * 0.9),
-      label: dailyMode ? 'ESCENARIO: fijo en el desafío' : `ESCENARIO: ${THEMES[prefs.startZone % THEMES.length].name}`,
-      locked: prefs.zoneUnlocked === 0 || dailyMode,
-      hint: prefs.zoneUnlocked === 0 && !dailyMode ? 'llega a la zona 2 para desbloquear' : null,
+      label: (dailyMode || duelMode) ? 'EMPEZAR: fase 1 en este modo'
+        : `EMPEZAR: FASE ${effectiveStartWave() + 1} · ${THEMES[zoneIndexFor(effectiveStartWave()) % THEMES.length].name}`,
+      locked: prefs.checkpoint === 0 || dailyMode || duelMode,
+      hint: prefs.checkpoint === 0 && !dailyMode && !duelMode
+        ? `supera la fase ${CONFIG.checkpoint.every} para guardar un punto de control` : null,
       move: (dir) => {
-        const max = Math.min(prefs.zoneUnlocked, THEMES.length - 1);
-        prefs.startZone = (prefs.startZone + dir + max + 1) % (max + 1);
-        store.set('faro.startZone', prefs.startZone);
+        // Puntos de control: fase 1, 4, 7… (cada 3 fases superadas)
+        const stops = [0];
+        for (let wCp = CONFIG.checkpoint.every; wCp <= prefs.checkpoint; wCp += CONFIG.checkpoint.every) stops.push(wCp);
+        const pos = Math.max(0, stops.indexOf(Math.min(prefs.startWave, prefs.checkpoint)));
+        prefs.startWave = stops[(pos + dir + stops.length) % stops.length];
+        store.set('faro.startWave', prefs.startWave);
         game = makeGame();
         makeStars(game.seed);
       },
@@ -2485,6 +2638,22 @@ function drawOver(g, L) {
   g.fillRect(-20, -20, w + 40, h + 40);
   g.textAlign = 'center';
 
+  if (game.duel) {
+    // Resultado del duelo: farero (aguantó) o almirante (hundió el faro)
+    const farero = game.duelEnded && !game.deathCause;
+    g.fillStyle = farero ? PAL.beamCore : PAL.danger;
+    g.font = 'bold 26px system-ui, sans-serif';
+    g.fillText(farero ? '💡 ¡GANA EL FARERO!' : '⚓ ¡GANA EL ALMIRANTE!', cx, cy - 96);
+    g.fillStyle = PAL.text;
+    g.font = 'bold 56px system-ui, sans-serif';
+    g.fillText(String(game.score), cx, cy - 36);
+    g.fillStyle = PAL.dim;
+    g.font = '16px system-ui, sans-serif';
+    g.fillText(farero
+      ? `aguantó los ${CONFIG.duel.time} s · ${game.saves} rescates`
+      : `el faro cayó a los ${Math.floor(game.time)} s · ${game.saves} rescates`, cx, cy - 6);
+    g.fillText('cambiad los papeles y ajustad cuentas', cx, cy + 18);
+  } else {
   const isRecord = game.score >= records.best && game.score > 0;
   g.fillStyle = isRecord ? PAL.beamCore : PAL.text;
   g.font = 'bold 26px system-ui, sans-serif';
@@ -2503,6 +2672,7 @@ function drawOver(g, L) {
     g.fillText(`Récord anterior: ${prevBest}`, cx, cy - 6);
   }
   g.fillText(`mejor racha ${game.bestChain} · rescates ${game.saves} · +${Math.floor(game.score / 50) + game.bonusCoins} 🪙`, cx, cy + 18);
+  }
 
   // Resultado del reto 1 contra 1
   if (challenge) {
@@ -2526,16 +2696,20 @@ function drawOver(g, L) {
   g.font = 'bold 24px system-ui, sans-serif';
   g.fillText('OTRA VEZ', cx, cy + 44 + bh / 2 + 8);
 
-  // Botón COMPARTIR
-  const sw2 = 220, sh2 = 40;
-  shareRect = { x: cx - sw2 / 2, y: cy + 116, w: sw2, h: sh2 };
-  g.strokeStyle = PAL.amber;
-  g.lineWidth = 2;
-  roundedRect(g, shareRect.x, shareRect.y, sw2, sh2, 12);
-  g.stroke();
-  g.fillStyle = PAL.amber;
-  g.font = 'bold 16px system-ui, sans-serif';
-  g.fillText('RETAR A UN AMIGO 📤', cx, shareRect.y + 26);
+  // Botón COMPARTIR (no aplica al duelo local)
+  if (game.duel) {
+    shareRect = null;
+  } else {
+    const sw2 = 220, sh2 = 40;
+    shareRect = { x: cx - sw2 / 2, y: cy + 116, w: sw2, h: sh2 };
+    g.strokeStyle = PAL.amber;
+    g.lineWidth = 2;
+    roundedRect(g, shareRect.x, shareRect.y, sw2, sh2, 12);
+    g.stroke();
+    g.fillStyle = PAL.amber;
+    g.font = 'bold 16px system-ui, sans-serif';
+    g.fillText('RETAR A UN AMIGO 📤', cx, shareRect.y + 26);
+  }
 
   // Misiones de hoy
   g.font = 'bold 13px system-ui, sans-serif';
