@@ -135,6 +135,22 @@ const CONFIG = {
   checkpoint: {
     every: 3, // cada N fases superadas se guarda un punto de control
   },
+  // Mezcla de flota por región (multiplica el peso de cada patrón; el
+  // validador de justicia sigue aplicándose igual). Indexado por zona % 12.
+  regionMix: [
+    { cargo: 1.6 },                    // Galicia: pesqueros y mercantes
+    { single: 1.3 },                   // Algarve: tráfico tranquilo
+    { pair_opposite: 1.3, cargo: 1.3 }, // Bretaña: ferris cruzando
+    { cargo: 1.8, convoy: 1.2 },       // Fiordos: cargueros pesados
+    { pair_opposite: 1.5, fan: 1.2 },  // Grecia: rutas cruzadas
+    { corsair: 1.5 },                  // Amalfi: lanchas veloces
+    { corsair: 1.6, single: 1.2 },     // Caribe: lanchas por todas partes
+    { cargo: 2.2 },                    // Tokio: portacontenedores
+    { single: 1.4 },                   // Escocia: pesqueros solitarios
+    { convoy: 1.5, cargo: 1.4 },       // Cabo: convoyes mercantes
+    { fan: 1.3, corsair: 1.2 },        // Gran Barrera: tráfico turístico
+    { cargo: 1.7, convoy: 1.2 },       // Islandia: rutas de carga
+  ],
   // Sorpresas: eventos aleatorios que ayudan o complican (siempre justos)
   surprise: {
     first: 30,           // s hasta la primera sorpresa
@@ -876,12 +892,15 @@ class Game {
     if (this.ships.length < maxShips) {
       const pd = this.patternD;
       const pool = PATTERNS.filter((p) => pd >= p.minD);
-      // Selección ponderada (los patrones raros declaran weight < 1)
-      const total = pool.reduce((acc, p) => acc + (p.weight ?? 1), 0);
+      // Selección ponderada (los patrones raros declaran weight < 1) con la
+      // mezcla de flota de la región actual (Tokio = más mercantes, etc.)
+      const mix = cfg.regionMix ? cfg.regionMix[this.zoneIndex % cfg.regionMix.length] : null;
+      const wOf = (p) => (p.weight ?? 1) * (mix && mix[p.name] ? mix[p.name] : 1);
+      const total = pool.reduce((acc, p) => acc + wOf(p), 0);
       let roll = this.rng() * total;
       let pattern = pool[pool.length - 1];
       for (const p of pool) {
-        roll -= p.weight ?? 1;
+        roll -= wOf(p);
         if (roll <= 0) { pattern = p; break; }
       }
       const speed = lerpByD(cfg.ship.baseSpeed, D) * (inFake ? cfg.arc.fakeSlow : 1);
@@ -1010,6 +1029,14 @@ const THEMES = [
   { name: 'ALGARVE', country: 'PORTUGAL', skyTop: '#150f1e', skyBottom: '#3a2338', sea: '#1c1a30', coast: 'ochre' },
   { name: 'BRETAÑA', country: 'FRANCIA', skyTop: '#0d0d17', skyBottom: '#232036', sea: '#181a2c', coast: 'skerries', storm: true },
   { name: 'FIORDOS', country: 'NORUEGA', skyTop: '#03131a', skyBottom: '#0e2b26', sea: '#0c2420', coast: 'fjord', aurora: true, snow: true },
+  { name: 'ISLAS GRIEGAS', country: 'GRECIA', skyTop: '#0a1224', skyBottom: '#1c3152', sea: '#12294a', coast: 'islands' },
+  { name: 'COSTA AMALFITANA', country: 'ITALIA', skyTop: '#1a1220', skyBottom: '#402a35', sea: '#241f38', coast: 'hills' },
+  { name: 'CARIBE', country: 'ANTILLAS', skyTop: '#071523', skyBottom: '#154054', sea: '#0e3140', coast: 'palms', storm: true },
+  { name: 'BAHÍA DE TOKIO', country: 'JAPÓN', skyTop: '#0a0c18', skyBottom: '#232946', sea: '#161c33', coast: 'skyline' },
+  { name: 'HÉBRIDAS', country: 'ESCOCIA', skyTop: '#0b0f16', skyBottom: '#26303a', sea: '#1a232c', coast: 'cliffs', mist: true },
+  { name: 'CABO DE BUENA ESPERANZA', country: 'SUDÁFRICA', skyTop: '#081018', skyBottom: '#1e3242', sea: '#12293a', coast: 'cape', storm: true },
+  { name: 'GRAN BARRERA', country: 'AUSTRALIA', skyTop: '#061420', skyBottom: '#0e3c46', sea: '#0b3038', coast: 'reef' },
+  { name: 'COSTA DE HIELO Y FUEGO', country: 'ISLANDIA', skyTop: '#100c12', skyBottom: '#2c2030', sea: '#1c1826', coast: 'volcano', snow: true },
 ];
 function themeNow() {
   const idx = game.state === 'ready' ? prefs.startZone : game.zoneIndex;
@@ -1163,12 +1190,33 @@ class Sound {
     // Gaviotas y campana de boya, de vez en cuando (programadas por frame)
     this.nextGull = c.currentTime + 5;
     this.nextBell = c.currentTime + 9;
+    // Música de tensión: drone grave (fundamental + quinta) tras un filtro;
+    // setTension() lo hace crecer y abrirse con la dificultad
+    this.droneFilter = c.createBiquadFilter();
+    this.droneFilter.type = 'lowpass';
+    this.droneFilter.frequency.value = 160;
+    this.droneGain = c.createGain();
+    this.droneGain.gain.value = 0.012;
+    for (const [f, dt2] of [[55, 0], [82.41, 2]]) {
+      const o = c.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      o.detune.value = dt2;
+      const og = c.createGain(); og.gain.value = 0.5;
+      o.connect(og).connect(this.droneFilter);
+      o.start();
+    }
+    this.droneFilter.connect(this.droneGain).connect(this.ambGain);
   }
 
-  /** El viento arrecia con la dificultad/tormenta (0..1). */
+  /** El viento y la música arrecian con la dificultad/tormenta (0..1). */
   setTension(k) {
-    if (this.windGain && this.ctx) {
-      this.windGain.gain.setTargetAtTime(0.006 + 0.03 * Math.min(1, k), this.ctx.currentTime, 0.8);
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    if (this.windGain) this.windGain.gain.setTargetAtTime(0.006 + 0.03 * Math.min(1, k), t, 0.8);
+    if (this.droneGain) {
+      this.droneGain.gain.setTargetAtTime(0.012 + 0.03 * Math.min(1, k), t, 1.2);
+      this.droneFilter.frequency.setTargetAtTime(160 + 700 * Math.min(1, k) * Math.min(1, k), t, 1.2);
     }
   }
 
@@ -1498,13 +1546,21 @@ const COASTS = {
   ochre: { amp: 0.075 },                          // mesetas redondeadas
   skerries: { amp: 0.04, sparse: true },          // islotes bajos dispersos
   fjord: { amp: 0.24, snow: true },               // montañas con cumbres nevadas
+  islands: { amp: 0.06, houses: true },           // pueblos blancos sobre la loma
+  hills: { amp: 0.11, lights: true },             // colinas con ventanas cálidas
+  palms: { amp: 0.045, palms: true },             // playa baja con palmeras
+  skyline: { amp: 0.13, buildings: true },        // rascacielos con luces rojas
+  cape: { amp: 0.19, gap: true },                 // gran cabo rocoso
+  reef: { amp: 0.028, sparse: true },             // arrecife a ras de agua
+  volcano: { amp: 0.2, volcano: true },           // cono volcánico con rescoldo
 };
 
-/** Dibuja la costa de la región: dos capas (lejana brumosa + cercana). */
+/** Dibuja la costa de la región: dos capas (lejana brumosa + cercana) + decoración. */
 function drawCoast(g, w, h, hor, theme) {
   const cp2 = COASTS[theme.coast];
   if (!cp2 || coastNoise.length === 0) return;
   const fogRGB = hexRGB(theme.skyBottom);
+  const ridge = []; // perfil de la capa cercana para decorar después
   for (let layer = 0; layer < 2; layer++) {
     const amp = cp2.amp * h * (layer ? 1 : 0.6);
     g.fillStyle = layer
@@ -1513,29 +1569,101 @@ function drawCoast(g, w, h, hor, theme) {
     g.beginPath();
     g.moveTo(-4, hor + 2);
     const peaks = [];
+    let prevY = hor + 2;
     for (let i = 0; i <= 40; i++) {
       const xx = (i / 40) * w;
       let hh = coastNoise[(i + layer * 17) % coastNoise.length];
       if (cp2.sparse && hh < 0.62) hh = 0;
       if (cp2.gap && xx > w * 0.3 && xx < w * 0.72) hh *= 0.12; // bocana abierta
+      if (cp2.volcano && layer) {
+        // Cono volcánico dominante + faldas rugosas
+        hh = Math.max(0, 1 - Math.abs(i - 20) / 9) * 0.9 + hh * 0.18;
+      }
+      if (cp2.buildings) hh = Math.round(hh * 5) / 5; // rascacielos escalonados
       const yy = hor + 2 - hh * amp;
-      g.lineTo(xx, yy);
-      if (layer && cp2.snow && hh > 0.66) peaks.push({ x: xx, y: yy, hh });
+      if (cp2.buildings) { g.lineTo(xx, prevY); g.lineTo(xx, yy); } // escalones
+      else g.lineTo(xx, yy);
+      prevY = yy;
+      if (layer) {
+        ridge.push({ x: xx, y: yy, hh });
+        if (cp2.snow && hh > 0.66) peaks.push({ x: xx, y: yy });
+      }
     }
     g.lineTo(w + 4, hor + 2);
     g.closePath();
     g.fill();
-    // Cumbres nevadas de los fiordos
     if (peaks.length) {
       g.fillStyle = 'rgba(230,240,248,0.8)';
       for (const p of peaks) {
         g.beginPath();
-        g.moveTo(p.x - 7, p.y + 9);
-        g.lineTo(p.x, p.y);
-        g.lineTo(p.x + 7, p.y + 9);
+        g.moveTo(p.x - 7, p.y + 9); g.lineTo(p.x, p.y); g.lineTo(p.x + 7, p.y + 9);
         g.closePath(); g.fill();
       }
     }
+  }
+  // Decoración de la capa cercana
+  if (cp2.houses) {
+    // Pueblo blanco griego: cubos encalados con ventanas cálidas
+    for (let i = 4; i < ridge.length - 4; i += 3) {
+      if (ridge[i].hh < 0.45) continue;
+      g.fillStyle = 'rgba(232,238,244,0.85)';
+      g.fillRect(ridge[i].x - 2, ridge[i].y - 4, 5, 4);
+      if (i % 6 === 1) {
+        g.fillStyle = 'rgba(255,196,107,0.9)';
+        g.fillRect(ridge[i].x, ridge[i].y - 3, 1.4, 1.4);
+      }
+    }
+  }
+  if (cp2.lights) {
+    // Ventanas cálidas desperdigadas por las colinas
+    for (let i = 2; i < ridge.length - 2; i += 2) {
+      if (coastNoise[(i * 3) % coastNoise.length] < 0.45) continue;
+      const yy = ridge[i].y + (hor - ridge[i].y) * (0.25 + (i % 5) * 0.14);
+      g.fillStyle = `rgba(255,196,107,${0.35 + 0.4 * (coastNoise[i % coastNoise.length])})`;
+      g.fillRect(ridge[i].x + (i % 3), yy, 1.6, 1.6);
+    }
+  }
+  if (cp2.palms) {
+    // Palmeras a contraluz
+    g.strokeStyle = 'rgba(6,14,20,0.95)';
+    for (const i of [5, 12, 30, 36]) {
+      const bx = ridge[i].x, by = hor + 2;
+      g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(bx, by); g.quadraticCurveTo(bx + 3, by - 8, bx + 5, by - 13); g.stroke();
+      g.lineWidth = 1.2;
+      for (const da of [-0.9, -0.3, 0.4, 1.0]) {
+        g.beginPath();
+        g.moveTo(bx + 5, by - 13);
+        g.quadraticCurveTo(bx + 5 + Math.cos(da) * 7, by - 15 + Math.sin(da) * 4, bx + 5 + Math.cos(da) * 11, by - 11 + Math.sin(da) * 7);
+        g.stroke();
+      }
+    }
+  }
+  if (cp2.buildings) {
+    // Luces de posición rojas en las azoteas más altas + ventanas
+    for (let i = 2; i < ridge.length - 2; i += 2) {
+      if (ridge[i].hh > 0.7 && (i % 4 === 0)) {
+        g.fillStyle = `rgba(255,80,80,${0.5 + 0.4 * Math.sin(performance.now() / 700 + i)})`;
+        g.fillRect(ridge[i].x - 1, ridge[i].y - 2, 2, 2);
+      }
+      if (ridge[i].hh > 0.3 && coastNoise[(i * 5) % coastNoise.length] > 0.5) {
+        g.fillStyle = 'rgba(190,215,240,0.35)';
+        g.fillRect(ridge[i].x, ridge[i].y + 4 + (i % 4) * 3, 1.4, 1.4);
+      }
+    }
+  }
+  if (cp2.volcano) {
+    // Rescoldo en el cráter y columna tenue de ceniza
+    const top = ridge.reduce((a, b) => (b.y < a.y ? b : a), ridge[0]);
+    const vg3 = g.createRadialGradient(top.x, top.y, 1, top.x, top.y, 26);
+    vg3.addColorStop(0, 'rgba(255,110,60,0.5)');
+    vg3.addColorStop(1, 'rgba(255,110,60,0)');
+    g.fillStyle = vg3;
+    g.beginPath(); g.arc(top.x, top.y, 26, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(120,110,120,0.12)';
+    g.beginPath();
+    g.ellipse(top.x + 8, top.y - 16, 14, 7, 0.3, 0, TAU);
+    g.fill();
   }
   // Bruma atlántica pegada al horizonte (Galicia y similares)
   if (theme.mist) {
