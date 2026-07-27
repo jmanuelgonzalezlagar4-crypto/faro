@@ -105,6 +105,23 @@ const CONFIG = {
   restart: {
     lockout: 0.4, // s tras la derrota antes de aceptar la pulsación de reinicio
   },
+  // Arco emocional en tres actos: tempestad aparente → lluvia de regalos →
+  // "el engaño" (rampa real). La fase 1 PARECE difícil (muchos barcos) pero es
+  // justa (lentos + validador extra holgado); la fase 2 regala herramientas y
+  // monedas; la fase 3 revela que lo anterior era un calentamiento.
+  arc: {
+    fakeHardUntil: 25,    // s de "tempestad aparente"
+    fakeCrowd: 0.3,       // densidad añadida (más barcos a la vez de los que tocan)
+    fakeSlow: 0.72,       // …pero más lentos de lo que tocan
+    fakeMargin: 0.08,     // margen extra del validador (aún más justo)
+    giftUntil: 70,        // hasta cuándo dura la lluvia de regalos
+    giftItemMult: 0.35,   // los objetos aparecen ~3× más a menudo
+    giftCoinChance: 0.35, // prob. de moneda extra por rescate en la fase de regalos
+    giftPowerGain: 2,     // el superfaro carga doble durante los regalos
+  },
+  inventory: {
+    max: 3, // huecos de herramientas guardadas (botones en pantalla)
+  },
 };
 
 
@@ -372,6 +389,11 @@ class Game {
     this.items = [];
     this.itemTimer = 6;
     this.startZone = Math.max(0, opts.startZone || 0);
+    /** Herramientas guardadas (ancla/bengala) usables con un toque. */
+    this.inventory = [];
+    this.bonusCoins = 0;
+    this.taunted = false;
+    this.giftAnnounced = false;
     this.power = 0;
     this.superUntil = -1;
     this.anchorUntil = -1;
@@ -399,6 +421,15 @@ class Game {
     // Empezar en una zona avanzada impone un suelo de dificultad acorde
     const floor = Math.min(0.85, this.startZone * this.cfg.zone.startFloor);
     return Math.max(base, floor);
+  }
+
+  /** Acto del arco emocional: 'tempest' (difícil aparente) → 'gift' → 'real'. */
+  get phase() {
+    const arc = this.cfg.arc;
+    if (!arc) return 'real';
+    if (this.time < arc.fakeHardUntil) return 'tempest';
+    if (this.time < arc.giftUntil) return 'gift';
+    return 'real';
   }
 
   /** ¿SUPERFARO activo? */
@@ -564,25 +595,38 @@ class Game {
       if (this.spawnTimer <= 0) this.#spawn(D);
     }
 
-    // Generación de objetos flotantes
-    if (D >= cfg.items.minD) {
+    // Anuncios del arco: empieza la lluvia de regalos / se revela "el engaño"
+    if (cfg.arc) {
+      if (!this.giftAnnounced && this.phase === 'gift') {
+        this.giftAnnounced = true;
+        this.events.push({ type: 'gift_start' });
+      }
+      if (!this.taunted && this.phase === 'real') {
+        this.taunted = true;
+        this.events.push({ type: 'taunt' });
+      }
+    }
+
+    // Generación de objetos flotantes (llueven durante la fase de regalos)
+    if (D >= cfg.items.minD || this.phase === 'gift') {
       this.itemTimer -= dt;
       if (this.itemTimer <= 0) {
         const type = ITEM_TYPES[Math.floor(this.rng() * ITEM_TYPES.length)];
         const item = makeItem(this.rng, type, cfg);
         this.items.push(item);
         this.events.push({ type: 'item_spawn', item });
-        this.itemTimer = lerpByD(cfg.items.interval, D);
+        const giftMult = this.phase === 'gift' ? cfg.arc.giftItemMult : 1;
+        this.itemTimer = lerpByD(cfg.items.interval, D) * giftMult;
       }
     }
   }
 
-  /** Efecto de recoger un objeto flotante. */
-  #onItem(item) {
+  /** Aplica el efecto de una herramienta (ancla/bengala). */
+  #applyTool(type) {
     const cfg = this.cfg;
-    if (item.type === 'ancla') {
+    if (type === 'ancla') {
       this.anchorUntil = this.time + cfg.items.anchorTime;
-    } else if (item.type === 'bengala') {
+    } else if (type === 'bengala') {
       // La bengala salva de golpe los barcos aún lejanos (zona ×1)
       for (let i = this.ships.length - 1; i >= 0; i--) {
         if (this.ships[i].dist > cfg.items.flareZone) {
@@ -590,10 +634,40 @@ class Game {
           this.#onSave(s);
         }
       }
-    } else if (item.type === 'energia') {
-      this.power = Math.min(cfg.power.needed, this.power + cfg.items.energyBonus);
     }
-    this.events.push({ type: 'item_get', item });
+  }
+
+  /**
+   * Usa la herramienta guardada en el hueco `index` (botones de la UI).
+   * @returns {boolean} true si se usó
+   */
+  useTool(index) {
+    if (this.state !== 'playing') return false;
+    const type = this.inventory[index];
+    if (!type) return false;
+    this.inventory.splice(index, 1);
+    this.#applyTool(type);
+    this.events.push({ type: 'tool_use', tool: type });
+    return true;
+  }
+
+  /** Efecto de recoger un objeto flotante. */
+  #onItem(item) {
+    const cfg = this.cfg;
+    if (item.type === 'energia') {
+      this.power = Math.min(cfg.power.needed, this.power + cfg.items.energyBonus);
+      this.events.push({ type: 'item_get', item });
+      return;
+    }
+    // Ancla y bengala se GUARDAN: botones en pantalla, se usan cuando quieras.
+    const max = cfg.inventory ? cfg.inventory.max : 0;
+    if (this.inventory.length < max) {
+      this.inventory.push(item.type);
+      this.events.push({ type: 'tool_stash', tool: item.type, slots: this.inventory.slice() });
+    } else {
+      this.#applyTool(item.type); // inventario lleno → efecto inmediato
+      this.events.push({ type: 'item_get', item });
+    }
   }
 
   #onSave(ship) {
@@ -611,7 +685,15 @@ class Game {
     const points = base * zone * mult;
     this.score += points;
     this.saves++;
-    this.power = Math.min(cfg.power.needed, this.power + 1);
+    const inGift = this.phase === 'gift';
+    const gain = inGift && cfg.arc ? cfg.arc.giftPowerGain : 1;
+    this.power = Math.min(cfg.power.needed, this.power + gain);
+
+    // Lluvia de regalos: monedas extra por rescate
+    if (inGift && cfg.arc && this.rng() < cfg.arc.giftCoinChance) {
+      this.bonusCoins++;
+      this.events.push({ type: 'coin', total: this.bonusCoins, atAngle: ship.angle, atDist: ship.dist });
+    }
 
     // Adaptación positiva: rachas "al límite" → patrones más ricos
     this.closeStreak = zone === 3 ? this.closeStreak + 1 : 0;
@@ -644,7 +726,11 @@ class Game {
 
   #spawn(D) {
     const cfg = this.cfg;
-    const maxShips = Math.round(lerpByD(cfg.spawn.maxConcurrent, D));
+    // Tempestad aparente: MÁS barcos de los que tocan (parece difícil) pero
+    // más LENTOS y con validador extra holgado (en realidad es más justo).
+    const inFake = cfg.arc && this.phase === 'tempest';
+    const crowdD = inFake ? Math.min(1, D + cfg.arc.fakeCrowd) : D;
+    const maxShips = Math.round(lerpByD(cfg.spawn.maxConcurrent, crowdD));
     if (this.ships.length < maxShips) {
       const pd = this.patternD;
       const pool = PATTERNS.filter((p) => pd >= p.minD);
@@ -656,8 +742,8 @@ class Game {
         roll -= p.weight ?? 1;
         if (roll <= 0) { pattern = p; break; }
       }
-      const speed = lerpByD(cfg.ship.baseSpeed, D);
-      const marginFrac = lerpByD(cfg.validator.margin, D);
+      const speed = lerpByD(cfg.ship.baseSpeed, D) * (inFake ? cfg.arc.fakeSlow : 1);
+      const marginFrac = lerpByD(cfg.validator.margin, D) + (inFake ? cfg.arc.fakeMargin : 0);
       const placed = placePattern(pattern, this.rng, speed, this.ships, this.beamAngle, cfg, marginFrac);
       if (placed) {
         for (const s of placed) {
@@ -667,7 +753,7 @@ class Game {
         this.events.push({ type: 'spawn', pattern: pattern.name, count: placed.length });
       }
     }
-    this.spawnTimer = lerpByD(cfg.spawn.interval, D);
+    this.spawnTimer = lerpByD(cfg.spawn.interval, crowdD);
   }
 
   #gameOver(culprit) {
@@ -940,6 +1026,12 @@ const SHOP_ITEMS = [
 ];
 let shopOpen = false;
 
+// Arco emocional y adrenalina (v0.6)
+let slowmo = 0;          // s restantes de cámara lenta (rescate al límite)
+let bigBanner = null;    // anuncio a pantalla (regalos / "el engaño")
+const invHits = [];      // zonas táctiles de los botones del inventario
+const rings = [];        // ondas expansivas al rescatar
+
 function shopTap(item) {
   if (!prefs.shop[item.id]) {
     if (prefs.coins < item.price) {
@@ -1123,6 +1215,7 @@ function resetVisuals() {
   shake = 0; flash = 0; culpritGhost = null; waveMsg = null; zoneBanner = null;
   celebrated = false; prevBest = records.best; overSince = -1;
   nearShown = false; shareRect = null;
+  slowmo = 0; bigBanner = null; rings.length = 0; invHits.length = 0;
   runStats.close = 0; runStats.supers = 0; runStats.cargos = 0;
   runStats.itemTypes = new Set(); runStats.milestone = 0;
   makeStars(game.seed);
@@ -1178,6 +1271,15 @@ function onDown(e) {
       }
       // Con la tienda abierta, un toque fuera no empieza la partida
       if (shopOpen) return;
+    }
+    // Botones del inventario durante la partida (no detienen el haz)
+    if (game.state === 'playing') {
+      for (const hh of invHits) {
+        if (e.clientX >= hh.x && e.clientX <= hh.x + hh.w && e.clientY >= hh.y && e.clientY <= hh.y + hh.h) {
+          hh.fn();
+          return;
+        }
+      }
     }
     // Botón de retar en la pantalla de derrota
     if (game.state === 'over' && shareRect &&
@@ -1258,8 +1360,16 @@ function handleEvents(L) {
       popups.push({ x: p.x, y: p.y, text: label, sub, t: 0, color: ev.zone === 3 ? PAL.danger : PAL.amber });
       burst(p.x, p.y, ev.zone === 3 ? PAL.danger : PAL.amber, ev.zone * 8);
       savedShips.push({ ...ev.ship, t: 0 });
+      rings.push({ x: p.x, y: p.y, t: 0, color: ev.zone === 3 ? PAL.danger : PAL.amber });
       sound.save(ev.chain, ev.zone);
       vibrate(10);
+      // Rescate EN EL ÚLTIMO SEGUNDO → cámara lenta y celebración extra
+      if (ev.atDist < CONFIG.island.radius + 0.07 && game.state === 'playing') {
+        slowmo = 0.55;
+        popups.push({ x: L.cx, y: L.cy - L.R * 0.5, text: '¡EN EL ÚLTIMO SEGUNDO!', sub: null, t: 0, color: PAL.danger, big: true });
+        burst(p.x, p.y, PAL.beamCore, 24, 150);
+        vibrate(30);
+      }
       // Misiones y logros
       missionAdd('saves30', 1);
       missionAdd('points800', ev.points);
@@ -1323,6 +1433,34 @@ function handleEvents(L) {
       missionAdd('items3', 1);
       runStats.itemTypes.add(ev.item.type);
       if (runStats.itemTypes.size >= 3) unlock('collector');
+    } else if (ev.type === 'tool_stash') {
+      const icon = ev.tool === 'ancla' ? '⚓' : '✦';
+      popups.push({ x: L.cx, y: L.cy + L.R * 0.55, text: `${icon} GUARDADA`, sub: 'tócala abajo cuando la necesites', t: 0, color: PAL.foam });
+      sound.item();
+      missionAdd('items3', 1);
+      runStats.itemTypes.add(ev.tool);
+      if (runStats.itemTypes.size >= 3) unlock('collector');
+    } else if (ev.type === 'tool_use') {
+      const label = ev.tool === 'ancla' ? '⚓ ¡ANCLA! barcos lentos 5 s' : '✦ ¡BENGALA! costa despejada';
+      popups.push({ x: L.cx, y: L.cy - L.R * 0.35, text: label, sub: null, t: 0, color: PAL.foam, big: true });
+      burst(L.cx, L.cy, PAL.foam, 22, 120);
+      shake = 0.3;
+      sound.item();
+      vibrate(20);
+    } else if (ev.type === 'coin') {
+      const px = L.cx + Math.cos(ev.atAngle) * ev.atDist * L.R;
+      const py = L.cy + Math.sin(ev.atAngle) * ev.atDist * L.R;
+      popups.push({ x: px, y: py - 20, text: '+1 🪙', sub: null, t: 0, color: PAL.amber });
+      sound.item();
+    } else if (ev.type === 'gift_start') {
+      bigBanner = { lines: ['🌊 LA MAREA TRAE REGALOS', 'boyas y monedas extra — el superfaro carga DOBLE'], t: 0, color: PAL.foam };
+      sound.wave();
+    } else if (ev.type === 'taunt') {
+      bigBanner = { lines: ['¿CREÍAS QUE ESTO ERA DIFÍCIL? 😏', 'era el calentamiento… AHORA empieza el mar de verdad'], t: 0, color: PAL.danger };
+      shake = 0.6;
+      sound.shieldBreak();
+      sound.zone();
+      vibrate(60);
     } else if (ev.type === 'cargo_hit') {
       const p = shipXY(ev.ship, L);
       popups.push({ x: p.x, y: p.y, text: '¡OTRA LUZ MÁS!', sub: null, t: 0, color: PAL.dim });
@@ -1356,7 +1494,7 @@ function handleEvents(L) {
       // Progresión: experiencia, monedas, racha de días y escenarios desbloqueados
       touchStreak();
       lastShareScore = game.score;
-      const earned = Math.floor(game.score / 50);
+      const earned = Math.floor(game.score / 50) + game.bonusCoins;
       if (earned > 0) {
         prefs.coins += earned;
         store.set('faro.coins', prefs.coins);
@@ -1404,6 +1542,19 @@ function draw(L, dt) {
   g.fillStyle = sky;
   g.fillRect(-20, -20, w + 40, h + 40);
 
+  // El cielo se ENCIENDE con el peligro: a partir de D 0,5 vira a rojo ascua
+  const dNow = game.state === 'playing' ? game.difficulty : 0;
+  if (dNow > 0.5) {
+    const heat = Math.min(1, (dNow - 0.5) / 0.5);
+    const hg = g.createLinearGradient(0, 0, 0, h);
+    hg.addColorStop(0, `rgba(140,30,45,${0.22 * heat})`);
+    hg.addColorStop(0.6, `rgba(90,20,35,${0.10 * heat})`);
+    hg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = hg;
+    g.fillRect(-20, -20, w + 40, h + 40);
+  }
+  const bloodMoon = dNow > 0.75;
+
   // Detalles del escenario
   const nowS = performance.now() / 1000;
   if (theme.aurora) {
@@ -1434,20 +1585,22 @@ function draw(L, dt) {
   }
   g.globalAlpha = 1;
 
-  // Luna (llena si está comprada y activada)
+  // Luna (llena si está comprada; DE SANGRE cuando la dificultad aprieta)
+  const moonColor = bloodMoon ? '#f0b3a6' : '#dfe9f2';
+  const moonGlow = bloodMoon ? '224,120,100' : '223,233,242';
   if (prefs.fxOn.lunallena) {
     const mg = g.createRadialGradient(w * 0.82, h * 0.14, 10, w * 0.82, h * 0.14, 70);
-    mg.addColorStop(0, 'rgba(223,233,242,0.35)');
-    mg.addColorStop(1, 'rgba(223,233,242,0)');
+    mg.addColorStop(0, `rgba(${moonGlow},${bloodMoon ? 0.45 : 0.35})`);
+    mg.addColorStop(1, `rgba(${moonGlow},0)`);
     g.fillStyle = mg;
     g.beginPath(); g.arc(w * 0.82, h * 0.14, 70, 0, TAU); g.fill();
-    g.fillStyle = '#e8f0f7';
+    g.fillStyle = bloodMoon ? '#f2beb0' : '#e8f0f7';
     g.beginPath(); g.arc(w * 0.82, h * 0.14, 38, 0, TAU); g.fill();
-    g.fillStyle = 'rgba(160,175,190,0.35)';
+    g.fillStyle = bloodMoon ? 'rgba(170,90,80,0.4)' : 'rgba(160,175,190,0.35)';
     g.beginPath(); g.arc(w * 0.82 - 10, h * 0.14 - 8, 7, 0, TAU); g.fill();
     g.beginPath(); g.arc(w * 0.82 + 12, h * 0.14 + 6, 5, 0, TAU); g.fill();
   } else {
-    g.fillStyle = '#dfe9f2';
+    g.fillStyle = moonColor;
     g.beginPath(); g.arc(w * 0.82, h * 0.14, 26, 0, TAU); g.fill();
     g.fillStyle = theme.skyTop; g.globalAlpha = 0.85;
     g.beginPath(); g.arc(w * 0.82 - 10, h * 0.14 - 4, 22, 0, TAU); g.fill();
@@ -1568,11 +1721,34 @@ function draw(L, dt) {
     drawShip(g, s, L, Math.max(0, 1 - s.t / 1.2), true);
   }
 
-  // Barcos activos
+  // Barcos activos (con estela de espuma tras ellos)
   for (const s of game.ships) {
     if (s.dist > 1.04) continue;
+    const p = shipXY(s, L);
+    const wake = Math.min(0.09, s.speed * 0.55);
+    const bx = cx + Math.cos(s.angle) * (s.dist + wake) * R;
+    const by = cy + Math.sin(s.angle) * (s.dist + wake) * R;
+    const wg = g.createLinearGradient(p.x, p.y, bx, by);
+    wg.addColorStop(0, 'rgba(191,227,242,0.30)');
+    wg.addColorStop(1, 'rgba(191,227,242,0)');
+    g.strokeStyle = wg;
+    g.lineWidth = 3.5;
+    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(bx, by); g.stroke();
     drawShip(g, s, L, 1, false);
   }
+
+  // Ondas expansivas al rescatar
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r0 = rings[i];
+    r0.t += dt;
+    if (r0.t > 0.6) { rings.splice(i, 1); continue; }
+    const k = r0.t / 0.6;
+    g.globalAlpha = (1 - k) * 0.6;
+    g.strokeStyle = r0.color;
+    g.lineWidth = 2.5 * (1 - k) + 0.5;
+    g.beginPath(); g.arc(r0.x, r0.y, 8 + k * 46, 0, TAU); g.stroke();
+  }
+  g.globalAlpha = 1;
 
   // Barco culpable resaltado
   if (culpritGhost) {
@@ -1659,6 +1835,54 @@ function draw(L, dt) {
       g.font = 'bold 22px system-ui, sans-serif';
       g.fillText(zoneBanner.text, cx, cy - R - 40);
       g.globalAlpha = 1;
+    }
+  }
+
+  // Anuncio a pantalla: la marea de regalos / "el engaño" revelado
+  if (bigBanner) {
+    bigBanner.t += dt;
+    if (bigBanner.t > 3.4) bigBanner = null;
+    else {
+      const a = Math.min(1, bigBanner.t * 3) * Math.min(1, (3.4 - bigBanner.t) / 0.6);
+      g.globalAlpha = a * 0.85;
+      g.fillStyle = 'rgba(7,15,29,0.75)';
+      roundedRect(g, cx - Math.min(w * 0.46, 260), cy - R * 0.98 - 30, Math.min(w * 0.92, 520), 62, 12); g.fill();
+      g.globalAlpha = a;
+      g.textAlign = 'center';
+      g.fillStyle = bigBanner.color;
+      g.font = 'bold 19px system-ui, sans-serif';
+      g.fillText(bigBanner.lines[0], cx, cy - R * 0.98 - 6);
+      g.fillStyle = PAL.text;
+      g.font = '13px system-ui, sans-serif';
+      g.fillText(bigBanner.lines[1], cx, cy - R * 0.98 + 16);
+      g.globalAlpha = 1;
+    }
+  }
+
+  // Botones del inventario (herramientas guardadas, a mano con un toque)
+  invHits.length = 0;
+  if (game.state === 'playing' && game.cfg.inventory) {
+    const slots = game.cfg.inventory.max;
+    const bs = 52, gap = 14;
+    const total = slots * bs + (slots - 1) * gap;
+    const x0 = cx - total / 2;
+    const by = h - bs / 2 - 14;
+    g.textAlign = 'center';
+    for (let i = 0; i < slots; i++) {
+      const bx2 = x0 + i * (bs + gap) + bs / 2;
+      const tool = game.inventory[i];
+      g.fillStyle = tool ? 'rgba(20,42,66,0.92)' : 'rgba(255,255,255,0.05)';
+      g.beginPath(); g.arc(bx2, by, bs / 2, 0, TAU); g.fill();
+      g.lineWidth = 2;
+      g.strokeStyle = tool ? (tool === 'ancla' ? '#7db8ff' : PAL.danger) : 'rgba(255,255,255,0.10)';
+      g.beginPath(); g.arc(bx2, by, bs / 2, 0, TAU); g.stroke();
+      if (tool) {
+        g.fillStyle = PAL.text;
+        g.font = '22px system-ui, sans-serif';
+        g.fillText(tool === 'ancla' ? '⚓' : '✦', bx2, by + 8);
+        const idx = i;
+        invHits.push({ x: bx2 - bs / 2 - 6, y: by - bs / 2 - 6, w: bs + 12, h: bs + 12, fn: () => game.useTool(idx) });
+      }
     }
   }
 
@@ -1809,7 +2033,7 @@ function drawHUD(g, L) {
   // Medidor de SUPERFARO
   if (game.state === 'playing') {
     const bw = 150, bh = 8;
-    const bx = cx - bw / 2, by = layout().h - 34;
+    const bx = cx - bw / 2, by = layout().h - 106; // sobre los botones del inventario
     const frac = Math.min(1, game.power / CONFIG.power.needed);
     const full = frac >= 1 && !game.superActive;
     g.fillStyle = 'rgba(255,255,255,0.12)';
@@ -1929,6 +2153,13 @@ function drawReady(g, L, now) {
     g.font = 'bold 15px system-ui, sans-serif';
     g.fillText(`🪙 ${prefs.coins} · TIENDA`, cx, ty + 5);
     menuHits.push({ x: cx - tw / 2, y: ty - 17, w: tw, h: 32, fn: () => { shopOpen = true; } });
+    // Utensilios ya comprados, a la vista
+    const owned = SHOP_ITEMS.filter((it) => prefs.shop[it.id] && !it.fx).map((it) => it.icon);
+    if (owned.length) {
+      g.font = '13px system-ui, sans-serif';
+      g.fillStyle = PAL.dim;
+      g.fillText(`equipado: ${owned.join(' ')}`, cx, ty + 24);
+    }
   }
 
   // Racha de días y logros
@@ -2032,7 +2263,7 @@ function drawOver(g, L) {
   } else if (isRecord && prevBest > 0) {
     g.fillText(`Récord anterior: ${prevBest}`, cx, cy - 6);
   }
-  g.fillText(`mejor racha ${game.bestChain} · rescates ${game.saves} · +${Math.floor(game.score / 50)} 🪙`, cx, cy + 18);
+  g.fillText(`mejor racha ${game.bestChain} · rescates ${game.saves} · +${Math.floor(game.score / 50) + game.bonusCoins} 🪙`, cx, cy + 18);
 
   // Resultado del reto 1 contra 1
   if (challenge) {
@@ -2142,6 +2373,12 @@ let lastT = performance.now();
 function frame(t) {
   let dt = Math.min(0.05, (t - lastT) / 1000) * debugState.timescale;
   lastT = t;
+
+  // Cámara lenta tras un rescate al límite (solo presentación + tiempo de juego)
+  if (slowmo > 0) {
+    slowmo = Math.max(0, slowmo - dt);
+    dt *= 0.35;
+  }
 
   if (debugState.inputAt) {
     debugState.latency = performance.now() - debugState.inputAt;
