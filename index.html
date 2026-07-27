@@ -135,6 +135,17 @@ const CONFIG = {
   checkpoint: {
     every: 3, // cada N fases superadas se guarda un punto de control
   },
+  // Sorpresas: eventos aleatorios que ayudan o complican (siempre justos)
+  surprise: {
+    first: 30,           // s hasta la primera sorpresa
+    interval: [55, 30],  // s entre sorpresas [D=0, D=1]
+    pirateSpeedMult: 1.45, // el pirata es rápido (y al iluminarlo SE HUNDE)
+    pirateBase: 40,      // puntos base del pirata (el botín)
+    tugTime: 9,          // s que el remolcador aliado está en el agua
+    tugPeriod: 3.2,      // cada cuánto remolca (auto-rescata) un barco
+    fogTime: 8,          // s de niebla (solo visual: las reglas no cambian)
+    wavePush: 0.12,      // la ola gigante empuja a todos los barcos hacia atrás
+  },
 };
 
 
@@ -433,6 +444,11 @@ class Game {
     this.spawnTimer = cfg.spawn.firstDelay;
     this.lullUntil = 0;
     this.wavesCleared = this.startWave;
+    // Sorpresas (piratas, remolcador aliado, ola gigante, niebla)
+    this.surpriseTimer = cfg.surprise ? cfg.surprise.first : Infinity;
+    this.tugUntil = -1;
+    this.tugTimer = 0;
+    this.fogUntil = -1;
     this.deathCause = null;
     this.overAt = 0;
     /** Cola de eventos para la capa de presentación. */
@@ -633,6 +649,29 @@ class Game {
       if (this.spawnTimer <= 0) this.#spawn(D);
     }
 
+    // Sorpresas: aliados y enemigos inesperados (nunca en el duelo)
+    if (!this.duel && this.cfg.surprise) {
+      this.surpriseTimer -= dt;
+      if (this.surpriseTimer <= 0) this.#surprise(D);
+      // Remolcador aliado: remolca (rescata) el barco más cercano a las rocas
+      if (this.time < this.tugUntil && this.ships.length > 0) {
+        this.tugTimer -= dt;
+        if (this.tugTimer <= 0) {
+          this.tugTimer = this.cfg.surprise.tugPeriod;
+          let best = null;
+          for (const s of this.ships) {
+            if (s.type === 'guardian') continue; // al guardián lo rescatas tú
+            if (!best || s.dist < best.dist) best = s;
+          }
+          if (best) {
+            this.ships.splice(this.ships.indexOf(best), 1);
+            this.events.push({ type: 'tug_save', ship: best });
+            this.#onSave(best);
+          }
+        }
+      }
+    }
+
     // Anuncios del arco: empieza la lluvia de regalos / se revela "el engaño"
     if (cfg.arc) {
       if (!this.giftAnnounced && this.phase === 'gift') {
@@ -747,6 +786,7 @@ class Game {
     const mult = comboMult(this.chain, cfg);
     const base = ship.type === 'corsair' ? cfg.score.corsairBase
       : ship.type === 'cargo' ? cfg.cargo.base
+      : ship.type === 'pirate' && cfg.surprise ? cfg.surprise.pirateBase
       : cfg.score.base;
     const points = base * zone * mult;
     this.score += points;
@@ -787,6 +827,42 @@ class Game {
         this.zoneIndex = zi;
         this.events.push({ type: 'zone', index: zi });
       }
+    }
+  }
+
+  /** Lanza una sorpresa aleatoria: pirata, remolcador, ola gigante o niebla. */
+  #surprise(D) {
+    const cfg = this.cfg;
+    const sp = cfg.surprise;
+    this.surpriseTimer = lerpByD(sp.interval, D);
+    const roll = this.rng();
+    if (roll < 0.34) {
+      // 🏴‍☠️ Pirata: rápido, paga botín y SE HUNDE al iluminarlo.
+      // Pasa por el validador: si no cabe con justicia, no aparece.
+      const speed = lerpByD(cfg.ship.baseSpeed, D) * sp.pirateSpeedMult;
+      const pattern = {
+        name: 'pirate',
+        build: (rng) => [makeShip(rng() * TAU, 1.0, speed, 'pirate')],
+      };
+      const marginFrac = lerpByD(cfg.validator.margin, D);
+      const placed = placePattern(pattern, this.rng, speed, this.ships, this.beamAngle, cfg, marginFrac);
+      if (placed) {
+        for (const s of placed) { s.born = this.time; this.ships.push(s); }
+        this.events.push({ type: 'surprise', kind: 'pirate', ship: placed[0] });
+      }
+    } else if (roll < 0.58) {
+      // ⛵ Remolcador aliado: durante unos segundos remolca barcos a puerto
+      this.tugUntil = this.time + sp.tugTime;
+      this.tugTimer = sp.tugPeriod;
+      this.events.push({ type: 'surprise', kind: 'tug', until: this.tugUntil });
+    } else if (roll < 0.8) {
+      // 🌊 Ola gigante: empuja a todos los barcos mar adentro (un respiro)
+      for (const s of this.ships) s.dist = Math.min(1.0, s.dist + sp.wavePush);
+      this.events.push({ type: 'surprise', kind: 'wave' });
+    } else {
+      // 🌫️ Niebla: puramente visual — las reglas y la justicia no cambian
+      this.fogUntil = this.time + sp.fogTime;
+      this.events.push({ type: 'surprise', kind: 'fog', until: this.fogUntil });
     }
   }
 
@@ -1134,6 +1210,7 @@ let slowmo = 0;          // s restantes de cámara lenta (rescate al límite)
 let bigBanner = null;    // anuncio a pantalla (regalos / "el engaño")
 const invHits = [];      // zonas táctiles de los botones del inventario
 const rings = [];        // ondas expansivas al rescatar
+const sinkers = [];      // piratas hundiéndose (animación)
 
 function shopTap(item) {
   if (!prefs.shop[item.id]) {
@@ -1336,7 +1413,7 @@ function resetVisuals() {
   shake = 0; flash = 0; culpritGhost = null; waveMsg = null; zoneBanner = null;
   celebrated = false; prevBest = records.best; overSince = -1;
   nearShown = false; shareRect = null;
-  slowmo = 0; bigBanner = null; rings.length = 0; invHits.length = 0;
+  slowmo = 0; bigBanner = null; rings.length = 0; invHits.length = 0; sinkers.length = 0;
   runStats.close = 0; runStats.supers = 0; runStats.cargos = 0;
   runStats.itemTypes = new Set(); runStats.milestone = 0;
   makeStars(game.seed);
@@ -1419,10 +1496,10 @@ function onDown(e) {
     // ángulo (segundo dedo: no interfiere con el haz del farero)
     if (game.state === 'playing' && game.duel) {
       const L = layout();
-      const dx = e.clientX - L.cx;
-      const dy = (e.clientY - L.cy) / PROJ; // deshacer la perspectiva del mar
-      if (Math.hypot(dx, dy) > L.R * 1.02) {
-        game.duelSpawn(Math.atan2(dy, dx));
+      // Trazado de rayo inverso: del píxel tocado al plano del mar
+      const hit = unprojectSea(e.clientX, e.clientY, L);
+      if (hit && hit.d > 1.02 && hit.d < 3.5) {
+        game.duelSpawn(hit.a);
         return;
       }
     }
@@ -1483,21 +1560,68 @@ function vibrate(ms) {
   try { if (navigator.vibrate) navigator.vibrate(ms); } catch { /* opcional */ }
 }
 
-/** Aplastamiento vertical del plano del mar (perspectiva 2.5D del tráiler). */
-const PROJ = 0.62;
+// ---------- Cámara del juego: PERSPECTIVA REAL (lo lejano, pequeño) ----------
+// La cámara está detrás y por encima del borde cercano del mar, inclinada
+// hacia el faro. Todo el campo de juego se proyecta con perspectiva de verdad:
+// los barcos lejanos se ven pequeños y crecen al acercarse.
+let GC = null; // cámara del frame actual (se recalcula en draw)
 
-function shipXY(s, L) {
-  return { x: L.cx + Math.cos(s.angle) * s.dist * L.R, y: L.cy + Math.sin(s.angle) * s.dist * L.R * PROJ };
+function gameCamera(L) {
+  const cam = {
+    y: 1.5,             // altura sobre el mar (unidades de radio de juego)
+    z: -2.3,            // detrás del borde cercano
+    pitch: -0.52,       // inclinación hacia abajo
+    f: L.R * 2.55,      // focal
+    ax: L.cx,
+    ay: L.cy - L.R * 0.02,
+  };
+  cam.cp = Math.cos(cam.pitch);
+  cam.sp = Math.sin(cam.pitch);
+  // Píxeles por unidad de mundo en el centro del campo (para escalar sprites)
+  const zc = -cam.y * cam.sp + (0 - cam.z) * cam.cp;
+  cam.sMid = cam.f / zc;
+  return cam;
 }
 
-/** Ejecuta dibujo "sobre el agua": el contexto queda aplastado en Y. */
-function onSea(g, cx, cy, fn) {
-  g.save();
-  g.translate(cx, cy);
-  g.scale(1, PROJ);
-  g.translate(-cx, -cy);
-  fn();
-  g.restore();
+/** Proyecta un punto del mar (ángulo, dist, altura) a pantalla. */
+function seaXY(a, d, hgt, L) {
+  const cam = GC || (GC = gameCamera(L));
+  const wx = Math.cos(a) * d;
+  const wz = Math.sin(a) * d; // +z = lejos (parte alta de la pantalla)
+  const dy = hgt - cam.y;
+  const dz = wz - cam.z;
+  const y1 = dy * cam.cp - dz * cam.sp;
+  const z1 = dy * cam.sp + dz * cam.cp;
+  const s = cam.f / Math.max(0.35, z1);
+  return { x: cam.ax + wx * s, y: cam.ay - y1 * s, s, k: s / cam.sMid };
+}
+
+function shipXY(s, L) {
+  return seaXY(s.angle, s.dist, 0, L);
+}
+
+/** Traza un anillo del mar proyectado (para zonas, ancla, banda del duelo). */
+function seaRing(g, d, L, steps = 56) {
+  g.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * TAU;
+    const p = seaXY(a, d, 0, L);
+    if (i === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
+  }
+}
+
+/** Pantalla → punto del plano del mar (rayo inverso; para el toque del duelo). */
+function unprojectSea(px, py, L) {
+  const cam = GC || (GC = gameCamera(L));
+  const kk = (cam.ay - py) / cam.f;
+  const denom = kk * cam.cp + cam.sp;
+  if (Math.abs(denom) < 1e-6) return null;
+  const dz = cam.y * (kk * cam.sp - cam.cp) / denom;
+  const z1 = -cam.y * cam.sp + dz * cam.cp;
+  if (z1 <= 0.05) return null;
+  const wx = ((px - cam.ax) * z1) / cam.f;
+  const wz = dz + cam.z;
+  return { a: Math.atan2(wz, wx), d: Math.hypot(wx, wz) };
 }
 
 /** '#rrggbb' → [r,g,b] para poder sombrear los colores del aspecto. */
@@ -1521,7 +1645,15 @@ function handleEvents(L) {
       const sub = ev.zone === 3 ? '¡AL LÍMITE!' : ev.zone === 2 ? '¡bien cerca!' : null;
       popups.push({ x: p.x, y: p.y, text: label, sub, t: 0, color: ev.zone === 3 ? PAL.danger : PAL.amber });
       burst(p.x, p.y, ev.zone === 3 ? PAL.danger : PAL.amber, ev.zone * 8);
-      savedShips.push({ ...ev.ship, t: 0 });
+      if (ev.ship.type === 'pirate') {
+        // El pirata no se salva: SE HUNDE (a pique, con burbujas)
+        sinkers.push({ ...ev.ship, t: 0 });
+        popups.push({ x: p.x, y: p.y - 24, text: '🏴‍☠️ ¡HUNDIDO!', sub: `botín +${ev.points}`, t: 0, color: PAL.amber, big: true });
+        shake = Math.max(shake, 0.4);
+        sound.shieldBreak();
+      } else {
+        savedShips.push({ ...ev.ship, t: 0 });
+      }
       rings.push({ x: p.x, y: p.y, t: 0, color: ev.zone === 3 ? PAL.danger : PAL.amber });
       sound.save(ev.chain, ev.zone);
       vibrate(10);
@@ -1643,6 +1775,27 @@ function handleEvents(L) {
         popups.push({ x: L.cx, y: L.cy - L.R * 0.75, text: '🚩 ¡PUNTO DE CONTROL!', sub: `la próxima partida podrá empezar en la FASE ${ev.n + 1}`, t: 0, color: PAL.beamCore, big: true });
         sound.record();
       }
+    } else if (ev.type === 'surprise') {
+      if (ev.kind === 'pirate') {
+        bigBanner = { lines: ['🏴‍☠️ ¡BARCO PIRATA A LA VISTA!', 'ilumínalo y húndelo — paga botín doble'], t: 0, color: PAL.danger };
+        shake = 0.4;
+        sound.shieldBreak();
+        vibrate(40);
+      } else if (ev.kind === 'tug') {
+        bigBanner = { lines: ['⛵ ¡REMOLCADOR AMIGO!', 'remolcará barcos a puerto unos segundos'], t: 0, color: PAL.foam };
+        sound.shield();
+      } else if (ev.kind === 'wave') {
+        bigBanner = { lines: ['🌊 ¡OLA GIGANTE!', 'todos los barcos retroceden mar adentro'], t: 0, color: PAL.beamCore };
+        shake = 0.5;
+        sound.wave();
+      } else if (ev.kind === 'fog') {
+        bigBanner = { lines: ['🌫️ NIEBLA CERRADA', 'aguanta: se disipará sola'], t: 0, color: PAL.dim };
+        sound.zone();
+      }
+    } else if (ev.type === 'tug_save') {
+      const p = shipXY(ev.ship, L);
+      popups.push({ x: p.x, y: p.y, text: '⛵ remolcado a puerto', sub: null, t: 0, color: PAL.foam });
+      sound.item();
     } else if (ev.type === 'duel_spawn') {
       const p = shipXY(ev.ship, L);
       popups.push({ x: p.x, y: p.y, text: ev.ship.type === 'corsair' ? '☠️ ¡CORSARIO!' : '⚓ ¡AL ABORDAJE!', sub: null, t: 0, color: PAL.danger });
@@ -2196,65 +2349,89 @@ function draw(L, dt) {
     }
   }
 
-  // Mar en perspectiva (el look del tráiler): elipse con oleaje sombreado,
-  // reflejo lunar y niebla hacia el borde
-  onSea(g, cx, cy, () => {
-    g.fillStyle = theme.sea;
-    g.beginPath(); g.arc(cx, cy, R + 6, 0, TAU); g.fill();
-    // Bandas de oleaje: anillos sombreados que respiran (baratos y vivos)
+  // OCÉANO 3D REAL: malla polar proyectada con oleaje, sombreado por
+  // pendiente, especular lunar y niebla de profundidad (motor del tráiler)
+  GC = gameCamera(L);
+  {
     const seaRGB = hexRGB(theme.sea);
-    const litRGB = mix3(seaRGB, [120, 160, 195], 0.5);
-    for (let i = 1; i <= 11; i++) {
-      const rr = (i / 11) * R;
-      const k = 0.5 + 0.5 * Math.sin(rr * 0.09 - now * 2.1 + i * 0.7);
-      g.strokeStyle = rgb3(mix3(seaRGB, litRGB, k), 0.16);
-      g.lineWidth = 2 + (i / 11) * 5;
-      g.beginPath(); g.arc(cx, cy, rr, 0, TAU); g.stroke();
+    const litRGB = mix3(seaRGB, [128, 168, 200], 0.55);
+    const fogRGB = hexRGB(theme.skyBottom);
+    const SECT = 36, RINGS = 9;
+    const EDGE = 1.06;
+    const wob = (a, d) =>
+      (Math.sin(a * 3 + now * 1.9) * 0.014 + Math.sin(d * 9 - now * 2.3 + a) * 0.02 +
+        Math.sin((a + d) * 5 + now * 1.1) * 0.01) * (0.5 + d);
+    // Vértices (anillo × sector) con altura de ola
+    const V = [];
+    for (let r2 = 0; r2 <= RINGS; r2++) {
+      const d = (r2 / RINGS) * EDGE;
+      const row = [];
+      for (let s2 = 0; s2 <= SECT; s2++) {
+        const a = (s2 / SECT) * TAU;
+        row.push(seaXY(a, d, wob(a, d), L));
+      }
+      V.push(row);
     }
-    // Reflejo de la luna: cuña brillante bajo su posición (arriba-derecha)
-    const glintA = -Math.PI / 3.2;
-    const gg2 = g.createRadialGradient(cx, cy, R * 0.1, cx, cy, R);
-    gg2.addColorStop(0, 'rgba(223,233,242,0)');
-    gg2.addColorStop(1, 'rgba(223,233,242,0.14)');
-    g.fillStyle = gg2;
+    // Silueta del mar (por detrás, con el color base)
+    g.fillStyle = theme.sea;
     g.beginPath();
-    g.moveTo(cx, cy);
-    g.arc(cx, cy, R + 4, glintA - 0.17, glintA + 0.17);
+    for (let s2 = 0; s2 <= SECT; s2++) {
+      const p = V[RINGS][s2];
+      if (s2 === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
+    }
     g.closePath(); g.fill();
-
-    // Placa base del universo ciber: pistas de circuito y nodos
-    if (U().id === 'ciber') {
-      g.strokeStyle = 'rgba(125,216,168,0.10)';
-      g.lineWidth = 1.5;
-      for (const c of circuits) {
+    // Celdas sombreadas de dentro hacia fuera
+    const glintA = -Math.PI / 2.9; // bajo la luna
+    for (let r2 = 0; r2 < RINGS; r2++) {
+      for (let s2 = 0; s2 < SECT; s2++) {
+        const p00 = V[r2][s2], p01 = V[r2][s2 + 1];
+        const p11 = V[r2 + 1][s2 + 1], p10 = V[r2 + 1][s2];
+        const aMid = ((s2 + 0.5) / SECT) * TAU;
+        const dMid = ((r2 + 0.5) / RINGS) * EDGE;
+        // Pendiente de la ola en el MUNDO (no en píxeles): la cara que mira a
+        // la luna/cámara se ilumina
+        const dh = wob(aMid, dMid + 0.06) - wob(aMid, Math.max(0, dMid - 0.06));
+        let kk = Math.max(0, Math.min(0.7, 0.24 - dh * 16));
+        // Especular de la luna en su cuña
+        const dg = Math.abs(((aMid - glintA + Math.PI * 3) % TAU) - Math.PI);
+        if (dg > Math.PI - 0.35) kk = Math.min(1, kk + 0.3 * ((dg - (Math.PI - 0.35)) / 0.35) * (0.3 + Math.max(0, -dh * 20)));
+        // Niebla: solo las celdas lejanas (mitad alta) se funden con el cielo
+        const fz = Math.max(0, Math.sin(aMid)) * dMid;
+        const fogK = Math.pow(Math.min(1, fz / 1.05), 1.7) * 0.7;
+        const col = mix3(mix3(seaRGB, litRGB, kk), fogRGB, fogK);
+        g.fillStyle = rgb3(col);
         g.beginPath();
-        g.moveTo(cx + Math.cos(c.a) * c.r0 * R, cy + Math.sin(c.a) * c.r0 * R);
-        g.lineTo(cx + Math.cos(c.a) * c.r1 * R, cy + Math.sin(c.a) * c.r1 * R);
-        g.arc(cx, cy, c.r1 * R, c.a, c.a + c.da, c.da < 0);
-        g.stroke();
-        if (c.node) {
-          g.fillStyle = 'rgba(125,216,168,0.16)';
-          g.beginPath();
-          g.arc(cx + Math.cos(c.a + c.da) * c.r1 * R, cy + Math.sin(c.a + c.da) * c.r1 * R, 3, 0, TAU);
-          g.fill();
-        }
+        g.moveTo(p00.x, p00.y); g.lineTo(p01.x, p01.y);
+        g.lineTo(p11.x, p11.y); g.lineTo(p10.x, p10.y);
+        g.closePath(); g.fill();
       }
     }
 
-    // Anillos de zona (sutiles)
-    g.lineWidth = 1;
-    g.strokeStyle = 'rgba(191,227,242,0.10)';
-    g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneMid, 0, TAU); g.stroke();
-    g.strokeStyle = 'rgba(255,89,100,0.18)';
-    g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneClose, 0, TAU); g.stroke();
+    // Placa base del universo ciber: pistas proyectadas sobre el agua
+    if (U().id === 'ciber') {
+      g.strokeStyle = 'rgba(125,216,168,0.12)';
+      g.lineWidth = 1.5;
+      for (const c of circuits) {
+        g.beginPath();
+        const q0 = seaXY(c.a, Math.min(1, c.r0), 0, L);
+        const q1 = seaXY(c.a, Math.min(1, c.r1), 0, L);
+        g.moveTo(q0.x, q0.y); g.lineTo(q1.x, q1.y);
+        for (let i2 = 0; i2 <= 8; i2++) {
+          const aa = c.a + (c.da * i2) / 8;
+          const qq = seaXY(aa, Math.min(1, c.r1), 0, L);
+          g.lineTo(qq.x, qq.y);
+        }
+        g.stroke();
+      }
+    }
 
-    // Niebla hacia el borde del mar (profundidad, como en el tráiler)
-    const fog2 = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R + 6);
-    fog2.addColorStop(0, 'rgba(0,0,0,0)');
-    fog2.addColorStop(1, theme.skyBottom + 'cc');
-    g.fillStyle = fog2;
-    g.beginPath(); g.arc(cx, cy, R + 6, 0, TAU); g.fill();
-  });
+    // Anillos de zona proyectados (sutiles)
+    g.lineWidth = 1;
+    g.strokeStyle = 'rgba(191,227,242,0.12)';
+    seaRing(g, CONFIG.score.zoneMid, L); g.stroke();
+    g.strokeStyle = 'rgba(255,89,100,0.2)';
+    seaRing(g, CONFIG.score.zoneClose, L); g.stroke();
+  }
 
   // Haz de luz (color del aspecto elegido; el superfaro lo ensancha y dora)
   const skin = currentSkin();
@@ -2264,36 +2441,41 @@ function draw(L, dt) {
   const holding = game.holding;
   const half = (game.state === 'ready' ? CONFIG.beam.halfWidth : game.beamHalfWidth) * (holding && !superOn ? 0.92 : 1);
   const glow = (holding ? 0.4 : 0.22) + (superOn ? 0.2 : 0);
-  onSea(g, cx, cy, () => {
-    const grad = g.createRadialGradient(cx, cy, R * 0.05, cx, cy, R);
+  {
+    // Sector del haz proyectado sobre el agua (luz que cae en el mar)
+    const c0 = seaXY(0, 0, 0, L);
+    const pm = seaXY(beamA, 1, 0, L);
+    const grad = g.createRadialGradient(c0.x, c0.y, 4, c0.x, c0.y, Math.hypot(pm.x - c0.x, pm.y - c0.y));
     grad.addColorStop(0, `rgba(${beamColor}, ${glow + 0.25})`);
     grad.addColorStop(1, `rgba(${beamColor}, 0)`);
     g.fillStyle = grad;
     g.beginPath();
-    g.moveTo(cx, cy);
-    g.arc(cx, cy, R, beamA - half, beamA + half);
-    g.closePath();
-    g.fill();
+    g.moveTo(c0.x, c0.y);
+    for (let i2 = 0; i2 <= 10; i2++) {
+      const aa = beamA - half + (2 * half * i2) / 10;
+      const pp = seaXY(aa, 1, 0, L);
+      g.lineTo(pp.x, pp.y);
+    }
+    g.closePath(); g.fill();
     // Línea central del haz
+    const l0 = seaXY(beamA, 0.12, 0, L);
     g.strokeStyle = `rgba(${beamColor}, ${holding ? 0.6 : 0.3})`;
     g.lineWidth = superOn ? 3 : 2;
-    g.beginPath();
-    g.moveTo(cx + Math.cos(beamA) * R * 0.12, cy + Math.sin(beamA) * R * 0.12);
-    g.lineTo(cx + Math.cos(beamA) * R, cy + Math.sin(beamA) * R);
-    g.stroke();
-  });
+    g.beginPath(); g.moveTo(l0.x, l0.y); g.lineTo(pm.x, pm.y); g.stroke();
+  }
 
-  // Isla (en el plano del agua) y personaje central de pie
-  onSea(g, cx, cy, () => {
+  // Isla proyectada en el agua y personaje central de pie
+  {
     g.fillStyle = PAL.rockDark;
-    g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius, 0, TAU); g.fill();
+    seaRing(g, CONFIG.island.radius, L, 28); g.fill();
     g.fillStyle = PAL.rock;
-    g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius * 0.75, 0, TAU); g.fill();
-  });
-  const lh = R * 0.085; // alto del personaje
+    seaRing(g, CONFIG.island.radius * 0.75, L, 28); g.fill();
+  }
+  const center0 = seaXY(0, 0, 0, L);
+  const lh = GC.sMid * 0.115; // alto del personaje, escalado por la cámara
   const squash = holding ? 0.96 : 1;
   g.save();
-  g.translate(cx, cy);
+  g.translate(center0.x, center0.y);
   g.scale(1, squash);
   if (U().id === 'ciber') {
     // ROBI, el ciberguardián: cuerpo, ojos que siguen el escáner y expresiones
@@ -2411,11 +2593,9 @@ function draw(L, dt) {
 
   // Aviso azulado mientras dura el ancla
   if (game.time < game.anchorUntil && game.state === 'playing') {
-    onSea(g, cx, cy, () => {
-      g.strokeStyle = 'rgba(125,184,255,0.35)';
-      g.lineWidth = 3;
-      g.beginPath(); g.arc(cx, cy, R + 3, 0, TAU); g.stroke();
-    });
+    g.strokeStyle = 'rgba(125,184,255,0.35)';
+    g.lineWidth = 3;
+    seaRing(g, 1.02, L); g.stroke();
   }
 
   // Barcos salvados (se alejan y desvanecen)
@@ -2427,13 +2607,54 @@ function draw(L, dt) {
     drawShip(g, s, L, Math.max(0, 1 - s.t / 1.2), true);
   }
 
+  // Piratas hundiéndose: el casco escora, se sumerge y deja burbujas
+  for (let i = sinkers.length - 1; i >= 0; i--) {
+    const s = sinkers[i];
+    s.t += dt;
+    if (s.t > 1.6) { sinkers.splice(i, 1); continue; }
+    const p = shipXY(s, L);
+    const k = s.t / 1.6;
+    const size = 15 * Math.max(0.55, Math.min(1.8, p.k));
+    g.save();
+    g.translate(p.x, p.y + k * size * 0.9);
+    g.rotate(0.9 * k); // escora
+    g.globalAlpha = 1 - k;
+    // Solo asoma la parte aún no sumergida
+    g.beginPath(); g.rect(-size * 1.4, -size * 1.6, size * 2.8, size * 1.6 * (1 - k * 0.9) + 2); g.clip();
+    g.fillStyle = '#3c3244';
+    g.beginPath();
+    g.moveTo(size, 0); g.lineTo(-size * 0.7, size * 0.55); g.lineTo(-size * 0.7, -size * 0.55);
+    g.closePath(); g.fill();
+    g.fillStyle = '#14101c';
+    g.beginPath();
+    g.moveTo(size * 0.1, 0); g.lineTo(-size * 0.35, -size * 0.9); g.lineTo(-size * 0.35, 0);
+    g.closePath(); g.fill();
+    g.restore();
+    g.globalAlpha = 1;
+    // Espuma y burbujas
+    g.fillStyle = `rgba(210,230,245,${0.6 * (1 - k)})`;
+    for (let b2 = 0; b2 < 4; b2++) {
+      const bx2 = p.x + Math.sin(b2 * 2.4 + s.t * 7) * size * 0.9;
+      g.beginPath(); g.arc(bx2, p.y + 2 - (s.t * 14 + b2 * 5) % 16, 1.6 + (b2 % 2), 0, TAU); g.fill();
+    }
+    g.strokeStyle = `rgba(210,230,245,${0.4 * (1 - k)})`;
+    g.lineWidth = 1.5;
+    g.beginPath(); g.ellipse(p.x, p.y + 3, size * (0.8 + k), size * (0.28 + k * 0.35), 0, 0, TAU); g.stroke();
+  }
+
+  // Remolcador aliado en el agua mientras dura la sorpresa
+  if (game.state === 'playing' && game.time < game.tugUntil) {
+    const tugShip = { angle: now * 0.85, dist: 0.5, type: 'tug', id: 4242, speed: 0.05 };
+    drawShip(g, tugShip, L, 0.95, false);
+  }
+
   // Barcos activos (con estela de espuma tras ellos)
   for (const s of game.ships) {
     if (s.dist > 1.04) continue;
     const p = shipXY(s, L);
     const wake = Math.min(0.09, s.speed * 0.55);
-    const bx = cx + Math.cos(s.angle) * (s.dist + wake) * R;
-    const by = cy + Math.sin(s.angle) * (s.dist + wake) * R * PROJ;
+    const pw = seaXY(s.angle, Math.min(1.06, s.dist + wake), 0, L);
+    const bx = pw.x, by = pw.y;
     const wg = g.createLinearGradient(p.x, p.y, bx, by);
     wg.addColorStop(0, 'rgba(191,227,242,0.30)');
     wg.addColorStop(1, 'rgba(191,227,242,0)');
@@ -2544,6 +2765,24 @@ function draw(L, dt) {
     }
   }
 
+  // 🌫️ Niebla cerrada (sorpresa): jirones a la deriva sobre el mar
+  if (game.state === 'playing' && game.time < game.fogUntil) {
+    const left2 = game.fogUntil - game.time;
+    const fa = Math.min(1, Math.min(left2, 1.2) / 1.2) * 0.55;
+    for (let i = 0; i < 5; i++) {
+      const fx2 = cx + Math.sin(now * 0.22 + i * 2.2) * R * 0.9;
+      const fy2 = cy + Math.cos(now * 0.16 + i * 1.7) * R * 0.45;
+      const fr2 = R * (0.45 + (i % 3) * 0.18);
+      const fgd = g.createRadialGradient(fx2, fy2, 4, fx2, fy2, fr2);
+      fgd.addColorStop(0, `rgba(205,218,232,${0.16 * fa})`);
+      fgd.addColorStop(1, 'rgba(205,218,232,0)');
+      g.fillStyle = fgd;
+      g.beginPath(); g.arc(fx2, fy2, fr2, 0, TAU); g.fill();
+    }
+    g.fillStyle = `rgba(205,218,232,${0.10 * fa})`;
+    g.fillRect(-20, -20, w + 40, h + 40);
+  }
+
   // Acabado de cine (como el tráiler): grano sutil + viñeta
   g.globalAlpha = 0.3;
   g.drawImage(grain(), ((now * 60) % 7) * -9, ((now * 60) % 5) * -11, w + 160, h + 160);
@@ -2578,13 +2817,11 @@ function draw(L, dt) {
   // DUELO: banda del almirante, cuenta atrás y recarga
   if (game.state === 'playing' && game.duel) {
     // Banda exterior punteada: aquí toca el almirante
-    onSea(g, cx, cy, () => {
-      g.strokeStyle = game.duelCd > 0 ? 'rgba(255,89,100,0.25)' : 'rgba(255,193,94,0.45)';
-      g.lineWidth = 3;
-      g.setLineDash([10, 12]);
-      g.beginPath(); g.arc(cx, cy, R * 1.06, 0, TAU); g.stroke();
-      g.setLineDash([]);
-    });
+    g.strokeStyle = game.duelCd > 0 ? 'rgba(255,89,100,0.25)' : 'rgba(255,193,94,0.45)';
+    g.lineWidth = 3;
+    g.setLineDash([10, 12]);
+    seaRing(g, 1.1, L); g.stroke();
+    g.setLineDash([]);
     // Cuenta atrás del farero
     const left = Math.max(0, CONFIG.duel.time - game.time);
     g.textAlign = 'center';
@@ -2655,10 +2892,14 @@ function drawVirusBody(g, s, size, lit, saved) {
   const body = s.type === 'corsair' ? (lit ? '#ffd2f4' : '#e07bd8')
     : s.type === 'guardian' ? '#ffe9a8'
     : s.type === 'cargo' ? (lit ? '#cfe0ee' : '#8fa3b5')
+    : s.type === 'pirate' ? (lit ? '#8f7ba8' : '#4a3a5e')
+    : s.type === 'tug' ? '#ffe9a8'
     : (lit ? '#d2ffd9' : '#7fd88a');
   const dark = s.type === 'corsair' ? '#8f3f88'
     : s.type === 'guardian' ? '#c8962b'
     : s.type === 'cargo' ? '#54636f'
+    : s.type === 'pirate' ? '#1c1226'
+    : s.type === 'tug' ? '#c8962b'
     : '#2f7a3c';
   // Pinchos giratorios (el guardián-anticuerpo no pincha: es redondito)
   if (s.type !== 'guardian') {
@@ -2703,9 +2944,12 @@ function drawVirusBody(g, s, size, lit, saved) {
 
 function drawShip(g, s, L, alpha, saved) {
   const p = shipXY(s, L);
-  const toCenter = Math.atan2(L.cy - p.y, L.cx - p.x);
+  const c0 = seaXY(0, 0, 0, L);
+  const toCenter = Math.atan2(c0.y - p.y, c0.x - p.x);
   const heading = saved ? toCenter + Math.PI : toCenter;
-  const size = s.type === 'cargo' ? 17 : 11 + (s.type === 'corsair' ? 0 : 2);
+  // Tamaño según profundidad: los barcos cercanos se ven GRANDES (perspectiva)
+  const depthK = Math.max(0.55, Math.min(1.8, p.k));
+  const size = (s.type === 'cargo' ? 17 : s.type === 'pirate' ? 15 : 11 + (s.type === 'corsair' ? 0 : 2)) * depthK;
   const lit = game.holding && game.state === 'playing' &&
     s.dist <= CONFIG.beam.range &&
     angDist(game.beamAngle, s.angle) <= CONFIG.beam.halfWidth + 0.06;
@@ -2727,20 +2971,32 @@ function drawShip(g, s, L, alpha, saved) {
   // Estela
   g.fillStyle = 'rgba(191,227,242,0.25)';
   g.fillRect(-size - 8, -1, 6, 2);
-  // Casco
-  g.fillStyle = s.type === 'corsair' ? '#c8b7ff'
+  // Casco (con sombreado lateral: sensación de volumen)
+  const hull = s.type === 'corsair' ? '#c8b7ff'
     : s.type === 'guardian' ? '#fff3d6'
     : s.type === 'cargo' ? '#9fb0c0'
+    : s.type === 'pirate' ? '#3c3244'
+    : s.type === 'tug' ? '#ffe9b8'
     : (lit ? '#ffe9c2' : '#dce8f2');
+  g.fillStyle = hull;
   g.beginPath();
   g.moveTo(size, 0);
   g.lineTo(-size * 0.7, size * 0.55);
   g.lineTo(-size * 0.7, -size * 0.55);
   g.closePath();
   g.fill();
-  // Vela
+  // Media sombra del casco (volumen)
+  g.fillStyle = 'rgba(0,0,0,0.22)';
+  g.beginPath();
+  g.moveTo(size, 0);
+  g.lineTo(-size * 0.7, size * 0.55);
+  g.lineTo(-size * 0.7, 0);
+  g.closePath(); g.fill();
+  // Vela (el pirata lleva velas negras)
   g.fillStyle = s.type === 'corsair' ? '#8f7bd8'
     : s.type === 'guardian' ? PAL.amber
+    : s.type === 'pirate' ? '#14101c'
+    : s.type === 'tug' ? '#e8b64a'
     : '#9fb8cc';
   g.beginPath();
   g.moveTo(size * 0.1, 0);
@@ -2748,11 +3004,31 @@ function drawShip(g, s, L, alpha, saved) {
   g.lineTo(-size * 0.35, 0);
   g.closePath();
   g.fill();
+  if (s.type === 'pirate') {
+    // Segunda vela negra y borde rojo amenazador
+    g.beginPath();
+    g.moveTo(size * 0.55, 0);
+    g.lineTo(size * 0.2, -size * 0.6);
+    g.lineTo(size * 0.2, 0);
+    g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(255,96,84,0.7)';
+    g.lineWidth = 1.4;
+    g.beginPath();
+    g.moveTo(size, 0); g.lineTo(-size * 0.7, -size * 0.55); g.stroke();
+  }
   // Farolillo
   g.fillStyle = PAL.amber;
   g.beginPath(); g.arc(size * 0.4, 0, 2.2, 0, TAU); g.fill();
   g.restore();
   g.globalAlpha = 1;
+  }
+  // Bandera del pirata (se ve de un vistazo que es el enemigo)
+  if (s.type === 'pirate' && !saved) {
+    g.globalAlpha = alpha;
+    g.font = 'bold 13px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.fillText('🏴‍☠️', p.x, p.y - 18);
+    g.globalAlpha = 1;
   }
 
   // Puntos de vida del carguero (cuántas luces le faltan)
