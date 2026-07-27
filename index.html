@@ -1691,7 +1691,370 @@ function handleEvents(L) {
   game.events.length = 0;
 }
 
-// ---------- Intro cinemática (pseudo-3D, renderizada en tiempo real) ----------
+// ---------- Intro cinemática: motor 3D por software (sin dependencias) ----------
+// Rehecha tras el feedback de los testers ("muy de niño pequeño"): malla de
+// océano en perspectiva real con oleaje, niebla por profundidad y especular
+// lunar; faro cilíndrico sombreado por caras; barcos con casco 3D y luz de
+// borde; haz volumétrico con destello de lente; tormenta con relámpagos;
+// grano de película, viñeta y barras de cine.
+
+/** Proyección perspectiva de un punto del mundo a pantalla. */
+function proj3(x, y, z, cam, w, h) {
+  const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  const y1 = dy * cp - dz * sp;
+  const z1 = dy * sp + dz * cp;
+  if (z1 < 0.25) return null;
+  const s = cam.f / z1;
+  return { x: w / 2 + dx * s, y: h / 2 - y1 * s, z: z1, s };
+}
+
+/** Altura del oleaje (suma de senos; arrecia con la tormenta). */
+function seaH(x, z, t, rough) {
+  return (Math.sin(x * 0.32 + t * 1.1) * 0.55 +
+    Math.sin(z * 0.45 - t * 1.7) * 0.75 +
+    Math.sin((x + z) * 0.18 + t * 0.7) * 0.45 +
+    Math.sin(x * 0.9 - t * 2.3) * 0.18) * rough;
+}
+
+const mix3 = (a, b, k) => [
+  a[0] + (b[0] - a[0]) * k,
+  a[1] + (b[1] - a[1]) * k,
+  a[2] + (b[2] - a[2]) * k,
+];
+const rgb3 = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+
+let grainCanvas = null;
+function grain() {
+  if (!grainCanvas) {
+    grainCanvas = document.createElement('canvas');
+    grainCanvas.width = grainCanvas.height = 160;
+    const gg = grainCanvas.getContext('2d');
+    const img = gg.createImageData(160, 160);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+      img.data[i + 3] = 26;
+    }
+    gg.putImageData(img, 0, 0);
+  }
+  return grainCanvas;
+}
+
+function drawIntro(L, dt) {
+  const { w, h } = L;
+  const g = ctx2d;
+  intro.t += dt;
+  const t = intro.t;
+  if (t > 11.4) { intro.active = false; return; }
+
+  const storm = t >= 7.3;
+  const heat = storm ? Math.min(1, (t - 7.3) / 1.3) : 0;
+  const rough = 1 + heat * 1.6 + easeOut(t / 3) * 0.2;
+
+  // Cámara: desciende del cielo al nivel del mar y encuadra el faro
+  const cam = {
+    x: 0,
+    y: 7.5 - 5.2 * easeOut(t / 3.2) + Math.sin(t * 0.7) * 0.15,
+    z: 0,
+    pitch: -0.34 + 0.3 * easeOut(t / 3.2),
+    f: Math.min(w, h) * 0.98,
+  };
+  if (storm) { cam.x += (Math.random() - 0.5) * 0.12; cam.y += (Math.random() - 0.5) * 0.12; }
+
+  // Paleta según acto
+  const skyTop = mix3([4, 9, 20], [56, 12, 22], heat);
+  const skyHor = mix3([16, 34, 58], [96, 26, 38], heat);
+  const seaDark = mix3([7, 17, 31], [26, 9, 18], heat);
+  const seaLit = mix3([64, 104, 142], [168, 64, 74], heat);
+
+  // Cielo
+  const horizon = proj3(0, 0.4, 60, cam, w, h);
+  const hy = horizon ? Math.min(h * 0.7, Math.max(h * 0.18, horizon.y)) : h * 0.4;
+  const sky = g.createLinearGradient(0, 0, 0, hy);
+  sky.addColorStop(0, rgb3(skyTop));
+  sky.addColorStop(1, rgb3(skyHor));
+  g.fillStyle = sky;
+  g.fillRect(0, 0, w, hy + 2);
+  g.fillStyle = rgb3(seaDark);
+  g.fillRect(0, hy, w, h - hy);
+
+  // Estrellas y luna con halo
+  for (let i = 0; i < 60; i++) {
+    const s = stars[i];
+    const sy2 = s.y * hy * 1.4;
+    if (sy2 > hy - 6) continue;
+    g.globalAlpha = (0.25 + 0.3 * Math.sin(t * 2 + s.tw)) * (1 - heat * 0.8);
+    g.fillStyle = '#eaf2fa';
+    g.fillRect(s.x * w, sy2, s.s, s.s);
+  }
+  g.globalAlpha = 1;
+  const mx = w * 0.74, my = hy * 0.34;
+  const moonC = storm ? [242, 176, 160] : [223, 233, 242];
+  const halo = g.createRadialGradient(mx, my, 4, mx, my, 90);
+  halo.addColorStop(0, rgb3(moonC, 0.5));
+  halo.addColorStop(1, rgb3(moonC, 0));
+  g.fillStyle = halo;
+  g.beginPath(); g.arc(mx, my, 90, 0, TAU); g.fill();
+  g.fillStyle = rgb3(moonC);
+  g.beginPath(); g.arc(mx, my, 20, 0, TAU); g.fill();
+  g.fillStyle = rgb3(mix3(moonC, [120, 130, 150], 0.4), 0.5);
+  g.beginPath(); g.arc(mx - 6, my - 5, 4.5, 0, TAU); g.fill();
+  g.beginPath(); g.arc(mx + 7, my + 4, 3, 0, TAU); g.fill();
+
+  // OCÉANO: malla proyectada con sombreado por pendiente, especular y niebla
+  const NX = 30, NZ = 19;
+  const X0 = -34, X1 = 34, Z0 = 2.2, Z1 = 55;
+  const pts = [];
+  for (let j = 0; j <= NZ; j++) {
+    const zf = Z0 * Math.pow(Z1 / Z0, j / NZ); // filas logarítmicas: detalle cerca
+    const row = [];
+    for (let i = 0; i <= NX; i++) {
+      const xf = X0 + (X1 - X0) * (i / NX);
+      row.push({ x: xf, z: zf, y: seaH(xf, zf, t, rough), p: proj3(xf, seaH(xf, zf, t, rough), zf, cam, w, h) });
+    }
+    pts.push(row);
+  }
+  for (let j = NZ - 1; j >= 0; j--) {
+    for (let i = 0; i < NX; i++) {
+      const a = pts[j + 1][i], b = pts[j + 1][i + 1], c = pts[j][i + 1], d = pts[j][i];
+      if (!a.p || !b.p || !c.p || !d.p) continue;
+      const slope = (d.y + c.y - a.y - b.y) * 0.5; // cara hacia la cámara = iluminada
+      let k = Math.max(0, Math.min(1, 0.42 + slope * 0.55));
+      // Especular lunar: banda vertical bajo la luna
+      const midX = (a.x + b.x) / 2;
+      const moonBand = Math.max(0, 1 - Math.abs(midX - 16) / 5.5);
+      k = Math.min(1, k + moonBand * Math.max(0, slope) * 0.9);
+      const fog = Math.min(1, (a.z / Z1) * 1.05);
+      const col = mix3(mix3(seaDark, seaLit, k), skyHor, fog * fog);
+      g.fillStyle = rgb3(col);
+      g.beginPath();
+      g.moveTo(a.p.x, a.p.y); g.lineTo(b.p.x, b.p.y);
+      g.lineTo(c.p.x, c.p.y); g.lineTo(d.p.x, d.p.y);
+      g.closePath(); g.fill();
+    }
+  }
+
+  // BARCOS 3D (acto 2): cascos oscuros con luz de borde, cabecean con la ola
+  if (t >= 2.3 && t < 7.6) {
+    const fleet = [
+      { x0: -9, delay: 2.3 }, { x0: 8, delay: 2.8 }, { x0: -1.5, delay: 3.3 },
+    ];
+    for (const f of fleet) {
+      const k = (t - f.delay) / 3.4;
+      if (k <= 0 || k >= 1) continue;
+      const z = 46 - 40 * easeIn(k);
+      const x = f.x0 * (0.4 + 0.6 * (z / 46));
+      const y = seaH(x, z, t, rough) + 0.4;
+      const roll = Math.sin(t * 1.8 + f.x0) * 0.12;
+      // Vértices del casco (mundo, popa hacia la cámara)
+      const V = [
+        [x, y + 0.5, z - 2.6],           // proa (lejos)
+        [x - 1.5 + roll, y + 1.3, z],    // babor
+        [x, y + 1.05, z + 2.4],          // popa (cerca)
+        [x + 1.5 + roll, y + 1.3, z],    // estribor
+        [x + roll * 2, y + 4.6, z - 0.3],// tope del mástil
+      ].map((v) => proj3(v[0], v[1], v[2], cam, w, h));
+      if (V.some((p) => !p)) continue;
+      const fog = Math.min(1, z / Z1 + 0.12);
+      g.fillStyle = rgb3(mix3([8, 15, 26], skyHor, fog * fog));
+      g.beginPath();
+      g.moveTo(V[0].x, V[0].y); g.lineTo(V[1].x, V[1].y);
+      g.lineTo(V[2].x, V[2].y); g.lineTo(V[3].x, V[3].y);
+      g.closePath(); g.fill();
+      // Vela
+      g.fillStyle = rgb3(mix3([16, 26, 40], skyHor, fog * fog));
+      g.beginPath();
+      g.moveTo(V[4].x, V[4].y); g.lineTo(V[1].x, V[1].y); g.lineTo(V[2].x, V[2].y);
+      g.closePath(); g.fill();
+      // Luz de borde rojiza (amenaza) + espuma en proa
+      g.strokeStyle = `rgba(255,96,84,${0.25 + 0.55 * (1 - z / 46)})`;
+      g.lineWidth = 1.4;
+      g.beginPath();
+      g.moveTo(V[0].x, V[0].y); g.lineTo(V[1].x, V[1].y); g.lineTo(V[2].x, V[2].y);
+      g.stroke();
+      g.fillStyle = 'rgba(210,230,245,0.5)';
+      for (let sp2 = 0; sp2 < 3; sp2++) {
+        g.fillRect(V[2].x - 6 + Math.random() * 12, V[2].y + 2 + Math.random() * 4, 1.6, 1.6);
+      }
+    }
+  }
+
+  // FARO 3D (acto 3): cilindro por segmentos con sombreado y haz volumétrico
+  if (t >= 4.8) {
+    const rise = easeOut((t - 4.8) / 1.3);
+    const FX = 0, FZ = 26;
+    const HT = 13 * rise;
+    const SEG = 14, BANDS = 5;
+    const baseY = seaH(FX, FZ, t, rough) - 0.4;
+    for (let bnd = 0; bnd < BANDS; bnd++) {
+      const y0 = baseY + (HT * bnd) / BANDS;
+      const y1 = baseY + (HT * (bnd + 1)) / BANDS;
+      const r0 = 2.5 - 1.1 * (bnd / BANDS);
+      const r1 = 2.5 - 1.1 * ((bnd + 1) / BANDS);
+      const white = bnd % 2 === 0;
+      for (let sgm = 0; sgm < SEG; sgm++) {
+        const a0 = (sgm / SEG) * TAU, a1 = ((sgm + 1) / SEG) * TAU;
+        const nz = Math.cos((a0 + a1) / 2);
+        if (nz > 0.05) continue; // caras traseras
+        const P = [
+          proj3(FX + Math.sin(a0) * r0, y0, FZ + Math.cos(a0) * r0, cam, w, h),
+          proj3(FX + Math.sin(a1) * r0, y0, FZ + Math.cos(a1) * r0, cam, w, h),
+          proj3(FX + Math.sin(a1) * r1, y1, FZ + Math.cos(a1) * r1, cam, w, h),
+          proj3(FX + Math.sin(a0) * r1, y1, FZ + Math.cos(a0) * r1, cam, w, h),
+        ];
+        if (P.some((p) => !p)) continue;
+        // Luz lunar desde la derecha-arriba
+        const lit = Math.max(0, Math.sin((a0 + a1) / 2 + 0.6) * -0.5 + 0.5);
+        const base = white ? mix3([88, 100, 116], [232, 238, 244], lit)
+          : mix3([84, 22, 30], [206, 60, 70], lit);
+        g.fillStyle = rgb3(mix3(base, skyHor, 0.18));
+        g.beginPath();
+        g.moveTo(P[0].x, P[0].y); g.lineTo(P[1].x, P[1].y);
+        g.lineTo(P[2].x, P[2].y); g.lineTo(P[3].x, P[3].y);
+        g.closePath(); g.fill();
+      }
+    }
+    // Galería y linterna
+    const topY = baseY + HT;
+    const lamp = proj3(FX, topY + 1.0, FZ, cam, w, h);
+    const gal = proj3(FX, topY + 0.2, FZ, cam, w, h);
+    if (gal && rise > 0.2) {
+      g.fillStyle = '#0c1622';
+      g.beginPath(); g.ellipse(gal.x, gal.y, gal.s * 1.9, gal.s * 0.5, 0, 0, TAU); g.fill();
+    }
+    if (lamp && rise > 0.6) {
+      // Haz volumétrico que barre y deslumbra al pasar por la cámara
+      const az = (t - 5.6) * 1.5;
+      const dirx = Math.sin(az), dirz = Math.cos(az);
+      const toCam = Math.max(0, -dirz); // mira a cámara cuando dirz < 0
+      const flare = Math.pow(toCam, 14);
+      if (t < 7.8) {
+        const L2 = 34;
+        const e1 = proj3(FX + Math.sin(az - 0.09) * L2, topY + 0.6, FZ + Math.cos(az - 0.09) * L2, cam, w, h);
+        const e2 = proj3(FX + Math.sin(az + 0.09) * L2, topY + 0.6, FZ + Math.cos(az + 0.09) * L2, cam, w, h);
+        if (e1 && e2) {
+          const bg2 = g.createLinearGradient(lamp.x, lamp.y, (e1.x + e2.x) / 2, (e1.y + e2.y) / 2);
+          bg2.addColorStop(0, `rgba(255,236,180,${0.55 + 0.35 * flare})`);
+          bg2.addColorStop(1, 'rgba(255,236,180,0)');
+          g.fillStyle = bg2;
+          g.beginPath();
+          g.moveTo(lamp.x, lamp.y); g.lineTo(e1.x, e1.y); g.lineTo(e2.x, e2.y);
+          g.closePath(); g.fill();
+        }
+      }
+      // Linterna + destello de lente con fantasmas
+      g.fillStyle = '#ffefc0';
+      g.beginPath(); g.arc(lamp.x, lamp.y, Math.max(2, lamp.s * 0.5) * (1 + flare), 0, TAU); g.fill();
+      if (flare > 0.02) {
+        const fg = g.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, w * 0.7);
+        fg.addColorStop(0, `rgba(255,245,220,${0.75 * flare})`);
+        fg.addColorStop(0.25, `rgba(255,236,180,${0.28 * flare})`);
+        fg.addColorStop(1, 'rgba(255,236,180,0)');
+        g.fillStyle = fg;
+        g.fillRect(0, 0, w, h);
+        // Fantasmas de lente en la diagonal hacia el centro
+        for (const gk of [0.35, 0.62, 0.95]) {
+          const gx2 = lamp.x + (w / 2 - lamp.x) * (1 + gk);
+          const gy2 = lamp.y + (h / 2 - lamp.y) * (1 + gk);
+          g.fillStyle = `rgba(180,220,255,${0.16 * flare})`;
+          g.beginPath(); g.arc(gx2, gy2, 8 + 18 * gk, 0, TAU); g.fill();
+        }
+      }
+    }
+  }
+
+  // Relámpagos de tormenta: rayo dentado + destello global
+  if (storm && Math.random() < 0.045) {
+    const bx = w * (0.15 + Math.random() * 0.7);
+    g.strokeStyle = 'rgba(255,240,245,0.85)';
+    g.lineWidth = 2;
+    g.beginPath();
+    let x2 = bx, y2 = 6;
+    g.moveTo(x2, y2);
+    while (y2 < hy * 0.9) {
+      x2 += (Math.random() - 0.5) * 34;
+      y2 += 12 + Math.random() * 26;
+      g.lineTo(x2, y2);
+    }
+    g.stroke();
+    g.fillStyle = 'rgba(240,230,255,0.12)';
+    g.fillRect(0, 0, w, h);
+  }
+
+  // Grano de película + viñeta (acabado de cine)
+  g.globalAlpha = 0.5;
+  g.drawImage(grain(), Math.random() * -60, Math.random() * -60, w + 160, h + 160);
+  g.globalAlpha = 1;
+  const vg2 = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42, w / 2, h / 2, Math.max(w, h) * 0.78);
+  vg2.addColorStop(0, 'rgba(0,0,0,0)');
+  vg2.addColorStop(1, 'rgba(0,0,0,0.55)');
+  g.fillStyle = vg2;
+  g.fillRect(0, 0, w, h);
+
+  // Barras de cine
+  const bar = h * 0.1;
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, w, bar);
+  g.fillRect(0, h - bar, w, bar);
+
+  // Guion (sobrio, con espaciado de letras si el navegador lo soporta)
+  const lines = [
+    { from: 0.6, to: 2.5, big: 'EL MAR NUNCA DUERME', sub: null, color: '#dfe9f2' },
+    { from: 2.8, to: 4.9, big: 'ESTA NOCHE VIENE A POR TU FARO', sub: null, color: '#eaf2fa' },
+    { from: 5.2, to: 7.2, big: 'SOLO TU LUZ PUEDE DETENERLO', sub: null, color: '#ffe9a8' },
+    { from: 7.6, to: 9.3, big: '¿TE CREES CAPAZ?', sub: 'el mar apuesta a que no llegas a 500', color: '#ff5964' },
+    { from: 9.5, to: 11.1, big: 'DEMUÉSTRALE QUIÉN MANDA', sub: 'toca para empezar', color: '#ffc45e' },
+  ];
+  g.textAlign = 'center';
+  try { g.letterSpacing = '3px'; } catch { /* opcional */ }
+  for (const ln of lines) {
+    const a = fadeIO(t, ln.from, ln.to);
+    if (a <= 0) continue;
+    const grow = 1 + 0.04 * easeOut((t - ln.from) / (ln.to - ln.from));
+    g.save();
+    g.translate(w / 2, h * 0.26);
+    g.scale(grow, grow);
+    g.globalAlpha = a;
+    g.shadowColor = ln.color; g.shadowBlur = 22;
+    g.fillStyle = ln.color;
+    let fs = Math.min(26, Math.round(w / 15));
+    g.font = `bold ${fs}px system-ui, sans-serif`;
+    const twid = g.measureText(ln.big).width;
+    if (twid > w * 0.86) {
+      fs = Math.max(12, Math.floor((fs * w * 0.86) / twid));
+      g.font = `bold ${fs}px system-ui, sans-serif`;
+    }
+    g.fillText(ln.big, 0, 0);
+    if (ln.sub) {
+      g.shadowBlur = 0;
+      try { g.letterSpacing = '1px'; } catch { /* opcional */ }
+      g.fillStyle = '#eaf2fa';
+      g.font = '600 13px system-ui, sans-serif';
+      g.fillText(ln.sub, 0, 26);
+      try { g.letterSpacing = '3px'; } catch { /* opcional */ }
+    }
+    g.restore();
+  }
+  g.globalAlpha = 1; g.shadowBlur = 0;
+  try { g.letterSpacing = '0px'; } catch { /* opcional */ }
+
+  // Saltar
+  g.fillStyle = 'rgba(234,242,250,0.5)';
+  g.font = '12px system-ui, sans-serif';
+  g.textAlign = 'right';
+  g.fillText('toca para saltar ▸', w - 14, h - bar - 12);
+
+  // Fundido inicial y final
+  if (t < 0.7) {
+    g.fillStyle = `rgba(0,0,0,${1 - t / 0.7})`;
+    g.fillRect(0, 0, w, h);
+  } else if (t > 10.8) {
+    g.fillStyle = `rgba(0,0,0,${(t - 10.8) / 0.6})`;
+    g.fillRect(0, 0, w, h);
+  }
+}
+
 const easeOut = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
 const easeIn = (k) => Math.pow(Math.min(1, Math.max(0, k)), 3);
 
@@ -1701,217 +2064,6 @@ function fadeIO(t, from, to) {
   const inA = Math.min(1, (t - from) / 0.45);
   const outA = Math.min(1, (to - t) / 0.45);
   return Math.min(inA, outA);
-}
-
-function introShip(g, x, y, s, glow) {
-  // Silueta de barco con luz de borde rojiza (sensación 3D barata)
-  g.save();
-  g.translate(x, y);
-  g.scale(s, s);
-  g.fillStyle = '#0a1522';
-  g.beginPath(); // casco
-  g.moveTo(-30, 0); g.lineTo(30, 0); g.lineTo(20, 12); g.lineTo(-20, 12); g.closePath(); g.fill();
-  g.beginPath(); // vela
-  g.moveTo(0, -2); g.lineTo(0, -34); g.lineTo(20, -6); g.closePath(); g.fill();
-  g.strokeStyle = `rgba(255,110,95,${glow})`;
-  g.lineWidth = 1.6;
-  g.beginPath(); g.moveTo(-30, 0); g.lineTo(30, 0); g.stroke();
-  g.beginPath(); g.moveTo(0, -34); g.lineTo(20, -6); g.stroke();
-  // estela
-  g.strokeStyle = `rgba(191,227,242,${glow * 0.5})`;
-  g.beginPath(); g.moveTo(-34, 8); g.lineTo(-52, 8); g.stroke();
-  g.restore();
-}
-
-function drawIntro(L, dt) {
-  const { w, h, cx } = L;
-  const g = ctx2d;
-  intro.t += dt;
-  const t = intro.t;
-  if (t > 11.2) { intro.active = false; return; }
-
-  const hy = h * 0.42; // horizonte
-  const storm = t >= 7.4;
-  // Sacudida en la escena final
-  let jx = 0, jy = 0;
-  if (storm) { jx = (Math.random() - 0.5) * 4; jy = (Math.random() - 0.5) * 4; }
-  g.save();
-  g.translate(jx, jy);
-
-  // Cielo: azul noche → rojo tormenta al final
-  const heat = storm ? Math.min(1, (t - 7.4) / 1.2) : 0;
-  const sky = g.createLinearGradient(0, 0, 0, hy);
-  sky.addColorStop(0, storm ? `rgb(${40 + 60 * heat},${16 + 6 * heat},${30})` : '#050b18');
-  sky.addColorStop(1, storm ? '#3a1020' : '#0d1e33');
-  g.fillStyle = sky;
-  g.fillRect(-8, -8, w + 16, hy + 16);
-
-  // Estrellas y luna
-  for (const s of stars) {
-    if (s.y * h > hy) continue;
-    g.globalAlpha = 0.5 * (0.5 + 0.5 * Math.sin(t * 2 + s.tw)) * (1 - heat);
-    g.fillStyle = PAL.foam;
-    g.fillRect(s.x * w, s.y * h, s.s, s.s);
-  }
-  g.globalAlpha = 1;
-  g.fillStyle = storm ? '#f0b3a6' : '#dfe9f2';
-  g.beginPath(); g.arc(w * 0.78, hy * 0.3, 22, 0, TAU); g.fill();
-
-  // Mar en perspectiva: líneas de oleaje hacia el punto de fuga
-  const seaG = g.createLinearGradient(0, hy, 0, h);
-  seaG.addColorStop(0, storm ? '#251020' : '#0a1a30');
-  seaG.addColorStop(1, storm ? '#120814' : '#04101f');
-  g.fillStyle = seaG;
-  g.fillRect(-8, hy, w + 16, h - hy + 16);
-  for (let i = 1; i <= 14; i++) {
-    const u = i / 14;
-    const y = hy + (h - hy) * Math.pow(u, 1.75);
-    const amp = 1 + 9 * u;
-    g.strokeStyle = `rgba(191,227,242,${0.05 + 0.10 * u})`;
-    g.lineWidth = 0.8 + 1.6 * u;
-    g.beginPath();
-    for (let x = -10; x <= w + 10; x += 16) {
-      const yy = y + Math.sin(x / (60 - 30 * u) + t * (1 + u) * 1.6 + i) * amp;
-      if (x === -10) g.moveTo(x, yy); else g.lineTo(x, yy);
-    }
-    g.stroke();
-  }
-
-  // ESCENA 2 (2.4–5.2 s): barcos que se acercan a cámara
-  if (t >= 2.4 && t < 7.4) {
-    const list = [
-      { x0: 0.30, delay: 2.4 }, { x0: 0.68, delay: 2.9 }, { x0: 0.50, delay: 3.4 },
-    ];
-    for (const sh of list) {
-      const k = (t - sh.delay) / 3.2;
-      if (k <= 0 || k >= 0.92) continue; // sin primerísimos planos feos
-      const z = easeIn(k); // 0 horizonte → 1 cámara
-      const y = hy + (h - hy) * Math.pow(z, 1.4) * 0.8;
-      const x = w * sh.x0 + (w * sh.x0 - cx) * z * 0.7;
-      const s = 0.55 + 3.0 * Math.pow(z, 1.35);
-      introShip(g, x, y, s, 0.45 + 0.55 * z);
-    }
-  }
-
-  // ESCENA 3 (4.9–7.4 s): el faro se alza y su haz barre hacia la cámara
-  if (t >= 4.9) {
-    const rise = easeOut((t - 4.9) / 1.1);
-    const baseY = h * 0.9;
-    const th = h * 0.40 * rise; // alto de la torre
-    const tw2 = th * 0.15;
-    g.save();
-    g.translate(cx, baseY);
-    // Torre troncocónica con 5 franjas (perspectiva barata pero elegante)
-    const SEG = 5;
-    for (let i = 0; i < SEG; i++) {
-      g.fillStyle = i % 2 ? '#c8323e' : '#e8ecf2';
-      const yTop = -th + (i * th) / SEG;
-      const yBot = yTop + th / SEG + 1;
-      const wT = tw2 * (0.62 + 0.38 * (i / SEG));
-      const wB = tw2 * (0.62 + 0.38 * ((i + 1) / SEG));
-      g.beginPath();
-      g.moveTo(-wT / 2, yTop); g.lineTo(wT / 2, yTop);
-      g.lineTo(wB / 2, yBot); g.lineTo(-wB / 2, yBot);
-      g.closePath(); g.fill();
-    }
-    // Sombreado lateral (volumen 3D)
-    const shade = g.createLinearGradient(-tw2 / 2, 0, tw2 / 2, 0);
-    shade.addColorStop(0, 'rgba(0,0,0,0.35)');
-    shade.addColorStop(0.45, 'rgba(0,0,0,0)');
-    shade.addColorStop(1, 'rgba(0,0,0,0.25)');
-    g.fillStyle = shade;
-    g.beginPath();
-    g.moveTo(-tw2 * 0.31, -th); g.lineTo(tw2 * 0.31, -th);
-    g.lineTo(tw2 / 2, 0); g.lineTo(-tw2 / 2, 0);
-    g.closePath(); g.fill();
-    // Galería y techo
-    g.fillStyle = '#101c2c';
-    g.fillRect(-tw2 * 0.42, -th - 4, tw2 * 0.84, 5);
-    g.beginPath();
-    g.moveTo(-tw2 * 0.3, -th - 16); g.lineTo(tw2 * 0.3, -th - 16); g.lineTo(0, -th - 30);
-    g.closePath(); g.fill();
-    // lámpara + destello
-    const lampY = -th - 10;
-    const sweep = Math.sin((t - 5.6) * 1.9); // -1..1, pasa por el centro
-    const flare = Math.max(0, 1 - Math.abs(sweep) * 3); // pico al mirar a cámara
-    g.fillStyle = '#ffe9a8';
-    g.beginPath(); g.arc(0, lampY, 7 + 5 * rise, 0, TAU); g.fill();
-    if (rise > 0.9 && t < 7.6) {
-      const ba = Math.PI / 2 + sweep * 0.9; // hacia abajo ± barrido
-      const blen = h * 0.9;
-      const half2 = 0.16 + 0.1 * flare;
-      const bg = g.createLinearGradient(0, lampY, Math.cos(ba) * blen, lampY + Math.sin(ba) * blen);
-      bg.addColorStop(0, `rgba(255,233,168,${0.5 + 0.4 * flare})`);
-      bg.addColorStop(1, 'rgba(255,233,168,0)');
-      g.fillStyle = bg;
-      g.beginPath();
-      g.moveTo(0, lampY);
-      g.arc(0, lampY, blen, ba - half2, ba + half2);
-      g.closePath(); g.fill();
-      if (flare > 0) { // deslumbramiento a cámara
-        g.fillStyle = `rgba(255,245,220,${flare * 0.55})`;
-        g.fillRect(-cx - 8, -baseY - 8, w + 16, h + 16);
-      }
-    }
-    g.restore();
-  }
-
-  // Relámpagos de la escena final
-  if (storm && Math.random() < 0.05) {
-    g.fillStyle = 'rgba(255,220,225,0.16)';
-    g.fillRect(-8, -8, w + 16, h + 16);
-  }
-
-  // Barras de cine
-  g.fillStyle = '#000';
-  const bar = h * 0.085;
-  g.fillRect(-8, -8, w + 16, bar + 8);
-  g.fillRect(-8, h - bar, w + 16, bar + 8);
-
-  // Textos (el trailer que te pica)
-  g.textAlign = 'center';
-  const lines = [
-    { from: 0.5, to: 2.6, big: 'EL MAR NUNCA DUERME', sub: null, color: PAL.foam },
-    { from: 2.9, to: 5.0, big: 'ESTA NOCHE VIENEN A POR TU FARO', sub: null, color: PAL.text },
-    { from: 5.3, to: 7.3, big: 'SOLO TU LUZ PUEDE PARARLOS', sub: null, color: PAL.beamCore },
-    { from: 7.7, to: 9.4, big: '¿DE VERDAD TE CREES CAPAZ? 😏', sub: 'el mar apuesta a que NO llegas a 500', color: PAL.danger },
-    { from: 9.6, to: 11.0, big: 'DEMUÉSTRASELO', sub: 'toca y hazle tragar sus olas', color: PAL.amber },
-  ];
-  for (const ln of lines) {
-    const a = fadeIO(t, ln.from, ln.to);
-    if (a <= 0) continue;
-    const grow = 1 + 0.05 * easeOut((t - ln.from) / (ln.to - ln.from));
-    g.save();
-    g.translate(cx, h * 0.30);
-    g.scale(grow, grow);
-    g.globalAlpha = a;
-    g.shadowColor = ln.color; g.shadowBlur = 18;
-    g.fillStyle = ln.color;
-    // Autoajuste: el titular nunca se sale de la pantalla
-    let fs = Math.min(30, Math.round(w / 14));
-    g.font = `bold ${fs}px system-ui, sans-serif`;
-    const twid = g.measureText(ln.big).width;
-    if (twid > w * 0.88) {
-      fs = Math.max(13, Math.floor((fs * w * 0.88) / twid));
-      g.font = `bold ${fs}px system-ui, sans-serif`;
-    }
-    g.fillText(ln.big, 0, 0);
-    if (ln.sub) {
-      g.shadowBlur = 0;
-      g.fillStyle = PAL.text;
-      g.font = 'bold 15px system-ui, sans-serif';
-      g.fillText(ln.sub, 0, 26);
-    }
-    g.restore();
-  }
-  g.globalAlpha = 1; g.shadowBlur = 0;
-
-  // Saltar
-  g.fillStyle = 'rgba(234,242,250,0.55)';
-  g.font = '12px system-ui, sans-serif';
-  g.textAlign = 'right';
-  g.fillText('toca para saltar ▸', w - 14, h - bar - 12);
-  g.restore();
 }
 
 // ---------- Render ----------
