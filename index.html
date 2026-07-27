@@ -1002,11 +1002,14 @@ const PAL = {
 };
 
 // Escenarios: cada 2 olas el mar cambia de zona (solo visual; las reglas no cambian)
+// Regiones del mundo: cada 2 fases el farero "viaja" a la siguiente costa.
+// Cada una define paleta, tipo de costa (silueta de fondo) y ambiente.
+// (Plan completo de 12 en PLAN_PAISES_Y_ESCENARIOS.md.)
 const THEMES = [
-  { name: 'MAR ABIERTO', skyTop: '#070f1d', skyBottom: '#12263f', sea: '#0e1f33' },
-  { name: 'MAR DE FONDO', skyTop: '#041219', skyBottom: '#0b3038', sea: '#0a2830' },
-  { name: 'TORMENTA', skyTop: '#0d0d17', skyBottom: '#232036', sea: '#181a2c', storm: true },
-  { name: 'AURORA', skyTop: '#03131a', skyBottom: '#0e2b26', sea: '#0c2420', aurora: true },
+  { name: 'COSTA DA MORTE', country: 'GALICIA · ESPAÑA', skyTop: '#070f1d', skyBottom: '#12263f', sea: '#0e1f33', coast: 'cliffs', mist: true },
+  { name: 'ALGARVE', country: 'PORTUGAL', skyTop: '#150f1e', skyBottom: '#3a2338', sea: '#1c1a30', coast: 'ochre' },
+  { name: 'BRETAÑA', country: 'FRANCIA', skyTop: '#0d0d17', skyBottom: '#232036', sea: '#181a2c', coast: 'skerries', storm: true },
+  { name: 'FIORDOS', country: 'NORUEGA', skyTop: '#03131a', skyBottom: '#0e2b26', sea: '#0c2420', coast: 'fjord', aurora: true, snow: true },
 ];
 function themeNow() {
   const idx = game.state === 'ready' ? prefs.startZone : game.zoneIndex;
@@ -1108,8 +1111,104 @@ class Sound {
       const p = this.ctx.resume();
       if (p && p.catch) p.catch(() => { /* visores sin activación de usuario */ });
     }
+    this.startAmbience();
   }
-  toggleMute() { this.muted = !this.muted; store.set('faro.muted', this.muted); }
+  toggleMute() {
+    this.muted = !this.muted;
+    store.set('faro.muted', this.muted);
+    if (this.ambGain && this.ctx) this.ambGain.gain.value = this.muted ? 0 : 1;
+  }
+
+  /** Búfer de ruido blanco reutilizable (2 s, en bucle). */
+  #noise() {
+    if (!this.noiseBuf) {
+      const n = this.ctx.sampleRate * 2;
+      this.noiseBuf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+      const d = this.noiseBuf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    return src;
+  }
+
+  /**
+   * Ambiente marítimo continuo, 100 % sintetizado: oleaje (ruido grave con
+   * vaivén), viento (ruido medio, sube con la tensión) y gaviotas/boya
+   * ocasionales. Arranca con el primer gesto del usuario.
+   */
+  startAmbience() {
+    if (this.ambOn || !this.ctx || this.ctx.state !== 'running') return;
+    this.ambOn = true;
+    const c = this.ctx;
+    this.ambGain = c.createGain();
+    this.ambGain.gain.value = this.muted ? 0 : 1;
+    this.ambGain.connect(c.destination);
+    // Oleaje: ruido por paso-bajo con LFO lento en la ganancia (vaivén)
+    const surf = this.#noise();
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+    const sg = c.createGain(); sg.gain.value = 0.05;
+    const lfo = c.createOscillator(); lfo.frequency.value = 0.09;
+    const lfoG = c.createGain(); lfoG.gain.value = 0.028;
+    lfo.connect(lfoG).connect(sg.gain);
+    surf.connect(lp).connect(sg).connect(this.ambGain);
+    surf.start(); lfo.start();
+    // Viento: ruido por paso-banda; su nivel lo fija setTension()
+    const wind = this.#noise();
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 520; bp.Q.value = 0.6;
+    this.windGain = c.createGain(); this.windGain.gain.value = 0.006;
+    wind.connect(bp).connect(this.windGain).connect(this.ambGain);
+    wind.start();
+    // Gaviotas y campana de boya, de vez en cuando (programadas por frame)
+    this.nextGull = c.currentTime + 5;
+    this.nextBell = c.currentTime + 9;
+  }
+
+  /** El viento arrecia con la dificultad/tormenta (0..1). */
+  setTension(k) {
+    if (this.windGain && this.ctx) {
+      this.windGain.gain.setTargetAtTime(0.006 + 0.03 * Math.min(1, k), this.ctx.currentTime, 0.8);
+    }
+  }
+
+  /** Llamar una vez por frame: dispara gaviotas/boya cuando toca. */
+  ambientTick(danger) {
+    if (!this.ambOn || this.muted || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    if (t >= this.nextGull) {
+      this.nextGull = t + 9 + Math.random() * 14;
+      if (!danger) {
+        // Gaviota: dos chirridos descendentes
+        for (let i = 0; i < 2; i++) {
+          const o = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          o.type = 'sine';
+          const t0 = t + i * 0.28;
+          o.frequency.setValueAtTime(1550 + Math.random() * 250, t0);
+          o.frequency.exponentialRampToValueAtTime(950, t0 + 0.16);
+          g.gain.setValueAtTime(0, t0);
+          g.gain.linearRampToValueAtTime(0.022, t0 + 0.03);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+          o.connect(g).connect(this.ambGain);
+          o.start(t0); o.stop(t0 + 0.25);
+        }
+      }
+    }
+    if (t >= this.nextBell) {
+      this.nextBell = t + 12 + Math.random() * 10;
+      // Campana de boya lejana: parcial metálico doble
+      for (const [f, gn] of [[624, 0.016], [938, 0.008]]) {
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(gn, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+        o.connect(g).connect(this.ambGain);
+        o.start(t); o.stop(t + 1.7);
+      }
+    }
+  }
   #env(freq, type, dur, gain = 0.12, when = 0) {
     if (!this.ctx || this.muted) return;
     const t0 = this.ctx.currentTime + when;
@@ -1393,10 +1492,72 @@ addEventListener('unhandledrejection', (e) => {
 
 const debugState = { timescale: 1, invincible: false, hitboxes: DEBUG, fps: 0, frames: 0, fpsAt: 0, inputAt: 0, latency: 0 };
 
+// Parámetros de silueta de costa por región (ver DIRECCION_ARTISTICA_FARO.md)
+const COASTS = {
+  cliffs: { amp: 0.15, gap: true },              // acantilados con mar abierto al centro
+  ochre: { amp: 0.075 },                          // mesetas redondeadas
+  skerries: { amp: 0.04, sparse: true },          // islotes bajos dispersos
+  fjord: { amp: 0.24, snow: true },               // montañas con cumbres nevadas
+};
+
+/** Dibuja la costa de la región: dos capas (lejana brumosa + cercana). */
+function drawCoast(g, w, h, hor, theme) {
+  const cp2 = COASTS[theme.coast];
+  if (!cp2 || coastNoise.length === 0) return;
+  const fogRGB = hexRGB(theme.skyBottom);
+  for (let layer = 0; layer < 2; layer++) {
+    const amp = cp2.amp * h * (layer ? 1 : 0.6);
+    g.fillStyle = layer
+      ? rgb3(mix3(fogRGB, [0, 0, 0], 0.55))
+      : rgb3(mix3(fogRGB, [30, 40, 55], 0.2), 0.85);
+    g.beginPath();
+    g.moveTo(-4, hor + 2);
+    const peaks = [];
+    for (let i = 0; i <= 40; i++) {
+      const xx = (i / 40) * w;
+      let hh = coastNoise[(i + layer * 17) % coastNoise.length];
+      if (cp2.sparse && hh < 0.62) hh = 0;
+      if (cp2.gap && xx > w * 0.3 && xx < w * 0.72) hh *= 0.12; // bocana abierta
+      const yy = hor + 2 - hh * amp;
+      g.lineTo(xx, yy);
+      if (layer && cp2.snow && hh > 0.66) peaks.push({ x: xx, y: yy, hh });
+    }
+    g.lineTo(w + 4, hor + 2);
+    g.closePath();
+    g.fill();
+    // Cumbres nevadas de los fiordos
+    if (peaks.length) {
+      g.fillStyle = 'rgba(230,240,248,0.8)';
+      for (const p of peaks) {
+        g.beginPath();
+        g.moveTo(p.x - 7, p.y + 9);
+        g.lineTo(p.x, p.y);
+        g.lineTo(p.x + 7, p.y + 9);
+        g.closePath(); g.fill();
+      }
+    }
+  }
+  // Bruma atlántica pegada al horizonte (Galicia y similares)
+  if (theme.mist) {
+    const mg2 = g.createLinearGradient(0, hor - 14, 0, hor + 26);
+    mg2.addColorStop(0, 'rgba(190,205,220,0)');
+    mg2.addColorStop(0.5, 'rgba(190,205,220,0.13)');
+    mg2.addColorStop(1, 'rgba(190,205,220,0)');
+    g.fillStyle = mg2;
+    g.fillRect(0, hor - 14, w, 40);
+  }
+}
+
 let circuits = [];
+let coastNoise = [];
 function makeStars(seed) {
   const r = mulberry32(seed ^ 0x5f3759df);
   stars = Array.from({ length: 90 }, () => ({ x: r(), y: r() * 0.6, s: 0.5 + r() * 1.3, tw: r() * TAU }));
+  // Perfil de costa suave y determinista (suma de senos con fases aleatorias)
+  const f1 = r() * TAU, f2 = r() * TAU, f3 = r() * TAU;
+  coastNoise = Array.from({ length: 41 }, (_, i) =>
+    Math.max(0, Math.min(1,
+      0.45 + 0.3 * Math.sin(i * 0.55 + f1) + 0.2 * Math.sin(i * 1.3 + f2) + 0.12 * Math.sin(i * 2.9 + f3))));
   // Pistas de circuito de la "placa base" del universo ciber (deterministas)
   circuits = Array.from({ length: 14 }, () => ({
     a: r() * TAU,                 // ángulo de partida
@@ -1652,7 +1813,14 @@ function burst(x, y, color, n, speed = 90) {
 
 function handleEvents(L) {
   for (const ev of game.events) {
-    if (ev.type === 'save') {
+    if (ev.type === 'start') {
+      // Presentación de la noche: dónde estás y qué noche es
+      if (!game.duel) {
+        const th2 = THEMES[game.zoneIndex % THEMES.length];
+        const place = U().zoneNames ? themeName(game.zoneIndex) : `${th2.name} · ${th2.country}`;
+        bigBanner = { lines: [`🌙 NOCHE ${game.wavesCleared + 1}`, place], t: 0, color: PAL.foam };
+      }
+    } else if (ev.type === 'save') {
       const p = shipXY(ev.ship, L);
       const label = `+${ev.points}`;
       const sub = ev.zone === 3 ? '¡AL LÍMITE!' : ev.zone === 2 ? '¡bien cerca!' : null;
@@ -1716,7 +1884,10 @@ function handleEvents(L) {
       sound.shieldBreak();
       vibrate(40);
     } else if (ev.type === 'zone') {
-      zoneBanner = { text: `ZONA ${ev.index + 1} · ${themeName(ev.index)}`, t: 0 };
+      {
+        const th2 = THEMES[ev.index % THEMES.length];
+        zoneBanner = { text: U().zoneNames ? `ZONA ${ev.index + 1} · ${themeName(ev.index)}` : `🧭 RUMBO A ${th2.name} · ${th2.country}`, t: 0 };
+      }
       sound.zone();
     } else if (ev.type === 'super_on') {
       popups.push({ x: L.cx, y: L.cy - L.R * 0.5, text: `¡${U().superName}!`, sub: null, t: 0, color: PAL.beamCore, big: true });
@@ -2372,6 +2543,9 @@ function draw(L, dt) {
     const fogRGB = hexRGB(theme.skyBottom);
     const hor = Math.max(-20, GC.horizon);
 
+    // Costa de la región (siluetas en dos capas sobre el horizonte)
+    drawCoast(g, w, h, hor, theme);
+
     // Océano: gradiente desde el horizonte (niebla) hasta el borde inferior
     const og = g.createLinearGradient(0, hor, 0, h);
     og.addColorStop(0, rgb3(mix3(seaRGB, fogRGB, 0.75)));
@@ -2988,57 +3162,116 @@ function drawShip(g, s, L, alpha, saved) {
     g.restore();
     g.globalAlpha = 1;
   } else {
-  // Estela
-  g.fillStyle = 'rgba(191,227,242,0.25)';
-  g.fillRect(-size - 8, -1, 6, 2);
-  // Casco (con sombreado lateral: sensación de volumen)
-  const hull = s.type === 'corsair' ? '#c8b7ff'
-    : s.type === 'guardian' ? '#fff3d6'
-    : s.type === 'cargo' ? '#9fb0c0'
-    : s.type === 'pirate' ? '#3c3244'
-    : s.type === 'tug' ? '#ffe9b8'
-    : (lit ? '#ffe9c2' : '#dce8f2');
-  g.fillStyle = hull;
-  g.beginPath();
-  g.moveTo(size, 0);
-  g.lineTo(-size * 0.7, size * 0.55);
-  g.lineTo(-size * 0.7, -size * 0.55);
-  g.closePath();
-  g.fill();
-  // Media sombra del casco (volumen)
-  g.fillStyle = 'rgba(0,0,0,0.22)';
-  g.beginPath();
-  g.moveTo(size, 0);
-  g.lineTo(-size * 0.7, size * 0.55);
-  g.lineTo(-size * 0.7, 0);
-  g.closePath(); g.fill();
-  // Vela (el pirata lleva velas negras)
-  g.fillStyle = s.type === 'corsair' ? '#8f7bd8'
-    : s.type === 'guardian' ? PAL.amber
-    : s.type === 'pirate' ? '#14101c'
-    : s.type === 'tug' ? '#e8b64a'
-    : '#9fb8cc';
-  g.beginPath();
-  g.moveTo(size * 0.1, 0);
-  g.lineTo(-size * 0.35, -size * 0.9);
-  g.lineTo(-size * 0.35, 0);
-  g.closePath();
-  g.fill();
-  if (s.type === 'pirate') {
-    // Segunda vela negra y borde rojo amenazador
+  // ---- FLOTA RECONOCIBLE (proa hacia +x) --------------------------------
+  // Cada tipo tiene silueta, casco con proa/popa, cubierta, puente y luces
+  // de navegación reales: babor ROJO (-y), estribor VERDE (+y), tope blanco.
+  const S = size;
+  /** Casco genérico con proa afilada y popa recta, en dos tonos. */
+  const hullPath = (lenF, lenA, beam) => {
     g.beginPath();
-    g.moveTo(size * 0.55, 0);
-    g.lineTo(size * 0.2, -size * 0.6);
-    g.lineTo(size * 0.2, 0);
+    g.moveTo(S * lenF, 0);                             // proa
+    g.quadraticCurveTo(S * lenF * 0.45, -S * beam, -S * lenA * 0.75, -S * beam);
+    g.lineTo(-S * lenA, -S * beam * 0.7);              // popa
+    g.lineTo(-S * lenA, S * beam * 0.7);
+    g.lineTo(-S * lenA * 0.75, S * beam);
+    g.quadraticCurveTo(S * lenF * 0.45, S * beam, S * lenF, 0);
+    g.closePath();
+  };
+  const shade = (c1, c2, beam) => {
+    const hg2 = g.createLinearGradient(0, -S * beam, 0, S * beam);
+    hg2.addColorStop(0, c1);
+    hg2.addColorStop(0.55, c2);
+    hg2.addColorStop(1, 'rgba(0,0,0,0.9)');
+    return hg2;
+  };
+  const litUp = (c) => lit ? '#ffe9c2' : c;
+
+  if (s.type === 'cargo') {
+    // MERCANTE PORTACONTENEDORES: casco largo, contenedores, puente en popa
+    hullPath(1.15, 1.0, 0.42);
+    g.fillStyle = shade('#7e2f2f', '#5d2323', 0.42);
+    g.fill();
+    // Contenedores en dos filas de tres (colores portuarios apagados)
+    const cc = ['#9a5a2e', '#41666e', '#7a7f4b', '#5d5f8e', '#8a4a55', '#4e7a52'];
+    for (let ci = 0; ci < 6; ci++) {
+      const col2 = ci % 3, row = ci < 3 ? -1 : 1;
+      g.fillStyle = litUp(cc[ci]);
+      g.fillRect(S * (0.55 - col2 * 0.52), row === -1 ? -S * 0.30 : S * 0.04, S * 0.44, S * 0.26);
+    }
+    // Puente blanco en popa con ventanas
+    g.fillStyle = litUp('#d8e2ea');
+    g.fillRect(-S * 0.95, -S * 0.26, S * 0.3, S * 0.52);
+    g.fillStyle = '#25313d';
+    g.fillRect(-S * 0.9, -S * 0.16, S * 0.2, S * 0.09);
+  } else if (s.type === 'corsair') {
+    // LANCHA RÁPIDA: esbelta, parabrisas, franja roja
+    hullPath(1.35, 0.75, 0.3);
+    g.fillStyle = shade('#e8eef4', '#c6d2dc', 0.3);
+    g.fill();
+    g.strokeStyle = '#c8323e'; g.lineWidth = Math.max(1, S * 0.08);
+    g.beginPath(); g.moveTo(S * 1.1, 0); g.lineTo(-S * 0.7, 0); g.stroke();
+    g.fillStyle = '#1c2733'; // parabrisas
+    g.beginPath();
+    g.moveTo(S * 0.45, 0); g.lineTo(S * 0.05, -S * 0.2); g.lineTo(S * 0.05, S * 0.2);
     g.closePath(); g.fill();
-    g.strokeStyle = 'rgba(255,96,84,0.7)';
-    g.lineWidth = 1.4;
-    g.beginPath();
-    g.moveTo(size, 0); g.lineTo(-size * 0.7, -size * 0.55); g.stroke();
+  } else if (s.type === 'guardian') {
+    // SALVAMENTO MARÍTIMO: casco naranja, cabina blanca, franja
+    hullPath(1.0, 0.85, 0.44);
+    g.fillStyle = shade('#e8823c', '#c9662a', 0.44);
+    g.fill();
+    g.fillStyle = litUp('#eef2f6'); // cabina
+    g.fillRect(-S * 0.35, -S * 0.26, S * 0.62, S * 0.52);
+    g.fillStyle = '#1c2733';
+    g.fillRect(-S * 0.24, -S * 0.15, S * 0.34, S * 0.1);
+    g.strokeStyle = '#eef2f6'; g.lineWidth = Math.max(1, S * 0.07); // franja
+    g.beginPath(); g.moveTo(S * 0.9, -S * 0.2); g.lineTo(S * 0.5, -S * 0.34); g.stroke();
+  } else if (s.type === 'pirate') {
+    // GALEÓN PIRATA: casco oscuro con popa alzada y dos velas negras
+    hullPath(1.1, 1.0, 0.4);
+    g.fillStyle = shade('#4a3a30', '#33261e', 0.4);
+    g.fill();
+    g.fillStyle = '#241a14'; // castillo de popa alzado
+    g.fillRect(-S * 1.0, -S * 0.34, S * 0.34, S * 0.68);
+    g.fillStyle = '#100d16'; // velas cuadras negras
+    g.fillRect(S * 0.28, -S * 0.66, S * 0.14, S * 1.32);
+    g.fillRect(-S * 0.38, -S * 0.8, S * 0.14, S * 1.6);
+    g.strokeStyle = 'rgba(255,96,84,0.65)'; g.lineWidth = 1.2;
+    hullPath(1.1, 1.0, 0.4); g.stroke();
+  } else if (s.type === 'tug') {
+    // REMOLCADOR: corto y robusto, chimenea, defensas
+    hullPath(0.85, 0.8, 0.5);
+    g.fillStyle = shade('#3a4552', '#252d38', 0.5);
+    g.fill();
+    g.fillStyle = litUp('#ffcf6b'); // superestructura dorada
+    g.fillRect(-S * 0.45, -S * 0.3, S * 0.7, S * 0.6);
+    g.fillStyle = '#c8323e'; // chimenea
+    g.beginPath(); g.arc(-S * 0.1, 0, S * 0.16, 0, TAU); g.fill();
+    g.strokeStyle = '#141d29'; g.lineWidth = Math.max(1, S * 0.1); // defensas
+    hullPath(0.85, 0.8, 0.5); g.stroke();
+  } else {
+    // PESQUERO: casco azul con borda clara, cabina a popa, mástil con luz
+    hullPath(1.0, 0.8, 0.42);
+    g.fillStyle = shade('#4a6a86', '#35506a', 0.42);
+    g.fill();
+    g.strokeStyle = litUp('#c9d6e2'); g.lineWidth = Math.max(1, S * 0.06); // borda
+    hullPath(0.96, 0.77, 0.38); g.stroke();
+    g.fillStyle = litUp('#e3d9c2'); // cabina de madera
+    g.fillRect(-S * 0.6, -S * 0.22, S * 0.42, S * 0.44);
+    g.fillStyle = '#243240';
+    g.fillRect(-S * 0.52, -S * 0.12, S * 0.2, S * 0.1);
+    g.strokeStyle = '#8a9bb0'; g.lineWidth = 1; // mástil
+    g.beginPath(); g.moveTo(S * 0.3, 0); g.lineTo(S * 0.3, -S * 0.05); g.stroke();
   }
-  // Farolillo
-  g.fillStyle = PAL.amber;
-  g.beginPath(); g.arc(size * 0.4, 0, 2.2, 0, TAU); g.fill();
+
+  // Luces de navegación: babor ROJO / estribor VERDE / tope BLANCO
+  const lr = Math.max(1.1, S * 0.09);
+  g.fillStyle = 'rgba(255,80,80,0.9)';
+  g.beginPath(); g.arc(S * 0.35, -S * 0.3, lr, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(90,230,120,0.9)';
+  g.beginPath(); g.arc(S * 0.35, S * 0.3, lr, 0, TAU); g.fill();
+  g.fillStyle = '#fff4d8';
+  g.beginPath(); g.arc(-S * 0.55, 0, lr * 0.9, 0, TAU); g.fill();
+
   g.restore();
   g.globalAlpha = 1;
   }
@@ -3541,6 +3774,9 @@ function frame(t) {
   game.update(dt);
   handleEvents(L);
   sound.setCharging(game.state === 'playing' && game.holding && game.ships.some((s) => s.charge > 0));
+  // Ambiente marítimo: gaviotas/boya cuando toca, y el viento sigue la tensión
+  sound.ambientTick(game.state === 'playing' && game.ships.some((s) => s.dist < CONFIG.score.zoneClose));
+  if ((debugState.frames & 31) === 0) sound.setTension(game.state === 'playing' ? game.difficulty : 0.08);
   draw(L, dt);
   requestAnimationFrame(frame);
 }
