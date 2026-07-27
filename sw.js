@@ -1,6 +1,6 @@
 // FARO — Service worker: cache-first con actualización en segundo plano.
 // La versión se sella en el build (cambiarla invalida la caché anterior).
-const CACHE = 'faro-0.8.1-c5df7f8b';
+const CACHE = 'faro-0.9.0-6cb6f954';
 const ASSETS = [
   './',
   './index.html',

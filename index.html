@@ -1419,7 +1419,8 @@ function onDown(e) {
     // ángulo (segundo dedo: no interfiere con el haz del farero)
     if (game.state === 'playing' && game.duel) {
       const L = layout();
-      const dx = e.clientX - L.cx, dy = e.clientY - L.cy;
+      const dx = e.clientX - L.cx;
+      const dy = (e.clientY - L.cy) / PROJ; // deshacer la perspectiva del mar
       if (Math.hypot(dx, dy) > L.R * 1.02) {
         game.duelSpawn(Math.atan2(dy, dx));
         return;
@@ -1482,8 +1483,27 @@ function vibrate(ms) {
   try { if (navigator.vibrate) navigator.vibrate(ms); } catch { /* opcional */ }
 }
 
+/** Aplastamiento vertical del plano del mar (perspectiva 2.5D del tráiler). */
+const PROJ = 0.62;
+
 function shipXY(s, L) {
-  return { x: L.cx + Math.cos(s.angle) * s.dist * L.R, y: L.cy + Math.sin(s.angle) * s.dist * L.R };
+  return { x: L.cx + Math.cos(s.angle) * s.dist * L.R, y: L.cy + Math.sin(s.angle) * s.dist * L.R * PROJ };
+}
+
+/** Ejecuta dibujo "sobre el agua": el contexto queda aplastado en Y. */
+function onSea(g, cx, cy, fn) {
+  g.save();
+  g.translate(cx, cy);
+  g.scale(1, PROJ);
+  g.translate(-cx, -cy);
+  fn();
+  g.restore();
+}
+
+/** '#rrggbb' → [r,g,b] para poder sombrear los colores del aspecto. */
+function hexRGB(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
 function burst(x, y, color, n, speed = 90) {
@@ -2176,35 +2196,65 @@ function draw(L, dt) {
     }
   }
 
-  // Mar (área de juego)
-  g.fillStyle = theme.sea;
-  g.beginPath(); g.arc(cx, cy, R + 6, 0, TAU); g.fill();
+  // Mar en perspectiva (el look del tráiler): elipse con oleaje sombreado,
+  // reflejo lunar y niebla hacia el borde
+  onSea(g, cx, cy, () => {
+    g.fillStyle = theme.sea;
+    g.beginPath(); g.arc(cx, cy, R + 6, 0, TAU); g.fill();
+    // Bandas de oleaje: anillos sombreados que respiran (baratos y vivos)
+    const seaRGB = hexRGB(theme.sea);
+    const litRGB = mix3(seaRGB, [120, 160, 195], 0.5);
+    for (let i = 1; i <= 11; i++) {
+      const rr = (i / 11) * R;
+      const k = 0.5 + 0.5 * Math.sin(rr * 0.09 - now * 2.1 + i * 0.7);
+      g.strokeStyle = rgb3(mix3(seaRGB, litRGB, k), 0.16);
+      g.lineWidth = 2 + (i / 11) * 5;
+      g.beginPath(); g.arc(cx, cy, rr, 0, TAU); g.stroke();
+    }
+    // Reflejo de la luna: cuña brillante bajo su posición (arriba-derecha)
+    const glintA = -Math.PI / 3.2;
+    const gg2 = g.createRadialGradient(cx, cy, R * 0.1, cx, cy, R);
+    gg2.addColorStop(0, 'rgba(223,233,242,0)');
+    gg2.addColorStop(1, 'rgba(223,233,242,0.14)');
+    g.fillStyle = gg2;
+    g.beginPath();
+    g.moveTo(cx, cy);
+    g.arc(cx, cy, R + 4, glintA - 0.17, glintA + 0.17);
+    g.closePath(); g.fill();
 
-  // Placa base del universo ciber: pistas de circuito y nodos
-  if (U().id === 'ciber') {
-    g.strokeStyle = 'rgba(125,216,168,0.10)';
-    g.lineWidth = 1.5;
-    for (const c of circuits) {
-      g.beginPath();
-      g.moveTo(cx + Math.cos(c.a) * c.r0 * R, cy + Math.sin(c.a) * c.r0 * R);
-      g.lineTo(cx + Math.cos(c.a) * c.r1 * R, cy + Math.sin(c.a) * c.r1 * R);
-      g.arc(cx, cy, c.r1 * R, c.a, c.a + c.da, c.da < 0);
-      g.stroke();
-      if (c.node) {
-        g.fillStyle = 'rgba(125,216,168,0.16)';
+    // Placa base del universo ciber: pistas de circuito y nodos
+    if (U().id === 'ciber') {
+      g.strokeStyle = 'rgba(125,216,168,0.10)';
+      g.lineWidth = 1.5;
+      for (const c of circuits) {
         g.beginPath();
-        g.arc(cx + Math.cos(c.a + c.da) * c.r1 * R, cy + Math.sin(c.a + c.da) * c.r1 * R, 3, 0, TAU);
-        g.fill();
+        g.moveTo(cx + Math.cos(c.a) * c.r0 * R, cy + Math.sin(c.a) * c.r0 * R);
+        g.lineTo(cx + Math.cos(c.a) * c.r1 * R, cy + Math.sin(c.a) * c.r1 * R);
+        g.arc(cx, cy, c.r1 * R, c.a, c.a + c.da, c.da < 0);
+        g.stroke();
+        if (c.node) {
+          g.fillStyle = 'rgba(125,216,168,0.16)';
+          g.beginPath();
+          g.arc(cx + Math.cos(c.a + c.da) * c.r1 * R, cy + Math.sin(c.a + c.da) * c.r1 * R, 3, 0, TAU);
+          g.fill();
+        }
       }
     }
-  }
 
-  // Anillos de zona (sutiles)
-  g.lineWidth = 1;
-  g.strokeStyle = 'rgba(191,227,242,0.10)';
-  g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneMid, 0, TAU); g.stroke();
-  g.strokeStyle = 'rgba(255,89,100,0.18)';
-  g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneClose, 0, TAU); g.stroke();
+    // Anillos de zona (sutiles)
+    g.lineWidth = 1;
+    g.strokeStyle = 'rgba(191,227,242,0.10)';
+    g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneMid, 0, TAU); g.stroke();
+    g.strokeStyle = 'rgba(255,89,100,0.18)';
+    g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneClose, 0, TAU); g.stroke();
+
+    // Niebla hacia el borde del mar (profundidad, como en el tráiler)
+    const fog2 = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R + 6);
+    fog2.addColorStop(0, 'rgba(0,0,0,0)');
+    fog2.addColorStop(1, theme.skyBottom + 'cc');
+    g.fillStyle = fog2;
+    g.beginPath(); g.arc(cx, cy, R + 6, 0, TAU); g.fill();
+  });
 
   // Haz de luz (color del aspecto elegido; el superfaro lo ensancha y dora)
   const skin = currentSkin();
@@ -2214,30 +2264,34 @@ function draw(L, dt) {
   const holding = game.holding;
   const half = (game.state === 'ready' ? CONFIG.beam.halfWidth : game.beamHalfWidth) * (holding && !superOn ? 0.92 : 1);
   const glow = (holding ? 0.4 : 0.22) + (superOn ? 0.2 : 0);
-  const grad = g.createRadialGradient(cx, cy, R * 0.05, cx, cy, R);
-  grad.addColorStop(0, `rgba(${beamColor}, ${glow + 0.25})`);
-  grad.addColorStop(1, `rgba(${beamColor}, 0)`);
-  g.fillStyle = grad;
-  g.beginPath();
-  g.moveTo(cx, cy);
-  g.arc(cx, cy, R, beamA - half, beamA + half);
-  g.closePath();
-  g.fill();
-  // Línea central del haz
-  g.strokeStyle = `rgba(${beamColor}, ${holding ? 0.6 : 0.3})`;
-  g.lineWidth = superOn ? 3 : 2;
-  g.beginPath();
-  g.moveTo(cx + Math.cos(beamA) * R * 0.12, cy + Math.sin(beamA) * R * 0.12);
-  g.lineTo(cx + Math.cos(beamA) * R, cy + Math.sin(beamA) * R);
-  g.stroke();
+  onSea(g, cx, cy, () => {
+    const grad = g.createRadialGradient(cx, cy, R * 0.05, cx, cy, R);
+    grad.addColorStop(0, `rgba(${beamColor}, ${glow + 0.25})`);
+    grad.addColorStop(1, `rgba(${beamColor}, 0)`);
+    g.fillStyle = grad;
+    g.beginPath();
+    g.moveTo(cx, cy);
+    g.arc(cx, cy, R, beamA - half, beamA + half);
+    g.closePath();
+    g.fill();
+    // Línea central del haz
+    g.strokeStyle = `rgba(${beamColor}, ${holding ? 0.6 : 0.3})`;
+    g.lineWidth = superOn ? 3 : 2;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(beamA) * R * 0.12, cy + Math.sin(beamA) * R * 0.12);
+    g.lineTo(cx + Math.cos(beamA) * R, cy + Math.sin(beamA) * R);
+    g.stroke();
+  });
 
-  // Isla y personaje central (faro clásico o robot ciberguardián)
-  g.fillStyle = PAL.rockDark;
-  g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius, 0, TAU); g.fill();
-  g.fillStyle = PAL.rock;
-  g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius * 0.75, 0, TAU); g.fill();
+  // Isla (en el plano del agua) y personaje central de pie
+  onSea(g, cx, cy, () => {
+    g.fillStyle = PAL.rockDark;
+    g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius, 0, TAU); g.fill();
+    g.fillStyle = PAL.rock;
+    g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius * 0.75, 0, TAU); g.fill();
+  });
   const lh = R * 0.085; // alto del personaje
-  const squash = holding ? 0.92 : 1;
+  const squash = holding ? 0.96 : 1;
   g.save();
   g.translate(cx, cy);
   g.scale(1, squash);
@@ -2290,14 +2344,45 @@ function draw(L, dt) {
       g.beginPath(); g.arc(bw2 * 0.55, -bh2 * 0.45 + Math.sin(tNow * 9) * 1.5, 2.4, 0, TAU); g.fill();
     }
   } else {
-  for (let i = 0; i < 3; i++) {
-    g.fillStyle = skin.stripes[i % 2];
-    const y0 = -lh + (i * lh * 2) / 3;
-    const wTop = lh * 0.55 * (0.75 + 0.25 * (i / 3));
-    g.fillRect(-wTop / 2, y0, wTop, (lh * 2) / 3 + 0.5);
-  }
-  g.fillStyle = skin.lamp;
-  g.beginPath(); g.arc(0, -lh, lh * 0.32 * (superOn ? 1.5 : 1), 0, TAU); g.fill();
+    // FARO 3D en miniatura (mismo render que el tráiler): cilindro troncocónico
+    // sombreado por tiras verticales, galería, techo y linterna
+    const HT = lh * 2.5;
+    const rBase = lh * 0.62, rTop = lh * 0.42;
+    const BANDS = 5, STRIPS = 10;
+    const litA = hexRGB(skin.stripes[0]);
+    const litB = hexRGB(skin.stripes[1]);
+    // Sombra en el agua bajo la torre
+    g.fillStyle = 'rgba(0,0,0,0.30)';
+    g.beginPath(); g.ellipse(lh * 0.3, lh * 0.55, rBase * 1.5, rBase * 0.5, 0, 0, TAU); g.fill();
+    for (let bnd = 0; bnd < BANDS; bnd++) {
+      const y0 = lh * 0.5 - ((bnd + 1) * HT) / BANDS;
+      const bandH = HT / BANDS + 0.6;
+      const rr = rBase + (rTop - rBase) * (bnd / (BANDS - 1));
+      const base = bnd % 2 ? litB : litA;
+      for (let i2 = 0; i2 < STRIPS; i2++) {
+        const x0 = -rr + (2 * rr * i2) / STRIPS;
+        const xm = (x0 + rr / STRIPS) / rr; // -1..1
+        const kL = 0.35 + 0.65 * Math.max(0, Math.cos(Math.asin(Math.max(-1, Math.min(1, xm))) - 0.7));
+        g.fillStyle = rgb3(mix3([base[0] * 0.25, base[1] * 0.25, base[2] * 0.3], base, kL));
+        g.fillRect(x0, y0, (2 * rr) / STRIPS + 0.6, bandH);
+      }
+    }
+    // Galería, techo y linterna
+    const topY = lh * 0.5 - HT;
+    g.fillStyle = '#0c1622';
+    g.beginPath(); g.ellipse(0, topY, rTop * 1.35, rTop * 0.45, 0, 0, TAU); g.fill();
+    g.beginPath();
+    g.moveTo(-rTop * 0.9, topY - 1); g.lineTo(rTop * 0.9, topY - 1); g.lineTo(0, topY - lh * 0.55);
+    g.closePath(); g.fill();
+    g.fillStyle = skin.lamp;
+    const lampR2 = lh * 0.3 * (superOn ? 1.6 : 1 + 0.08 * Math.sin(now * 4));
+    const lg2 = g.createRadialGradient(0, topY - lh * 0.18, 1, 0, topY - lh * 0.18, lampR2 * 3);
+    lg2.addColorStop(0, `rgba(${skin.beam},0.55)`);
+    lg2.addColorStop(1, `rgba(${skin.beam},0)`);
+    g.fillStyle = lg2;
+    g.beginPath(); g.arc(0, topY - lh * 0.18, lampR2 * 3, 0, TAU); g.fill();
+    g.fillStyle = skin.lamp;
+    g.beginPath(); g.arc(0, topY - lh * 0.18, lampR2, 0, TAU); g.fill();
   }
   g.restore();
 
@@ -2326,9 +2411,11 @@ function draw(L, dt) {
 
   // Aviso azulado mientras dura el ancla
   if (game.time < game.anchorUntil && game.state === 'playing') {
-    g.strokeStyle = 'rgba(125,184,255,0.35)';
-    g.lineWidth = 3;
-    g.beginPath(); g.arc(cx, cy, R + 3, 0, TAU); g.stroke();
+    onSea(g, cx, cy, () => {
+      g.strokeStyle = 'rgba(125,184,255,0.35)';
+      g.lineWidth = 3;
+      g.beginPath(); g.arc(cx, cy, R + 3, 0, TAU); g.stroke();
+    });
   }
 
   // Barcos salvados (se alejan y desvanecen)
@@ -2346,7 +2433,7 @@ function draw(L, dt) {
     const p = shipXY(s, L);
     const wake = Math.min(0.09, s.speed * 0.55);
     const bx = cx + Math.cos(s.angle) * (s.dist + wake) * R;
-    const by = cy + Math.sin(s.angle) * (s.dist + wake) * R;
+    const by = cy + Math.sin(s.angle) * (s.dist + wake) * R * PROJ;
     const wg = g.createLinearGradient(p.x, p.y, bx, by);
     wg.addColorStop(0, 'rgba(191,227,242,0.30)');
     wg.addColorStop(1, 'rgba(191,227,242,0)');
@@ -2457,6 +2544,16 @@ function draw(L, dt) {
     }
   }
 
+  // Acabado de cine (como el tráiler): grano sutil + viñeta
+  g.globalAlpha = 0.3;
+  g.drawImage(grain(), ((now * 60) % 7) * -9, ((now * 60) % 5) * -11, w + 160, h + 160);
+  g.globalAlpha = 1;
+  const cvg = g.createRadialGradient(cx, cy, Math.min(w, h) * 0.46, cx, cy, Math.max(w, h) * 0.8);
+  cvg.addColorStop(0, 'rgba(0,0,0,0)');
+  cvg.addColorStop(1, 'rgba(0,0,0,0.4)');
+  g.fillStyle = cvg;
+  g.fillRect(-20, -20, w + 40, h + 40);
+
   // Anuncio a pantalla: la marea de regalos / "el engaño" revelado
   if (bigBanner) {
     bigBanner.t += dt;
@@ -2481,11 +2578,13 @@ function draw(L, dt) {
   // DUELO: banda del almirante, cuenta atrás y recarga
   if (game.state === 'playing' && game.duel) {
     // Banda exterior punteada: aquí toca el almirante
-    g.strokeStyle = game.duelCd > 0 ? 'rgba(255,89,100,0.25)' : 'rgba(255,193,94,0.45)';
-    g.lineWidth = 3;
-    g.setLineDash([10, 12]);
-    g.beginPath(); g.arc(cx, cy, R * 1.06, 0, TAU); g.stroke();
-    g.setLineDash([]);
+    onSea(g, cx, cy, () => {
+      g.strokeStyle = game.duelCd > 0 ? 'rgba(255,89,100,0.25)' : 'rgba(255,193,94,0.45)';
+      g.lineWidth = 3;
+      g.setLineDash([10, 12]);
+      g.beginPath(); g.arc(cx, cy, R * 1.06, 0, TAU); g.stroke();
+      g.setLineDash([]);
+    });
     // Cuenta atrás del farero
     const left = Math.max(0, CONFIG.duel.time - game.time);
     g.textAlign = 'center';
@@ -2610,8 +2709,14 @@ function drawShip(g, s, L, alpha, saved) {
   const lit = game.holding && game.state === 'playing' &&
     s.dist <= CONFIG.beam.range &&
     angDist(game.beamAngle, s.angle) <= CONFIG.beam.halfWidth + 0.06;
+  // Balanceo con la ola y sombra en el agua (perspectiva del tráiler)
+  const bob = Math.sin(performance.now() / 1000 * 2.1 + (s.id % 7)) * 2.2;
+  g.globalAlpha = alpha * 0.3;
+  g.fillStyle = '#000';
+  g.beginPath(); g.ellipse(p.x, p.y + 5, size * 1.25, size * 0.4, 0, 0, TAU); g.fill();
+  g.globalAlpha = 1;
   g.save();
-  g.translate(p.x, p.y);
+  g.translate(p.x, p.y - bob);
   g.rotate(heading);
   g.globalAlpha = alpha;
   if (U().id === 'ciber') {
