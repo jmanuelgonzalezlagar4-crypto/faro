@@ -77,7 +77,30 @@ const CONFIG = {
     graceLull: 1.2, // respiro sin apariciones tras perder un escudo
   },
   zone: {
-    wavesPerZone: 2, // cada N olas se cambia de escenario
+    wavesPerZone: 2, // cada N olas se cambia de escenario (fase visual)
+    startFloor: 0.14, // dificultad mínima añadida por cada zona de inicio elegida
+  },
+  power: {
+    needed: 10,     // rescates para cargar el SUPERFARO
+    duration: 4.5,  // segundos de superfaro activo
+    widthMult: 3,   // el cono se ensancha ×3
+    dwellMult: 0.15, // la luz salva casi al instante
+  },
+  items: {
+    interval: [15, 9],  // segundos entre objetos flotantes [D=0, D=1]
+    minD: 0.12,         // dificultad mínima para que aparezcan
+    lifetime: 9,        // segundos antes de hundirse
+    dwell: 0.35,        // luz sostenida para recogerlos
+    dist: [0.45, 0.8],  // franja radial donde flotan
+    anchorSlow: 0.45,   // el ancla multiplica la velocidad de los barcos
+    anchorTime: 5,      // duración del ancla
+    flareZone: 0.55,    // la bengala salva los barcos con dist > este valor
+    energyBonus: 5,     // rescates de carga que regala la batería
+  },
+  cargo: {
+    hits: 2,        // el carguero necesita 2 iluminaciones completas
+    pushBack: 0.09, // retrocede al recibir la primera
+    base: 30,       // puntos base (triple)
   },
   restart: {
     lockout: 0.4, // s tras la derrota antes de aceptar la pulsación de reinicio
@@ -169,9 +192,20 @@ let nextShipId = 1;
  * @param {number} angle @param {number} dist @param {number} speed
  * @param {'normal'|'corsair'|'guardian'} type
  */
-function makeShip(angle, dist, speed, type = 'normal') {
-  return { id: nextShipId++, angle: wrap(angle), dist, speed, type, born: 0, charge: 0 };
+function makeShip(angle, dist, speed, type = 'normal', hits = 1) {
+  return { id: nextShipId++, angle: wrap(angle), dist, speed, type, born: 0, charge: 0, hits };
 }
+
+/** Objeto flotante recogible iluminándolo. */
+function makeItem(rng, type, cfg = CONFIG) {
+  const [d0, d1] = cfg.items.dist;
+  return {
+    id: nextShipId++, type, angle: rng() * TAU,
+    dist: d0 + rng() * (d1 - d0), charge: 0, expiresIn: cfg.items.lifetime,
+  };
+}
+
+const ITEM_TYPES = ['ancla', 'bengala', 'energia'];
 
 /** Escenario (zona) que corresponde a un número de olas superadas. */
 function zoneIndexFor(wavesCleared, cfg = CONFIG) {
@@ -238,6 +272,12 @@ const PATTERNS = [
       ];
     },
   },
+  {
+    // Carguero: lento y pesado, necesita DOS iluminaciones completas.
+    name: 'cargo', minD: 0.55, weight: 0.5,
+    build: (rng, speed, cfg) =>
+      [makeShip(rng() * TAU, 1.0, speed * 0.75, 'cargo', cfg.cargo.hits)],
+  },
 ];
 
 // ---------- Validador de factibilidad ----------
@@ -263,6 +303,7 @@ function isFeasible(ships, beamAngle, cfg = CONFIG, marginFrac = cfg.validator.m
   const list = ships
     .map((s) => ({
       angle: s.angle,
+      needs: dwell * (s.hits || 1), // el carguero exige dos iluminaciones
       deadline: (s.dist - islandR) / s.speed, // s hasta las rocas
     }))
     .sort((a, b) => a.deadline - b.deadline);
@@ -272,7 +313,7 @@ function isFeasible(ships, beamAngle, cfg = CONFIG, marginFrac = cfg.validator.m
   for (const s of list) {
     const gap = angForward(at, s.angle);
     const travel = gap <= half ? 0 : (gap - half) / omega;
-    t += travel + dwell;
+    t += travel + s.needs;
     if (t > s.deadline * margin) return false;
     at = s.angle;
   }
@@ -316,8 +357,8 @@ function comboMult(chain, cfg = CONFIG) {
  * La UI (o el bot) llama a down()/up() y update(dt) y drena events.
  */
 class Game {
-  /** @param {number} seed @param {object} cfg */
-  constructor(seed, cfg = CONFIG) {
+  /** @param {number} seed @param {object} cfg @param {{startZone?: number}} [opts] */
+  constructor(seed, cfg = CONFIG, opts = {}) {
     this.cfg = cfg;
     this.seed = seed >>> 0;
     this.rng = mulberry32(this.seed);
@@ -327,10 +368,17 @@ class Game {
     this.holding = false;
     /** @type {Array<ReturnType<typeof makeShip>>} */
     this.ships = [];
+    /** @type {Array<ReturnType<typeof makeItem>>} */
+    this.items = [];
+    this.itemTimer = 6;
+    this.startZone = Math.max(0, opts.startZone || 0);
+    this.power = 0;
+    this.superUntil = -1;
+    this.anchorUntil = -1;
     this.score = 0;
     this.saves = 0;
     this.shields = 0;
-    this.zoneIndex = 0;
+    this.zoneIndex = this.startZone;
     this.chain = 0;
     this.bestChain = 0;
     this.lastSaveAt = -Infinity;
@@ -347,7 +395,25 @@ class Game {
   }
 
   get difficulty() {
-    return difficulty(this.time, this.saves, this.cfg);
+    const base = difficulty(this.time, this.saves, this.cfg);
+    // Empezar en una zona avanzada impone un suelo de dificultad acorde
+    const floor = Math.min(0.85, this.startZone * this.cfg.zone.startFloor);
+    return Math.max(base, floor);
+  }
+
+  /** ¿SUPERFARO activo? */
+  get superActive() {
+    return this.time < this.superUntil;
+  }
+
+  /** Activa el SUPERFARO si la carga está completa (doble toque en la UI). */
+  activateSuper() {
+    if (this.state !== 'playing') return false;
+    if (this.power < this.cfg.power.needed || this.superActive) return false;
+    this.power = 0;
+    this.superUntil = this.time + this.cfg.power.duration;
+    this.events.push({ type: 'super_on', until: this.superUntil });
+    return true;
   }
 
   /** Dificultad usada para elegir patrones (incluye adaptación positiva). */
@@ -385,12 +451,22 @@ class Game {
     }
   }
 
+  /** Semiancho efectivo del cono (el superfaro lo ensancha). */
+  get beamHalfWidth() {
+    return this.cfg.beam.halfWidth * (this.superActive ? this.cfg.power.widthMult : 1);
+  }
+
+  /** Dwell efectivo (el superfaro salva casi al instante). */
+  get beamDwell() {
+    return this.cfg.beam.dwell * (this.superActive ? this.cfg.power.dwellMult : 1);
+  }
+
   /** ¿Está este barco dentro del cono de luz y a la vista? */
   #lit(s) {
     const cfg = this.cfg;
     if (s.dist > cfg.beam.range) return false;
     const angRad = Math.min(0.5, cfg.ship.radius / Math.max(s.dist, cfg.island.radius));
-    return angDist(this.beamAngle, s.angle) <= cfg.beam.halfWidth + angRad;
+    return angDist(this.beamAngle, s.angle) <= this.beamHalfWidth + angRad;
   }
 
   /** @param {number} dt segundos (la capa exterior lo limita a <= 50 ms) */
@@ -406,20 +482,58 @@ class Game {
       this.beamAngle = wrap(this.beamAngle + cfg.beam.omega * dt);
     }
 
-    // Barcos: avanzan hacia las rocas; se cargan de luz si están iluminados
+    // Barcos: avanzan hacia las rocas; se cargan de luz si están iluminados.
+    // El ancla los ralentiza mientras dura.
+    const speedMult = this.time < this.anchorUntil ? cfg.items.anchorSlow : 1;
     for (let i = this.ships.length - 1; i >= 0; i--) {
       const s = this.ships[i];
-      s.dist -= s.speed * dt;
+      s.dist -= s.speed * speedMult * dt;
       if (this.holding && this.#lit(s)) {
         s.charge += dt;
-        if (s.charge >= cfg.beam.dwell) {
-          this.ships.splice(i, 1);
-          this.#onSave(s);
+        if (s.charge >= this.beamDwell) {
+          if ((s.hits || 1) > 1) {
+            // Carguero: primera luz completada → retrocede y pide otra pasada
+            s.hits--;
+            s.charge = 0;
+            s.dist = Math.min(1.0, s.dist + cfg.cargo.pushBack);
+            this.events.push({ type: 'cargo_hit', ship: s });
+          } else {
+            this.ships.splice(i, 1);
+            this.#onSave(s);
+          }
           continue;
         }
       } else {
         s.charge = 0;
       }
+    }
+
+    // Objetos flotantes: caducan, y se recogen iluminándolos
+    for (let i = this.items.length - 1; i >= 0; i--) {
+      const it = this.items[i];
+      it.expiresIn -= dt;
+      if (it.expiresIn <= 0) {
+        this.items.splice(i, 1);
+        this.events.push({ type: 'item_lost', item: it });
+        continue;
+      }
+      const angRad = Math.min(0.5, cfg.ship.radius / it.dist);
+      const litItem = this.holding && angDist(this.beamAngle, it.angle) <= this.beamHalfWidth + angRad;
+      if (litItem) {
+        it.charge += dt;
+        if (it.charge >= cfg.items.dwell) {
+          this.items.splice(i, 1);
+          this.#onItem(it);
+        }
+      } else {
+        it.charge = 0;
+      }
+    }
+
+    // Aviso de fin de superfaro
+    if (this.superUntil > 0 && !this.superActive) {
+      this.superUntil = -1;
+      this.events.push({ type: 'super_off' });
     }
 
     // Choques: un barco alcanza las rocas → escudo o derrota
@@ -444,11 +558,42 @@ class Game {
       this.events.push({ type: 'combo_lost' });
     }
 
-    // Generación
+    // Generación de barcos
     if (this.time >= this.lullUntil) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0) this.#spawn(D);
     }
+
+    // Generación de objetos flotantes
+    if (D >= cfg.items.minD) {
+      this.itemTimer -= dt;
+      if (this.itemTimer <= 0) {
+        const type = ITEM_TYPES[Math.floor(this.rng() * ITEM_TYPES.length)];
+        const item = makeItem(this.rng, type, cfg);
+        this.items.push(item);
+        this.events.push({ type: 'item_spawn', item });
+        this.itemTimer = lerpByD(cfg.items.interval, D);
+      }
+    }
+  }
+
+  /** Efecto de recoger un objeto flotante. */
+  #onItem(item) {
+    const cfg = this.cfg;
+    if (item.type === 'ancla') {
+      this.anchorUntil = this.time + cfg.items.anchorTime;
+    } else if (item.type === 'bengala') {
+      // La bengala salva de golpe los barcos aún lejanos (zona ×1)
+      for (let i = this.ships.length - 1; i >= 0; i--) {
+        if (this.ships[i].dist > cfg.items.flareZone) {
+          const s = this.ships.splice(i, 1)[0];
+          this.#onSave(s);
+        }
+      }
+    } else if (item.type === 'energia') {
+      this.power = Math.min(cfg.power.needed, this.power + cfg.items.energyBonus);
+    }
+    this.events.push({ type: 'item_get', item });
   }
 
   #onSave(ship) {
@@ -460,10 +605,13 @@ class Game {
     this.bestChain = Math.max(this.bestChain, this.chain);
 
     const mult = comboMult(this.chain, cfg);
-    const base = ship.type === 'corsair' ? cfg.score.corsairBase : cfg.score.base;
+    const base = ship.type === 'corsair' ? cfg.score.corsairBase
+      : ship.type === 'cargo' ? cfg.cargo.base
+      : cfg.score.base;
     const points = base * zone * mult;
     this.score += points;
     this.saves++;
+    this.power = Math.min(cfg.power.needed, this.power + 1);
 
     // Adaptación positiva: rachas "al límite" → patrones más ricos
     this.closeStreak = zone === 3 ? this.closeStreak + 1 : 0;
@@ -486,7 +634,7 @@ class Game {
       this.wavesCleared++;
       this.lullUntil = this.time + cfg.wave.lull;
       this.events.push({ type: 'wave', n: this.wavesCleared });
-      const zi = zoneIndexFor(this.wavesCleared, cfg);
+      const zi = this.startZone + zoneIndexFor(this.wavesCleared, cfg);
       if (zi !== this.zoneIndex) {
         this.zoneIndex = zi;
         this.events.push({ type: 'zone', index: zi });
@@ -632,7 +780,24 @@ const THEMES = [
   { name: 'TORMENTA', skyTop: '#0d0d17', skyBottom: '#232036', sea: '#181a2c', storm: true },
   { name: 'AURORA', skyTop: '#03131a', skyBottom: '#0e2b26', sea: '#0c2420', aurora: true },
 ];
-function themeNow() { return THEMES[game.zoneIndex % THEMES.length]; }
+function themeNow() {
+  const idx = game.state === 'ready' ? prefs.startZone : game.zoneIndex;
+  return THEMES[idx % THEMES.length];
+}
+
+// Aspectos del faro desbloqueables por nivel de farero
+const SKINS = [
+  { name: 'CLÁSICO', level: 1, stripes: ['#e8edf2', '#ff5964'], lamp: '#ffe8b0', beam: '255, 214, 140' },
+  { name: 'AÑIL', level: 2, stripes: ['#dfe9f2', '#3d7bd8'], lamp: '#cfe4ff', beam: '150, 200, 255' },
+  { name: 'ESMERALDA', level: 3, stripes: ['#eafff2', '#1fa06a'], lamp: '#c8ffd8', beam: '140, 255, 190' },
+  { name: 'VIOLETA', level: 5, stripes: ['#f2eaff', '#8f6bd8'], lamp: '#e4d4ff', beam: '200, 170, 255' },
+  { name: 'DORADO', level: 8, stripes: ['#fff3d6', '#d89a2b'], lamp: '#ffe8b0', beam: '255, 214, 100' },
+];
+
+/** Nivel de farero a partir de la experiencia (puntos acumulados). */
+function levelFor(xp) { return Math.floor(Math.sqrt(Math.max(0, xp) / 400)) + 1; }
+function xpForLevel(n) { return 400 * (n - 1) * (n - 1); }
+function currentSkin() { return SKINS[Math.min(prefs.skin, SKINS.length - 1)]; }
 
 // ---------- Utilidades ----------
 const params = new URLSearchParams(location.search);
@@ -713,6 +878,10 @@ class Sound {
   shield() { this.#env(392, 'triangle', 0.25, 0.11); this.#env(587, 'triangle', 0.3, 0.1, 0.09); }
   shieldBreak() { this.#env(110, 'sawtooth', 0.35, 0.14); this.#env(70, 'sine', 0.5, 0.16, 0.02); }
   zone() { this.#env(330, 'sine', 0.5, 0.07); this.#env(494, 'sine', 0.6, 0.05, 0.15); }
+  superOn() { [330, 415, 494, 659, 831].forEach((f, i) => this.#env(f, 'sawtooth', 0.35, 0.09, i * 0.06)); }
+  superOff() { this.#env(494, 'sine', 0.3, 0.06); this.#env(330, 'sine', 0.4, 0.05, 0.12); }
+  item() { this.#env(587, 'triangle', 0.15, 0.1); this.#env(880, 'triangle', 0.2, 0.08, 0.08); }
+  cargoHit() { this.#env(140, 'square', 0.12, 0.1); this.#env(90, 'sine', 0.25, 0.12, 0.02); }
   setCharging(on) {
     if (!this.ctx || this.muted) { on = false; }
     if (on && !this.chargeOsc && this.ctx) {
@@ -747,13 +916,25 @@ if (records.daily.date !== today()) records.daily = { date: today(), score: 0 };
 
 const session = { games: 0, restartAt: 0, restartLatencies: [] };
 
+// Progresión y preferencias del jugador (persistentes)
+const prefs = {
+  xp: store.get('faro.xp', 0),
+  zoneUnlocked: store.get('faro.zoneUnlocked', 0),
+  skin: store.get('faro.skin', 0),
+  startZone: store.get('faro.startZone', 0),
+  superHintSeen: store.get('faro.superHint', false),
+};
+prefs.startZone = Math.min(prefs.startZone, prefs.zoneUnlocked, THEMES.length - 1);
+// Si el aspecto guardado ya no está desbloqueado (p. ej. otro dispositivo), volver al clásico
+if (SKINS[prefs.skin] && SKINS[prefs.skin].level > levelFor(prefs.xp)) prefs.skin = 0;
+
 const urlSeed = params.get('seed');
 function newSeed() {
   if (urlSeed != null) return /^\d+$/.test(urlSeed) ? (Number(urlSeed) >>> 0) : hashSeed(urlSeed);
   return (Math.random() * 4294967296) >>> 0;
 }
 
-let game = new Game(newSeed());
+let game = new Game(newSeed(), CONFIG, { startZone: prefs.startZone });
 let prevBest = records.best;
 let celebrated = false;
 
@@ -799,7 +980,7 @@ function resetVisuals() {
 }
 
 function restart() {
-  game = new Game(newSeed());
+  game = new Game(newSeed(), CONFIG, { startZone: prefs.startZone });
   resetVisuals();
   session.games++;
   if (session.restartAt) {
@@ -823,6 +1004,11 @@ function muteRect() {
   return { x: w - 54, y: 10, s: 40 };
 }
 
+let lastDownAt = 0;
+
+/** Zonas táctiles de los selectores del menú (se rellenan al dibujar). */
+const menuHits = [];
+
 function onDown(e) {
   sound.ensure();
   debugState.inputAt = performance.now();
@@ -832,9 +1018,25 @@ function onDown(e) {
       sound.toggleMute();
       return;
     }
+    // Selectores del menú (solo en pantalla de inicio)
+    if (game.state === 'ready') {
+      for (const h of menuHits) {
+        if (e.clientX >= h.x && e.clientX <= h.x + h.w && e.clientY >= h.y && e.clientY <= h.y + h.h) {
+          h.fn();
+          sound.press();
+          return;
+        }
+      }
+    }
   }
   if (pressed) return;
   pressed = true;
+  // Doble toque durante la partida → SUPERFARO
+  const now = performance.now();
+  if (game.state === 'playing' && now - lastDownAt < 320) {
+    if (game.activateSuper()) { lastDownAt = 0; game.down(); return; }
+  }
+  lastDownAt = now;
   if (game.state === 'playing') sound.press();
   game.down();
 }
@@ -920,6 +1122,27 @@ function handleEvents(L) {
     } else if (ev.type === 'zone') {
       zoneBanner = { text: `ZONA ${ev.index + 1} · ${THEMES[ev.index % THEMES.length].name}`, t: 0 };
       sound.zone();
+    } else if (ev.type === 'super_on') {
+      popups.push({ x: L.cx, y: L.cy - L.R * 0.5, text: '¡SUPERFARO!', sub: null, t: 0, color: PAL.beamCore, big: true });
+      burst(L.cx, L.cy, PAL.beamCore, 46, 170);
+      shake = 0.5;
+      sound.superOn();
+      vibrate(30);
+    } else if (ev.type === 'super_off') {
+      sound.superOff();
+    } else if (ev.type === 'item_get') {
+      const p = shipXY(ev.item, L);
+      const label = ev.item.type === 'ancla' ? '⚓ ¡ANCLA! barcos lentos'
+        : ev.item.type === 'bengala' ? '✦ ¡BENGALA!'
+        : '⚡ +ENERGÍA';
+      popups.push({ x: p.x, y: p.y, text: label, sub: null, t: 0, color: PAL.foam });
+      burst(p.x, p.y, PAL.foam, 16, 100);
+      sound.item();
+    } else if (ev.type === 'cargo_hit') {
+      const p = shipXY(ev.ship, L);
+      popups.push({ x: p.x, y: p.y, text: '¡OTRA LUZ MÁS!', sub: null, t: 0, color: PAL.dim });
+      burst(p.x, p.y, '#b8c6d4', 10, 80);
+      sound.cargoHit();
     } else if (ev.type === 'wave') {
       waveMsg = { n: ev.n, t: 0 };
       sound.wave();
@@ -943,6 +1166,20 @@ function handleEvents(L) {
       store.set('faro.best', records.best);
       store.set('faro.bestChain', records.bestChain);
       store.set('faro.daily', records.daily);
+      // Progresión: experiencia y escenarios desbloqueados
+      const lvl0 = levelFor(prefs.xp);
+      prefs.xp += game.score;
+      store.set('faro.xp', prefs.xp);
+      if (levelFor(prefs.xp) > lvl0) {
+        popups.push({ x: L.cx, y: L.cy - L.R * 0.75, text: `¡FARERO NIVEL ${levelFor(prefs.xp)}!`, sub: 'nuevos aspectos en el menú', t: 0, color: PAL.beamCore, big: true });
+        sound.record();
+      }
+      const reached = Math.min(game.zoneIndex, THEMES.length - 1);
+      if (reached > prefs.zoneUnlocked) {
+        prefs.zoneUnlocked = reached;
+        store.set('faro.zoneUnlocked', prefs.zoneUnlocked);
+        popups.push({ x: L.cx, y: L.cy - L.R * 0.6, text: '¡ESCENARIO DESBLOQUEADO!', sub: THEMES[reached].name, t: 0, color: PAL.foam, big: true });
+      }
     } else if (ev.type === 'restart') {
       restart();
     }
@@ -1021,14 +1258,17 @@ function draw(L, dt) {
   g.strokeStyle = 'rgba(255,89,100,0.18)';
   g.beginPath(); g.arc(cx, cy, R * CONFIG.score.zoneClose, 0, TAU); g.stroke();
 
-  // Haz de luz
+  // Haz de luz (color del aspecto elegido; el superfaro lo ensancha y dora)
+  const skin = currentSkin();
+  const superOn = game.superActive;
+  const beamColor = superOn ? '255, 230, 150' : skin.beam;
   const beamA = game.state === 'ready' ? now * 0.8 : game.beamAngle;
   const holding = game.holding;
-  const half = CONFIG.beam.halfWidth * (holding ? 0.92 : 1);
-  const glow = holding ? 0.4 : 0.22;
+  const half = (game.state === 'ready' ? CONFIG.beam.halfWidth : game.beamHalfWidth) * (holding && !superOn ? 0.92 : 1);
+  const glow = (holding ? 0.4 : 0.22) + (superOn ? 0.2 : 0);
   const grad = g.createRadialGradient(cx, cy, R * 0.05, cx, cy, R);
-  grad.addColorStop(0, `rgba(${PAL.beam}, ${glow + 0.25})`);
-  grad.addColorStop(1, `rgba(${PAL.beam}, 0)`);
+  grad.addColorStop(0, `rgba(${beamColor}, ${glow + 0.25})`);
+  grad.addColorStop(1, `rgba(${beamColor}, 0)`);
   g.fillStyle = grad;
   g.beginPath();
   g.moveTo(cx, cy);
@@ -1036,8 +1276,8 @@ function draw(L, dt) {
   g.closePath();
   g.fill();
   // Línea central del haz
-  g.strokeStyle = `rgba(${PAL.beam}, ${holding ? 0.6 : 0.3})`;
-  g.lineWidth = 2;
+  g.strokeStyle = `rgba(${beamColor}, ${holding ? 0.6 : 0.3})`;
+  g.lineWidth = superOn ? 3 : 2;
   g.beginPath();
   g.moveTo(cx + Math.cos(beamA) * R * 0.12, cy + Math.sin(beamA) * R * 0.12);
   g.lineTo(cx + Math.cos(beamA) * R, cy + Math.sin(beamA) * R);
@@ -1054,14 +1294,44 @@ function draw(L, dt) {
   g.translate(cx, cy);
   g.scale(1, squash);
   for (let i = 0; i < 3; i++) {
-    g.fillStyle = i % 2 === 0 ? '#e8edf2' : PAL.danger;
+    g.fillStyle = skin.stripes[i % 2];
     const y0 = -lh + (i * lh * 2) / 3;
     const wTop = lh * 0.55 * (0.75 + 0.25 * (i / 3));
     g.fillRect(-wTop / 2, y0, wTop, (lh * 2) / 3 + 0.5);
   }
-  g.fillStyle = PAL.beamCore;
-  g.beginPath(); g.arc(0, -lh, lh * 0.32, 0, TAU); g.fill();
+  g.fillStyle = skin.lamp;
+  g.beginPath(); g.arc(0, -lh, lh * 0.32 * (superOn ? 1.5 : 1), 0, TAU); g.fill();
   g.restore();
+
+  // Objetos flotantes
+  for (const it of game.items) {
+    const p = shipXY(it, { cx, cy, R });
+    const blink = it.expiresIn < 2.5 && Math.floor(it.expiresIn * 4) % 2 === 0;
+    if (blink) continue;
+    g.fillStyle = 'rgba(14,31,51,0.9)';
+    g.beginPath(); g.arc(p.x, p.y, 13, 0, TAU); g.fill();
+    g.strokeStyle = it.type === 'ancla' ? '#7db8ff' : it.type === 'bengala' ? PAL.danger : '#ffe36b';
+    g.lineWidth = 2;
+    g.beginPath(); g.arc(p.x, p.y, 13, 0, TAU); g.stroke();
+    g.fillStyle = PAL.text;
+    g.font = '13px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.fillText(it.type === 'ancla' ? '⚓' : it.type === 'bengala' ? '✦' : '⚡', p.x, p.y + 5);
+    if (it.charge > 0) {
+      g.strokeStyle = PAL.beamCore;
+      g.lineWidth = 3;
+      g.beginPath();
+      g.arc(p.x, p.y, 18, -Math.PI / 2, -Math.PI / 2 + (it.charge / CONFIG.items.dwell) * TAU);
+      g.stroke();
+    }
+  }
+
+  // Aviso azulado mientras dura el ancla
+  if (game.time < game.anchorUntil && game.state === 'playing') {
+    g.strokeStyle = 'rgba(125,184,255,0.35)';
+    g.lineWidth = 3;
+    g.beginPath(); g.arc(cx, cy, R + 3, 0, TAU); g.stroke();
+  }
 
   // Barcos salvados (se alejan y desvanecen)
   for (let i = savedShips.length - 1; i >= 0; i--) {
@@ -1129,7 +1399,7 @@ function draw(L, dt) {
       g.globalAlpha = Math.min(1, 2 - waveMsg.t);
       g.fillStyle = PAL.foam;
       g.font = 'bold 16px system-ui, sans-serif';
-      g.fillText(`OLA ${waveMsg.n} SUPERADA`, cx, cy - R - 14);
+      g.fillText(`FASE ${waveMsg.n} SUPERADA`, cx, cy - R - 14);
       g.globalAlpha = 1;
     }
   }
@@ -1177,7 +1447,7 @@ function drawShip(g, s, L, alpha, saved) {
   const p = shipXY(s, L);
   const toCenter = Math.atan2(L.cy - p.y, L.cx - p.x);
   const heading = saved ? toCenter + Math.PI : toCenter;
-  const size = 11 + (s.type === 'corsair' ? 0 : 2);
+  const size = s.type === 'cargo' ? 17 : 11 + (s.type === 'corsair' ? 0 : 2);
   const lit = game.holding && game.state === 'playing' &&
     s.dist <= CONFIG.beam.range &&
     angDist(game.beamAngle, s.angle) <= CONFIG.beam.halfWidth + 0.06;
@@ -1191,6 +1461,7 @@ function drawShip(g, s, L, alpha, saved) {
   // Casco
   g.fillStyle = s.type === 'corsair' ? '#c8b7ff'
     : s.type === 'guardian' ? '#fff3d6'
+    : s.type === 'cargo' ? '#9fb0c0'
     : (lit ? '#ffe9c2' : '#dce8f2');
   g.beginPath();
   g.moveTo(size, 0);
@@ -1213,6 +1484,14 @@ function drawShip(g, s, L, alpha, saved) {
   g.beginPath(); g.arc(size * 0.4, 0, 2.2, 0, TAU); g.fill();
   g.restore();
   g.globalAlpha = 1;
+
+  // Puntos de vida del carguero (cuántas luces le faltan)
+  if (s.type === 'cargo' && !saved && (s.hits || 1) >= 1) {
+    g.fillStyle = PAL.foam;
+    g.font = 'bold 12px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.fillText('●'.repeat(s.hits || 1), p.x, p.y - 20);
+  }
 
   // Corazón flotante del guardián (se ve de un vistazo qué barco da escudo)
   if (s.type === 'guardian' && !saved) {
@@ -1277,6 +1556,27 @@ function drawHUD(g, L) {
     g.font = '12px system-ui, sans-serif';
     g.fillText(`RÉCORD ${records.best} · HOY ${records.daily.score}`, 12, 22);
   }
+  // Medidor de SUPERFARO
+  if (game.state === 'playing') {
+    const bw = 150, bh = 8;
+    const bx = cx - bw / 2, by = layout().h - 34;
+    const frac = Math.min(1, game.power / CONFIG.power.needed);
+    const full = frac >= 1 && !game.superActive;
+    g.fillStyle = 'rgba(255,255,255,0.12)';
+    roundedRect(g, bx, by, bw, bh, 4); g.fill();
+    g.fillStyle = game.superActive ? PAL.beamCore : full ? PAL.beamCore : PAL.amber;
+    if (full) g.globalAlpha = 0.7 + 0.3 * Math.sin(performance.now() / 150);
+    roundedRect(g, bx, by, bw * (game.superActive ? (game.superUntil - game.time) / CONFIG.power.duration : frac), bh, 4); g.fill();
+    g.globalAlpha = 1;
+    g.textAlign = 'center';
+    g.fillStyle = full ? PAL.beamCore : PAL.dim;
+    g.font = full ? 'bold 13px system-ui, sans-serif' : '11px system-ui, sans-serif';
+    g.fillText(
+      game.superActive ? '¡¡SUPERFARO!!' : full ? 'SUPERFARO LISTO — ¡doble toque!' : 'SUPERFARO',
+      cx, by - 6
+    );
+  }
+
   // Botón de silencio
   const m = muteRect();
   g.textAlign = 'center';
@@ -1287,7 +1587,8 @@ function drawHUD(g, L) {
 }
 
 function drawReady(g, L, now) {
-  const { cx, cy, R } = L;
+  const { cx, cy, R, h } = L;
+  menuHits.length = 0;
   g.textAlign = 'center';
   g.fillStyle = PAL.text;
   g.font = `bold ${Math.round(R * 0.28)}px Georgia, serif`;
@@ -1296,12 +1597,81 @@ function drawReady(g, L, now) {
   g.font = '16px system-ui, sans-serif';
   g.fillText('Mantén pulsado para detener la luz e iluminar los barcos', cx, cy - R * 0.44);
   g.fillText('No dejes que ninguno llegue a las rocas', cx, cy - R * 0.32);
+
+  // Nivel de farero y experiencia
+  const lvl = levelFor(prefs.xp);
+  const next = xpForLevel(lvl + 1);
+  const prev = xpForLevel(lvl);
+  g.fillStyle = PAL.amber;
+  g.font = 'bold 15px system-ui, sans-serif';
+  g.fillText(`⭐ FARERO NIVEL ${lvl}`, cx, cy - R * 0.16);
+  const pbw = 140;
+  g.fillStyle = 'rgba(255,255,255,0.12)';
+  roundedRect(g, cx - pbw / 2, cy - R * 0.11, pbw, 5, 3); g.fill();
+  g.fillStyle = PAL.amber;
+  roundedRect(g, cx - pbw / 2, cy - R * 0.11, pbw * Math.min(1, (prefs.xp - prev) / Math.max(1, next - prev)), 5, 3); g.fill();
+
   const a = 0.55 + 0.45 * Math.sin(now * 3.5);
   g.globalAlpha = a;
   g.fillStyle = PAL.amber;
   g.font = 'bold 18px system-ui, sans-serif';
-  g.fillText('toca para empezar', cx, cy + R * 0.7);
+  g.fillText('toca para empezar', cx, cy + R * 0.62);
   g.globalAlpha = 1;
+
+  // Selectores: escenario y aspecto del faro
+  const rows = [
+    {
+      y: Math.min(h - 64, cy + R * 0.82),
+      label: `ESCENARIO: ${THEMES[prefs.startZone % THEMES.length].name}`,
+      locked: prefs.zoneUnlocked === 0,
+      hint: prefs.zoneUnlocked === 0 ? 'llega a la zona 2 para desbloquear' : null,
+      move: (dir) => {
+        const max = Math.min(prefs.zoneUnlocked, THEMES.length - 1);
+        prefs.startZone = (prefs.startZone + dir + max + 1) % (max + 1);
+        store.set('faro.startZone', prefs.startZone);
+        game = new Game(newSeed(), CONFIG, { startZone: prefs.startZone });
+        makeStars(game.seed);
+      },
+    },
+    {
+      y: Math.min(h - 30, cy + R * 0.97),
+      label: `FARO: ${currentSkin().name}`,
+      locked: SKINS.filter((s) => s.level <= levelFor(prefs.xp)).length <= 1,
+      hint: null,
+      move: (dir) => {
+        const unlocked = SKINS.map((s, i) => ({ s, i })).filter((x) => x.s.level <= levelFor(prefs.xp));
+        const pos = unlocked.findIndex((x) => x.i === prefs.skin);
+        const nxt = unlocked[(pos + dir + unlocked.length) % unlocked.length];
+        prefs.skin = nxt.i;
+        store.set('faro.skin', prefs.skin);
+      },
+    },
+  ];
+  g.font = 'bold 14px system-ui, sans-serif';
+  for (const r of rows) {
+    g.fillStyle = r.locked ? PAL.dim : PAL.text;
+    g.fillText(r.label, cx, r.y);
+    if (r.hint) {
+      g.fillStyle = PAL.dim;
+      g.font = '11px system-ui, sans-serif';
+      g.fillText(r.hint, cx, r.y + 14);
+      g.font = 'bold 14px system-ui, sans-serif';
+    }
+    if (!r.locked) {
+      g.fillStyle = PAL.amber;
+      g.fillText('◀', cx - 130, r.y);
+      g.fillText('▶', cx + 130, r.y);
+      menuHits.push({ x: cx - 155, y: r.y - 22, w: 50, h: 34, fn: () => r.move(-1) });
+      menuHits.push({ x: cx + 105, y: r.y - 22, w: 50, h: 34, fn: () => r.move(1) });
+    }
+  }
+  // Próximo aspecto bloqueado como incentivo
+  const nextLocked = SKINS.find((s) => s.level > levelFor(prefs.xp));
+  if (nextLocked) {
+    g.fillStyle = PAL.dim;
+    g.font = '11px system-ui, sans-serif';
+    g.fillText(`🔒 ${nextLocked.name} en el nivel ${nextLocked.level}`, cx, Math.min(h - 12, cy + R * 0.97 + 16));
+  }
 }
 
 function drawOver(g, L) {
