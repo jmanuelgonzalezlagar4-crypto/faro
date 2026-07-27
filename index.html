@@ -951,6 +951,33 @@ function levelFor(xp) { return Math.floor(Math.sqrt(Math.max(0, xp) / 400)) + 1;
 function xpForLevel(n) { return 400 * (n - 1) * (n - 1); }
 function currentSkin() { return SKINS[Math.min(prefs.skin, SKINS.length - 1)]; }
 
+// ---------- Universos (misma mecánica probada, otra piel y otro corazón) ----------
+// Feedback de testers: "un faro no tiene emoción". El universo CIBERGUARDIÁN
+// pone en el centro un PERSONAJE — un robot con ojos que siguen el escáner y
+// expresiones — y lo que ataca son VIRUS. Todo es presentación: el núcleo de
+// juego (justicia, dificultad, récords) es exactamente el mismo.
+const UNIVERSES = [
+  {
+    id: 'faro', name: '🏰 FARO CLÁSICO', superName: 'SUPERFARO',
+    overTitle: 'NAUFRAGIO', charName: 'faro',
+    itemIcons: { ancla: '⚓', bengala: '✦', energia: '⚡' },
+    guardMark: '♥',
+    zoneNames: null, // usa los de THEMES
+  },
+  {
+    id: 'ciber', name: '🤖 CIBERGUARDIÁN', superName: 'SOBRECARGA',
+    overTitle: 'SISTEMA CAÍDO', charName: 'robot',
+    itemIcons: { ancla: '❄️', bengala: '💊', energia: '⚡' },
+    guardMark: '✚',
+    zoneNames: ['RED LOCAL', 'CORTAFUEGOS', 'NÚCLEO DEL SISTEMA', 'LA NUBE'],
+  },
+];
+function U() { return UNIVERSES[(prefs.universe || 0) % UNIVERSES.length]; }
+function themeName(i) {
+  const zn = U().zoneNames;
+  return zn ? zn[i % zn.length] : THEMES[i % THEMES.length].name;
+}
+
 // ---------- Utilidades ----------
 const params = new URLSearchParams(location.search);
 const DEBUG = params.get('debug') === '1';
@@ -1082,6 +1109,7 @@ const prefs = {
   zoneUnlocked: store.get('faro.zoneUnlocked', 0),
   checkpoint: store.get('faro.checkpoint', 0), // fases superadas que abren punto de control
   startWave: store.get('faro.startWave', 0),   // fase inicial elegida (múltiplo de 3)
+  universe: store.get('faro.universe', 0),     // 0 faro clásico · 1 ciberguardián
   skin: store.get('faro.skin', 0),
   startZone: store.get('faro.startZone', 0),
   superHintSeen: store.get('faro.superHint', false),
@@ -1288,9 +1316,18 @@ addEventListener('unhandledrejection', (e) => {
 
 const debugState = { timescale: 1, invincible: false, hitboxes: DEBUG, fps: 0, frames: 0, fpsAt: 0, inputAt: 0, latency: 0 };
 
+let circuits = [];
 function makeStars(seed) {
   const r = mulberry32(seed ^ 0x5f3759df);
   stars = Array.from({ length: 90 }, () => ({ x: r(), y: r() * 0.6, s: 0.5 + r() * 1.3, tw: r() * TAU }));
+  // Pistas de circuito de la "placa base" del universo ciber (deterministas)
+  circuits = Array.from({ length: 14 }, () => ({
+    a: r() * TAU,                 // ángulo de partida
+    r0: 0.2 + r() * 0.25,         // radio inicial
+    r1: 0.55 + r() * 0.38,        // radio del codo
+    da: (r() - 0.5) * 1.2,        // giro del tramo angular
+    node: r() > 0.35,             // ¿lleva nodo al final?
+  }));
 }
 makeStars(game.seed);
 
@@ -1514,10 +1551,10 @@ function handleEvents(L) {
       sound.shieldBreak();
       vibrate(40);
     } else if (ev.type === 'zone') {
-      zoneBanner = { text: `ZONA ${ev.index + 1} · ${THEMES[ev.index % THEMES.length].name}`, t: 0 };
+      zoneBanner = { text: `ZONA ${ev.index + 1} · ${themeName(ev.index)}`, t: 0 };
       sound.zone();
     } else if (ev.type === 'super_on') {
-      popups.push({ x: L.cx, y: L.cy - L.R * 0.5, text: '¡SUPERFARO!', sub: null, t: 0, color: PAL.beamCore, big: true });
+      popups.push({ x: L.cx, y: L.cy - L.R * 0.5, text: `¡${U().superName}!`, sub: null, t: 0, color: PAL.beamCore, big: true });
       burst(L.cx, L.cy, PAL.beamCore, 46, 170);
       shake = 0.5;
       sound.superOn();
@@ -1539,7 +1576,7 @@ function handleEvents(L) {
       runStats.itemTypes.add(ev.item.type);
       if (runStats.itemTypes.size >= 3) unlock('collector');
     } else if (ev.type === 'tool_stash') {
-      const icon = ev.tool === 'ancla' ? '⚓' : '✦';
+      const icon = U().itemIcons[ev.tool] || '✦';
       popups.push({ x: L.cx, y: L.cy + L.R * 0.55, text: `${icon} GUARDADA`, sub: 'tócala abajo cuando la necesites', t: 0, color: PAL.foam });
       sound.item();
       missionAdd('items3', 1);
@@ -1645,7 +1682,7 @@ function handleEvents(L) {
       if (reached > prefs.zoneUnlocked) {
         prefs.zoneUnlocked = reached;
         store.set('faro.zoneUnlocked', prefs.zoneUnlocked);
-        popups.push({ x: L.cx, y: L.cy - L.R * 0.6, text: '¡ESCENARIO DESBLOQUEADO!', sub: THEMES[reached].name, t: 0, color: PAL.foam, big: true });
+        popups.push({ x: L.cx, y: L.cy - L.R * 0.6, text: '¡ESCENARIO DESBLOQUEADO!', sub: themeName(reached), t: 0, color: PAL.foam, big: true });
       }
     } else if (ev.type === 'restart') {
       restart();
@@ -1991,6 +2028,25 @@ function draw(L, dt) {
   g.fillStyle = theme.sea;
   g.beginPath(); g.arc(cx, cy, R + 6, 0, TAU); g.fill();
 
+  // Placa base del universo ciber: pistas de circuito y nodos
+  if (U().id === 'ciber') {
+    g.strokeStyle = 'rgba(125,216,168,0.10)';
+    g.lineWidth = 1.5;
+    for (const c of circuits) {
+      g.beginPath();
+      g.moveTo(cx + Math.cos(c.a) * c.r0 * R, cy + Math.sin(c.a) * c.r0 * R);
+      g.lineTo(cx + Math.cos(c.a) * c.r1 * R, cy + Math.sin(c.a) * c.r1 * R);
+      g.arc(cx, cy, c.r1 * R, c.a, c.a + c.da, c.da < 0);
+      g.stroke();
+      if (c.node) {
+        g.fillStyle = 'rgba(125,216,168,0.16)';
+        g.beginPath();
+        g.arc(cx + Math.cos(c.a + c.da) * c.r1 * R, cy + Math.sin(c.a + c.da) * c.r1 * R, 3, 0, TAU);
+        g.fill();
+      }
+    }
+  }
+
   // Anillos de zona (sutiles)
   g.lineWidth = 1;
   g.strokeStyle = 'rgba(191,227,242,0.10)';
@@ -2023,16 +2079,65 @@ function draw(L, dt) {
   g.lineTo(cx + Math.cos(beamA) * R, cy + Math.sin(beamA) * R);
   g.stroke();
 
-  // Isla y faro
+  // Isla y personaje central (faro clásico o robot ciberguardián)
   g.fillStyle = PAL.rockDark;
   g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius, 0, TAU); g.fill();
   g.fillStyle = PAL.rock;
   g.beginPath(); g.arc(cx, cy, R * CONFIG.island.radius * 0.75, 0, TAU); g.fill();
-  const lh = R * 0.085; // alto del faro
+  const lh = R * 0.085; // alto del personaje
   const squash = holding ? 0.92 : 1;
   g.save();
   g.translate(cx, cy);
   g.scale(1, squash);
+  if (U().id === 'ciber') {
+    // ROBI, el ciberguardián: cuerpo, ojos que siguen el escáner y expresiones
+    const tNow = performance.now() / 1000;
+    const danger = game.state === 'playing' && game.ships.some((s2) => s2.dist < CONFIG.score.zoneClose && s2.dist > CONFIG.island.radius);
+    const happy = game.state === 'playing' && game.time - game.lastSaveAt < 0.8;
+    const bw2 = lh * 1.15, bh2 = lh * 1.5;
+    // Cuerpo
+    g.fillStyle = '#dfe7ef';
+    roundedRect(g, -bw2 / 2, -bh2 * 0.62, bw2, bh2, lh * 0.35); g.fill();
+    g.fillStyle = skin.stripes[1];
+    roundedRect(g, -bw2 / 2, bh2 * 0.12, bw2, bh2 * 0.26, lh * 0.2); g.fill();
+    // Antena con luz
+    g.strokeStyle = '#9fb0c0'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0, -bh2 * 0.62); g.lineTo(0, -bh2 * 0.62 - lh * 0.5); g.stroke();
+    g.fillStyle = skin.lamp;
+    g.beginPath(); g.arc(0, -bh2 * 0.62 - lh * 0.55, lh * 0.22 * (superOn ? 1.7 : 1 + 0.15 * Math.sin(tNow * 5)), 0, TAU); g.fill();
+    // Ojos que miran hacia el haz (parpadeo cada ~3,7 s)
+    const blink = (tNow % 3.7) < 0.12;
+    const lookX = Math.cos(beamA) * lh * 0.12;
+    const lookY = Math.sin(beamA) * lh * 0.12;
+    for (const sx of [-1, 1]) {
+      g.fillStyle = '#141d29';
+      const eyeR = lh * (danger ? 0.30 : 0.24);
+      if (blink) {
+        g.fillRect(sx * bw2 * 0.22 - eyeR, -bh2 * 0.22 - 1, eyeR * 2, 2.5);
+      } else {
+        g.beginPath(); g.arc(sx * bw2 * 0.22, -bh2 * 0.22, eyeR, 0, TAU); g.fill();
+        g.fillStyle = superOn ? '#ffe9a8' : '#7db8ff';
+        g.beginPath(); g.arc(sx * bw2 * 0.22 + lookX, -bh2 * 0.22 + lookY, eyeR * 0.45, 0, TAU); g.fill();
+      }
+    }
+    // Boca: sonrisa / susto / celebración
+    g.strokeStyle = '#141d29'; g.lineWidth = 2; g.lineCap = 'round';
+    g.beginPath();
+    if (danger && !happy) {
+      g.arc(0, bh2 * 0.06, lh * 0.16, 0, TAU); // "¡oh no!"
+    } else if (happy) {
+      g.arc(0, -bh2 * 0.03, lh * 0.26, 0.25, Math.PI - 0.25); // sonrisota
+    } else {
+      g.arc(0, -bh2 * 0.05, lh * 0.2, 0.5, Math.PI - 0.5);
+    }
+    g.stroke();
+    g.lineCap = 'butt';
+    // Gotita de sudor cuando hay peligro
+    if (danger && !happy) {
+      g.fillStyle = '#7db8ff';
+      g.beginPath(); g.arc(bw2 * 0.55, -bh2 * 0.45 + Math.sin(tNow * 9) * 1.5, 2.4, 0, TAU); g.fill();
+    }
+  } else {
   for (let i = 0; i < 3; i++) {
     g.fillStyle = skin.stripes[i % 2];
     const y0 = -lh + (i * lh * 2) / 3;
@@ -2041,6 +2146,7 @@ function draw(L, dt) {
   }
   g.fillStyle = skin.lamp;
   g.beginPath(); g.arc(0, -lh, lh * 0.32 * (superOn ? 1.5 : 1), 0, TAU); g.fill();
+  }
   g.restore();
 
   // Objetos flotantes
@@ -2056,7 +2162,7 @@ function draw(L, dt) {
     g.fillStyle = PAL.text;
     g.font = '13px system-ui, sans-serif';
     g.textAlign = 'center';
-    g.fillText(it.type === 'ancla' ? '⚓' : it.type === 'bengala' ? '✦' : '⚡', p.x, p.y + 5);
+    g.fillText(U().itemIcons[it.type] || '⚡', p.x, p.y + 5);
     if (it.charge > 0) {
       g.strokeStyle = PAL.beamCore;
       g.lineWidth = 3;
@@ -2259,7 +2365,7 @@ function draw(L, dt) {
       if (tool) {
         g.fillStyle = PAL.text;
         g.font = '22px system-ui, sans-serif';
-        g.fillText(tool === 'ancla' ? '⚓' : '✦', bx2, by + 8);
+        g.fillText(U().itemIcons[tool] || '✦', bx2, by + 8);
         const idx = i;
         invHits.push({ x: bx2 - bs / 2 - 6, y: by - bs / 2 - 6, w: bs + 12, h: bs + 12, fn: () => game.useTool(idx) });
       }
@@ -2290,6 +2396,60 @@ function draw(L, dt) {
   g.restore();
 }
 
+/** Enemigo del universo ciber: virus con pinchos, núcleo y ojos con intención. */
+function drawVirusBody(g, s, size, lit, saved) {
+  const t = performance.now() / 1000;
+  const wob = 1 + 0.07 * Math.sin(t * 6 + s.id);
+  const r = size * 0.95 * wob;
+  const body = s.type === 'corsair' ? (lit ? '#ffd2f4' : '#e07bd8')
+    : s.type === 'guardian' ? '#ffe9a8'
+    : s.type === 'cargo' ? (lit ? '#cfe0ee' : '#8fa3b5')
+    : (lit ? '#d2ffd9' : '#7fd88a');
+  const dark = s.type === 'corsair' ? '#8f3f88'
+    : s.type === 'guardian' ? '#c8962b'
+    : s.type === 'cargo' ? '#54636f'
+    : '#2f7a3c';
+  // Pinchos giratorios (el guardián-anticuerpo no pincha: es redondito)
+  if (s.type !== 'guardian') {
+    g.fillStyle = dark;
+    const n = s.type === 'cargo' ? 10 : 8;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU + t * (s.type === 'corsair' ? 1.6 : 0.7);
+      g.beginPath();
+      g.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      g.lineTo(Math.cos(a + 0.22) * r * 0.82, Math.sin(a + 0.22) * r * 0.82);
+      g.lineTo(Math.cos(a) * (r + size * 0.42), Math.sin(a) * (r + size * 0.42));
+      g.closePath(); g.fill();
+    }
+  }
+  // Cuerpo
+  g.fillStyle = body;
+  g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+  // Placas del blindado / halo del anticuerpo
+  if (s.type === 'cargo') {
+    g.strokeStyle = dark; g.lineWidth = 2;
+    g.beginPath(); g.arc(0, 0, r * 0.62, 0, TAU); g.stroke();
+  }
+  if (s.type === 'guardian') {
+    g.strokeStyle = 'rgba(255,233,168,0.5)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(0, 0, r + 4 + Math.sin(t * 4) * 1.5, 0, TAU); g.stroke();
+  }
+  // Ojos (miran hacia delante: rumbo al núcleo); el anticuerpo sonríe
+  g.fillStyle = s.type === 'guardian' ? '#7a5b16' : '#10240f';
+  const ey = r * 0.34, ex = r * 0.30;
+  g.beginPath(); g.arc(ex, -ey, Math.max(1.6, r * 0.16), 0, TAU); g.fill();
+  g.beginPath(); g.arc(ex, ey, Math.max(1.6, r * 0.16), 0, TAU); g.fill();
+  if (s.type === 'guardian') {
+    g.strokeStyle = '#7a5b16'; g.lineWidth = 1.6;
+    g.beginPath(); g.arc(r * 0.05, 0, r * 0.42, -0.6, 0.6); g.stroke();
+  } else if (!saved) {
+    // Ceño amenazador
+    g.strokeStyle = dark; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(ex + r * 0.22, -ey - r * 0.28); g.lineTo(ex - r * 0.2, -ey - r * 0.06); g.stroke();
+    g.beginPath(); g.moveTo(ex + r * 0.22, ey + r * 0.28); g.lineTo(ex - r * 0.2, ey + r * 0.06); g.stroke();
+  }
+}
+
 function drawShip(g, s, L, alpha, saved) {
   const p = shipXY(s, L);
   const toCenter = Math.atan2(L.cy - p.y, L.cx - p.x);
@@ -2302,6 +2462,11 @@ function drawShip(g, s, L, alpha, saved) {
   g.translate(p.x, p.y);
   g.rotate(heading);
   g.globalAlpha = alpha;
+  if (U().id === 'ciber') {
+    drawVirusBody(g, s, size, lit, saved);
+    g.restore();
+    g.globalAlpha = 1;
+  } else {
   // Estela
   g.fillStyle = 'rgba(191,227,242,0.25)';
   g.fillRect(-size - 8, -1, 6, 2);
@@ -2331,6 +2496,7 @@ function drawShip(g, s, L, alpha, saved) {
   g.beginPath(); g.arc(size * 0.4, 0, 2.2, 0, TAU); g.fill();
   g.restore();
   g.globalAlpha = 1;
+  }
 
   // Puntos de vida del carguero (cuántas luces le faltan)
   if (s.type === 'cargo' && !saved && (s.hits || 1) >= 1) {
@@ -2340,14 +2506,14 @@ function drawShip(g, s, L, alpha, saved) {
     g.fillText('●'.repeat(s.hits || 1), p.x, p.y - 20);
   }
 
-  // Corazón flotante del guardián (se ve de un vistazo qué barco da escudo)
+  // Marca flotante del guardián (se ve de un vistazo cuál da escudo)
   if (s.type === 'guardian' && !saved) {
     const bob = Math.sin(performance.now() / 250) * 2;
     g.globalAlpha = alpha;
     g.fillStyle = PAL.beamCore;
     g.font = 'bold 13px system-ui, sans-serif';
     g.textAlign = 'center';
-    g.fillText('♥', p.x, p.y - 18 + bob);
+    g.fillText(U().guardMark, p.x, p.y - 18 + bob);
     g.globalAlpha = 1;
   }
 
@@ -2426,7 +2592,7 @@ function drawHUD(g, L) {
     g.fillStyle = full ? PAL.beamCore : PAL.dim;
     g.font = full ? 'bold 13px system-ui, sans-serif' : '11px system-ui, sans-serif';
     g.fillText(
-      game.superActive ? '¡¡SUPERFARO!!' : full ? 'SUPERFARO LISTO — ¡doble toque!' : 'SUPERFARO',
+      game.superActive ? `¡¡${U().superName}!!` : full ? `${U().superName} LISTO — ¡doble toque!` : U().superName,
       cx, by - 6
     );
   }
@@ -2555,7 +2721,18 @@ function drawReady(g, L, now) {
   // Selectores: modo, escenario y aspecto del faro
   const rows = [
     {
-      y: Math.min(h - 96, cy + R * 0.76),
+      y: Math.min(h - 118, cy + R * 0.74),
+      label: `UNIVERSO: ${U().name}`,
+      locked: false,
+      hint: null,
+      move: (dir) => {
+        prefs.universe = ((prefs.universe || 0) + dir + UNIVERSES.length) % UNIVERSES.length;
+        store.set('faro.universe', prefs.universe);
+        sound.record();
+      },
+    },
+    {
+      y: Math.min(h - 88, cy + R * 0.88),
       label: duelMode ? 'MODO: ⚔️ DUELO (2 jugadores, 1 pantalla)'
         : dailyMode ? `MODO: 🗓️ DESAFÍO DIARIO (hoy: ${records.daily.score})` : 'MODO: NORMAL',
       locked: false,
@@ -2574,9 +2751,9 @@ function drawReady(g, L, now) {
       },
     },
     {
-      y: Math.min(h - 64, cy + R * 0.9),
+      y: Math.min(h - 58, cy + R * 1.02),
       label: (dailyMode || duelMode) ? 'EMPEZAR: fase 1 en este modo'
-        : `EMPEZAR: FASE ${effectiveStartWave() + 1} · ${THEMES[zoneIndexFor(effectiveStartWave()) % THEMES.length].name}`,
+        : `EMPEZAR: FASE ${effectiveStartWave() + 1} · ${themeName(zoneIndexFor(effectiveStartWave()))}`,
       locked: prefs.checkpoint === 0 || dailyMode || duelMode,
       hint: prefs.checkpoint === 0 && !dailyMode && !duelMode
         ? `supera la fase ${CONFIG.checkpoint.every} para guardar un punto de control` : null,
@@ -2592,8 +2769,8 @@ function drawReady(g, L, now) {
       },
     },
     {
-      y: Math.min(h - 30, cy + R * 1.04),
-      label: `FARO: ${currentSkin().name}`,
+      y: Math.min(h - 28, cy + R * 1.16),
+      label: `${U().id === 'ciber' ? 'COLOR' : 'FARO'}: ${currentSkin().name}`,
       locked: SKINS.filter((s) => s.level <= levelFor(prefs.xp)).length <= 1,
       hint: null,
       move: (dir) => {
@@ -2628,7 +2805,7 @@ function drawReady(g, L, now) {
   if (nextLocked) {
     g.fillStyle = PAL.dim;
     g.font = '11px system-ui, sans-serif';
-    g.fillText(`🔒 ${nextLocked.name} en el nivel ${nextLocked.level}`, cx, Math.min(h - 12, cy + R * 1.04 + 16));
+    g.fillText(`🔒 ${nextLocked.name} en el nivel ${nextLocked.level}`, cx, Math.min(h - 10, cy + R * 1.16 + 16));
   }
 }
 
@@ -2657,7 +2834,7 @@ function drawOver(g, L) {
   const isRecord = game.score >= records.best && game.score > 0;
   g.fillStyle = isRecord ? PAL.beamCore : PAL.text;
   g.font = 'bold 26px system-ui, sans-serif';
-  g.fillText(isRecord ? '¡NUEVO RÉCORD!' : 'NAUFRAGIO', cx, cy - 96);
+  g.fillText(isRecord ? '¡NUEVO RÉCORD!' : U().overTitle, cx, cy - 96);
 
   g.fillStyle = PAL.text;
   g.font = 'bold 56px system-ui, sans-serif';
