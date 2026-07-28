@@ -11,12 +11,20 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FARO">
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #070f1d; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #070f1d;
+    position: fixed; inset: 0; width: 100%;
+    overscroll-behavior: none; touch-action: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; touch-action: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+  /* Sonda de zonas seguras del iPhone (notch / Dynamic Island / barra inferior) */
+  #safe { position: fixed; visibility: hidden; pointer-events: none;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 </style>
 </head>
 <body>
+<div id="safe"></div>
 <canvas id="game"></canvas>
 <noscript><p style="color:#eaf2fa;font-family:sans-serif;padding:2em">FARO necesita JavaScript.</p></noscript>
 <script>
@@ -1731,14 +1739,31 @@ function layout() {
   return { w, h, cx: w / 2, cy: h / 2 + Math.min(w, h) * 0.02, R: Math.min(w, h) * 0.42 };
 }
 
+// Zonas seguras del iPhone (notch / Dynamic Island / barra de inicio):
+// se miden con la sonda CSS env(safe-area-inset-*) y desplazan el HUD.
+const SAFE = { top: 0, bottom: 0 };
+function measureSafeArea() {
+  try {
+    const probe = document.getElementById('safe');
+    if (probe) {
+      const cs = getComputedStyle(probe);
+      SAFE.top = Math.min(60, parseFloat(cs.paddingTop) || 0);
+      SAFE.bottom = Math.min(40, parseFloat(cs.paddingBottom) || 0);
+    }
+    // Anulación para pruebas de maquetación: ?safetop=59&safebottom=34
+    if (params.has('safetop')) SAFE.top = Number(params.get('safetop')) || 0;
+    if (params.has('safebottom')) SAFE.bottom = Number(params.get('safebottom')) || 0;
+  } catch { /* sin sonda seguimos a 0 */ }
+}
+
 function muteRect() {
   const { w } = layout();
-  return { x: w - 54, y: 10, s: 40 };
+  return { x: w - 54, y: 10 + SAFE.top, s: 40 };
 }
 /** Botón de efectos reducidos (accesibilidad): menos sacudidas y partículas. */
 function fxRect() {
   const { w } = layout();
-  return { x: w - 54, y: 56, s: 40 };
+  return { x: w - 54, y: 56 + SAFE.top, s: 40 };
 }
 
 let lastDownAt = 0;
@@ -3405,10 +3430,10 @@ function draw(L, dt) {
     g.textAlign = 'center';
     g.fillStyle = left < 15 ? PAL.danger : PAL.foam;
     g.font = 'bold 15px system-ui, sans-serif';
-    g.fillText(`💡 AGUANTA ${Math.ceil(left)} s`, cx, 74);
+    g.fillText(`💡 AGUANTA ${Math.ceil(left)} s`, cx, 74 + SAFE.top);
     g.fillStyle = PAL.dim;
     g.font = '11px system-ui, sans-serif';
-    g.fillText(game.duelCd > 0 ? `⚓ recargando… ${game.duelCd.toFixed(1)} s` : '⚓ almirante: toca el borde y lanza', cx, 92);
+    g.fillText(game.duelCd > 0 ? `⚓ recargando… ${game.duelCd.toFixed(1)} s` : '⚓ almirante: toca el borde y lanza', cx, 92 + SAFE.top);
   }
 
   // Botones del inventario (herramientas guardadas, a mano con un toque)
@@ -3418,7 +3443,7 @@ function draw(L, dt) {
     const bs = 52, gap = 14;
     const total = slots * bs + (slots - 1) * gap;
     const x0 = cx - total / 2;
-    const by = h - bs / 2 - 14;
+    const by = h - bs / 2 - 14 - SAFE.bottom;
     g.textAlign = 'center';
     for (let i = 0; i < slots; i++) {
       const bx2 = x0 + i * (bs + gap) + bs / 2;
@@ -3712,14 +3737,14 @@ function drawHUD(g, L) {
   if (game.state !== 'ready') {
     g.fillStyle = PAL.text;
     g.font = 'bold 34px system-ui, sans-serif';
-    g.fillText(String(game.score), cx, 46);
+    g.fillText(String(game.score), cx, 46 + SAFE.top);
   }
   // Etiqueta de desafío diario o reto
   if (game.state === 'playing' && (dailyMode || challenge)) {
     g.fillStyle = challenge ? PAL.danger : PAL.foam;
     g.font = 'bold 11px system-ui, sans-serif';
     const label = challenge ? `🎯 RETO: objetivo ${challenge.target}` : '🗓️ DESAFÍO DIARIO';
-    g.fillText(label, cx, game.chain >= 2 ? 100 : 82);
+    g.fillText(label, cx, (game.chain >= 2 ? 100 : 82) + SAFE.top);
   }
   // Combo
   if (game.chain >= 2 && game.state === 'playing') {
@@ -3738,18 +3763,18 @@ function drawHUD(g, L) {
   if (records.best > 0) {
     const frac = Math.min(1, game.score / records.best);
     g.fillStyle = 'rgba(255,255,255,0.10)';
-    g.fillRect(0, 0, w, 4);
+    g.fillRect(0, SAFE.top, w, 4);
     g.fillStyle = frac >= 1 ? PAL.beamCore : PAL.amber;
-    g.fillRect(0, 0, w * frac, 4);
+    g.fillRect(0, SAFE.top, w * frac, 4);
     g.textAlign = 'left';
     g.fillStyle = PAL.dim;
     g.font = '12px system-ui, sans-serif';
-    g.fillText(`RÉCORD ${records.best} · HOY ${records.daily.score}`, 12, 22);
+    g.fillText(`RÉCORD ${records.best} · HOY ${records.daily.score}`, 12, 22 + SAFE.top);
   }
   // Medidor de SUPERFARO
   if (game.state === 'playing') {
     const bw = 150, bh = 8;
-    const bx = cx - bw / 2, by = layout().h - 106; // sobre los botones del inventario
+    const bx = cx - bw / 2, by = layout().h - 106 - SAFE.bottom; // sobre los botones del inventario
     const frac = Math.min(1, game.power / CONFIG.power.needed);
     const full = frac >= 1 && !game.superActive;
     g.fillStyle = 'rgba(255,255,255,0.12)';
@@ -4153,7 +4178,18 @@ function resize() {
   canvas.style.height = innerHeight + 'px';
   ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-addEventListener('resize', () => { resize(); if (GL) GL.resize(); });
+addEventListener('resize', () => { measureSafeArea(); resize(); if (GL) GL.resize(); });
+// iOS: al girar el móvil, Safari tarda un instante en asentar las medidas
+addEventListener('orientationchange', () => {
+  setTimeout(() => { measureSafeArea(); resize(); if (GL) GL.resize(); }, 350);
+});
+// iOS Safari: sin zoom por pellizco/doble toque ni menús de pulsación larga
+for (const evName of ['gesturestart', 'gesturechange', 'gestureend']) {
+  addEventListener(evName, (e) => e.preventDefault(), { passive: false });
+}
+addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+measureSafeArea();
 resize();
 if (GL) GL.resize();
 
