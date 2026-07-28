@@ -1954,9 +1954,11 @@ void main(){
   float dz=uCamY*(kk*uSp-uCp)/denom;
   float z1=-uCamY*uSp+dz*uCp;
   vec3 col;
-  if(abs(denom)<1e-5||z1<=0.05){
-    // CIELO: gradiente + estrellas titilantes + luna con halo + peligro rojo
-    float tt=clamp(yTop/max(uHor,1.0),0.,1.);
+  bool isSky=(abs(denom)<1e-5||z1<=0.05);
+  float tt=0.0;
+  if(isSky){
+    // CIELO: gradiente + estrellas titilantes
+    tt=clamp(yTop/max(uHor,1.0),0.,1.);
     col=mix(uSkyTop,uSkyHor,tt);
     vec2 cell=floor(gl_FragCoord.xy/3.0);
     float st=hash(cell+uStarSeed);
@@ -1964,29 +1966,6 @@ void main(){
       float tw=0.5+0.5*sin(uTime*2.0+st*40.0);
       col+=vec3(0.85,0.9,0.95)*tw*0.8*smoothstep(0.997,1.0,st)*8.0*(1.0-tt);
     }
-    // LUNA grande y dramática: halo ancho en dos capas + disco con cráteres
-    // (los divisores del exp() controlan cuán rápido cae el brillo: números
-    // pequeños = halo ceñido, grandes = halo amplio; deben quedarse MODESTOS
-    // o el resplandor inunda todo el cielo y lo deja gris y plano)
-    float md=distance(vec2(x,yTop),uMoon);
-    col+=uMoonCol*0.48*exp(-md*md/(uMoonR*uMoonR*2.4));
-    col+=uMoonCol*0.15*exp(-md*md/(uMoonR*uMoonR*8.0));
-    if(md<uMoonR){
-      vec2 mp=(vec2(x,yTop)-uMoon)/uMoonR;
-      float craters=fbm(mp*3.4+17.0,3.0)*0.5+fbm(mp*8.0+41.0,2.0)*0.22;
-      float limb=smoothstep(uMoonR*0.55,uMoonR,md); // sombreado hacia el borde
-      col=uMoonCol*(1.04-craters*0.14-limb*0.12);
-    }
-    // NUBES dramáticas: capas de fbm a la deriva, con el borde iluminado
-    // por detrás cuando pasan cerca de la luna (contraluz, como un cielo real)
-    float cloudT=uTime*0.012;
-    vec2 cp1=vec2(x*0.9,yTop)*0.0032+vec2(cloudT,cloudT*0.15);
-    float cloudN=fbm(cp1,uOct>2.5?4.0:2.0);
-    float cloud=smoothstep(0.4,0.7,cloudN)*smoothstep(0.0,0.14,tt);
-    float back=exp(-md*md/(uMoonR*uMoonR*4.0));
-    vec3 cloudDark=mix(uSkyHor,vec3(0.03,0.045,0.08),0.45);
-    vec3 cloudLit=mix(cloudDark,uMoonCol,clamp(back*1.1,0.0,0.75));
-    col=mix(col,cloudLit,cloud*0.75);
     col=mix(col,vec3(0.36,0.07,0.12),uDanger*(1.0-tt)*0.75);
   }else{
     // AGUA: intersección exacta con el plano del mar de la jugabilidad
@@ -2006,7 +1985,18 @@ void main(){
     float dif=max(dot(N,L),0.);
     vec3 Hh=normalize(L+V);
     float spec=pow(max(dot(N,Hh),0.),120.0);
-    col=mix(uSea,uSeaLit,dif*0.55)+uMoonCol*spec*0.7;
+    col=mix(uSea,uSeaLit,dif*0.34)+uMoonCol*spec*0.7;
+    // Camino de luz de luna sobre el agua: un halo angosto alrededor del
+    // mismo reflejo especular (sendero centelleante contenido, no un lavado
+    // general que aclare todo el mar)
+    float spec2=pow(max(dot(N,Hh),0.),34.0);
+    col+=uMoonCol*spec2*0.22;
+    // Crestas de espuma: ruido que aparece justo donde la ola es más alta
+    if(uOct>2.5){
+      float foamN=vnoise(P*3.0+vec2(0.0,uTime*0.5));
+      float foam=smoothstep(0.55,0.82,foamN)*smoothstep(0.014,0.034,h0);
+      col=mix(col,vec3(0.86,0.95,0.98),foam*0.55);
+    }
     // HAZ DEL FARO: mismo ángulo y anchura que la jugabilidad
     float ang=atan(wz,wx);
     float ad=abs(atan(sin(ang-uBeamA),cos(ang-uBeamA)));
@@ -2024,14 +2014,64 @@ void main(){
     col=mix(col,col*vec3(1.35,0.62,0.62),uDanger*0.28);
     col*=1.0-0.25*exp(-max(wz+2.3,0.)*2.0);
   }
+  // LUNA Y NUBES: se pintan SIEMPRE por encima (cielo o mar), sin importar
+  // dónde caiga exactamente la línea del horizonte en esta pantalla. Así una
+  // luna grande y baja, casi rozando el mar, nunca queda cortada por la
+  // repintada opaca del agua (el fallo que teníamos antes); igual que en una
+  // fotografía real, su resplandor se derrama sobre el mar aunque su centro
+  // esté técnicamente "detrás" del horizonte.
+  // (los divisores del exp() controlan cuán rápido cae el brillo: números
+  // pequeños = halo ceñido, grandes = halo amplio; deben quedarse MODESTOS
+  // o el resplandor inunda todo el cielo y lo deja gris y plano)
+  float md=distance(vec2(x,yTop),uMoon);
+  col+=uMoonCol*0.62*exp(-md*md/(uMoonR*uMoonR*2.2));
+  col+=uMoonCol*0.22*exp(-md*md/(uMoonR*uMoonR*8.5));
+  if(md<uMoonR){
+    vec2 mp=(vec2(x,yTop)-uMoon)/uMoonR;
+    float craters=fbm(mp*3.4+17.0,3.0)*0.5+fbm(mp*8.0+41.0,2.0)*0.22;
+    float limb=smoothstep(uMoonR*0.52,uMoonR,md); // sombreado hacia el borde
+    col=uMoonCol*(1.1-craters*0.13-limb*0.16);
+  }
+  // NUBES voluminosas: dos capas de fbm (masas grandes + detalle) a la
+  // deriva, con el borde iluminado por detrás al pasar cerca de la luna
+  // (contraluz, como un cielo real). Cruzan por delante del disco lunar,
+  // como en una noche de nubes reales.
+  // OJO DE RENDIMIENTO: este ruido es caro (dos fbm multi-octava). Antes se
+  // pagaba solo en la fina franja de cielo real; al pintar la luna siempre
+  // encima tuvimos que evaluarlo también cerca de ella aunque el píxel sea
+  // técnicamente "agua" — pero SOLO ahí, no en todo el mar, o el framerate
+  // se hunde y el juego cae solo al 2D (con la luna otra vez recortada).
+  bool nearMoon=md<uMoonR*4.0;
+  if(isSky||nearMoon){
+    float cloudT=uTime*0.012;
+    vec2 cpBig=vec2(x*0.9,yTop)*0.0016+vec2(cloudT*0.7,cloudT*0.1);
+    vec2 cpDet=vec2(x*0.9,yTop)*0.004+vec2(cloudT*1.4,cloudT*0.22);
+    float cloudBig=fbm(cpBig,3.0);
+    float cloudDet=fbm(cpDet,uOct>2.5?4.0:2.0);
+    float cloudN=cloudBig*0.7+cloudDet*0.4;
+    float cloud=smoothstep(0.46,0.78,cloudN)*(isSky?1.0:0.3);
+    float back=exp(-md*md/(uMoonR*uMoonR*3.4));
+    vec3 cloudDark=mix(uSkyHor,vec3(0.025,0.035,0.06),0.7);
+    vec3 cloudLit=mix(cloudDark,uMoonCol,clamp(back*1.35,0.0,0.94));
+    col=mix(col,cloudLit,cloud*0.78);
+  }
   // GRADADO DE COLOR CINEMATOGRÁFICO: viñeta + tono frío en sombras / cálido
   // en luces + un pelín más de contraste, para un aire pictórico nocturno.
   vec2 uv=gl_FragCoord.xy/uRes;
-  float vig=smoothstep(1.15,0.4,length((uv-0.5)*vec2(1.0,uRes.y/uRes.x))*1.2);
-  col*=mix(0.72,1.0,vig);
+  float vig=smoothstep(1.25,0.35,length((uv-0.5)*vec2(1.0,uRes.y/uRes.x))*1.15);
+  col*=mix(0.5,0.98,vig);
+  // Densifica los tonos medios (look nocturno más profundo: el mar no debe
+  // leerse como un azul medio brillante, sino oscuro con brillos puntuales)
+  col=pow(max(col,0.0),vec3(1.3));
+  // Realza la saturación (aleja del gris medio) para el azul-verdoso intenso
   float lum=dot(col,vec3(0.299,0.587,0.114));
-  col*=mix(vec3(0.90,0.98,1.03),vec3(1.04,1.0,0.95),clamp(lum*1.1,0.0,1.0));
-  col=pow(max(col,0.0),vec3(0.95));
+  col=mix(vec3(lum),col,1.3);
+  // Tono partido cine nocturno: sombras hacia el cian-teal, luces hacia lo
+  // cálido/dorado (haz del faro, luna, barcos iluminados)
+  col=mix(col*vec3(0.74,1.05,1.28),col*vec3(1.1,1.0,0.86),clamp(lum*1.4,0.0,1.0));
+  // Más contraste
+  col=(col-0.5)*1.28+0.5;
+  col=pow(max(col,0.0),vec3(0.92));
   gl_FragColor=vec4(col,1.0);
 }`;
     const mk = (type, src) => {
@@ -2083,11 +2123,11 @@ void main(){
           c3(U.uSkyTop, theme.skyTop);
           c3(U.uSkyHor, theme.skyBottom);
           c3(U.uSea, theme.sea);
-          const seaL = mix3(hexRGB(theme.sea), [128, 168, 200], 0.55);
+          const seaL = mix3(hexRGB(theme.sea), [92, 128, 158], 0.5);
           gl.uniform3f(U.uSeaLit, seaL[0] / 255, seaL[1] / 255, seaL[2] / 255);
           gl.uniform3f(U.uMoonCol, p.moonCol[0], p.moonCol[1], p.moonCol[2]);
           gl.uniform2f(U.uMoon, p.moonX * scale, p.moonY * scale);
-          gl.uniform1f(U.uMoonR, 36 * scale);
+          gl.uniform1f(U.uMoonR, 50 * scale);
           gl.uniform3f(U.uBeamCol, p.beamCol[0], p.beamCol[1], p.beamCol[2]);
           gl.uniform1f(U.uBeamA, p.beamA);
           gl.uniform1f(U.uBeamHalf, p.beamHalf);
@@ -2910,38 +2950,44 @@ function draw(L, dt) {
   g.globalAlpha = 1;
 
   // Luna (llena si está comprada; DE SANGRE cuando la dificultad aprieta)
-  const moonColor = bloodMoon ? '#f0b3a6' : '#f6f1de';
-  const moonGlow = bloodMoon ? '224,120,100' : '247,240,222';
-  const mx = w * 0.82, my = Math.min(h * 0.16, skyH * 0.42);
+  // Grande y de alto contraste, como en una noche de luna llena real: la
+  // versión gratuita ya es una luna llena creíble; "LUNA LLENA" de la tienda
+  // la hace todavía más enorme y con halo más rico.
+  const moonColor = bloodMoon ? '#f4c2ac' : '#fffaee';
+  const moonGlow = bloodMoon ? '230,130,105' : '255,247,222';
+  const mx = w * 0.8, my = Math.min(h * 0.2, skyH * 0.48);
   if (!prefs.fxOn.lunallena && glOn) {
     // la luna base (grande y con nubes) ya la pinta el shader
   } else if (prefs.fxOn.lunallena) {
     // LUNA LLENA (comprada): enorme, con halo en dos capas y cráteres suaves
-    const mg = g.createRadialGradient(mx, my, 14, mx, my, 130);
-    mg.addColorStop(0, `rgba(${moonGlow},${bloodMoon ? 0.5 : 0.4})`);
-    mg.addColorStop(0.42, `rgba(${moonGlow},${bloodMoon ? 0.22 : 0.16})`);
+    const mg = g.createRadialGradient(mx, my, 16, mx, my, 160);
+    mg.addColorStop(0, `rgba(${moonGlow},${bloodMoon ? 0.55 : 0.46})`);
+    mg.addColorStop(0.4, `rgba(${moonGlow},${bloodMoon ? 0.26 : 0.2})`);
     mg.addColorStop(1, `rgba(${moonGlow},0)`);
     g.fillStyle = mg;
-    g.beginPath(); g.arc(mx, my, 130, 0, TAU); g.fill();
-    g.fillStyle = bloodMoon ? '#f2beb0' : moonColor;
-    g.beginPath(); g.arc(mx, my, 54, 0, TAU); g.fill();
-    g.fillStyle = bloodMoon ? 'rgba(170,90,80,0.35)' : 'rgba(178,188,172,0.28)';
-    g.beginPath(); g.arc(mx - 14, my - 11, 9, 0, TAU); g.fill();
-    g.beginPath(); g.arc(mx + 17, my + 8, 6.5, 0, TAU); g.fill();
-    g.beginPath(); g.arc(mx + 4, my + 18, 5, 0, TAU); g.fill();
-    g.beginPath(); g.arc(mx - 20, my + 10, 4, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx, my, 160, 0, TAU); g.fill();
+    g.fillStyle = bloodMoon ? '#f6c8ba' : moonColor;
+    g.beginPath(); g.arc(mx, my, 64, 0, TAU); g.fill();
+    g.fillStyle = bloodMoon ? 'rgba(170,90,80,0.32)' : 'rgba(168,180,168,0.26)';
+    g.beginPath(); g.arc(mx - 17, my - 13, 11, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx + 20, my + 10, 8, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx + 5, my + 22, 6, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx - 24, my + 12, 5, 0, TAU); g.fill();
   } else {
-    // Luna modesta de serie (gibosa) — LUNA LLENA en la tienda la agranda
-    const mg0 = g.createRadialGradient(mx, my, 6, mx, my, 50);
-    mg0.addColorStop(0, `rgba(${moonGlow},0.3)`);
+    // Luna llena de serie: ya grande y luminosa (LUNA LLENA en la tienda
+    // la agranda aún más), con cráteres suaves en vez de una mordida dura.
+    const mg0 = g.createRadialGradient(mx, my, 10, mx, my, 110);
+    mg0.addColorStop(0, `rgba(${moonGlow},0.38)`);
+    mg0.addColorStop(0.45, `rgba(${moonGlow},0.16)`);
     mg0.addColorStop(1, `rgba(${moonGlow},0)`);
     g.fillStyle = mg0;
-    g.beginPath(); g.arc(mx, my, 50, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx, my, 110, 0, TAU); g.fill();
     g.fillStyle = moonColor;
-    g.beginPath(); g.arc(mx, my, 30, 0, TAU); g.fill();
-    g.fillStyle = theme.skyTop; g.globalAlpha = 0.85;
-    g.beginPath(); g.arc(mx - 11, my - 5, 25, 0, TAU); g.fill();
-    g.globalAlpha = 1;
+    g.beginPath(); g.arc(mx, my, 46, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(172,182,170,0.24)';
+    g.beginPath(); g.arc(mx - 12, my - 9, 8, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx + 14, my + 7, 6, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx + 3, my + 16, 4.5, 0, TAU); g.fill();
   }
   // Nubes pictóricas a la deriva (solo en el mar 2D; el shader ya las dibuja)
   if (!glOn) {
@@ -2950,10 +2996,10 @@ function draw(L, dt) {
       const cx2 = (((c.x + ct * 0.006 * c.sp) % 1.15) - 0.08) * w;
       const cy2 = 6 + c.y * skyH * 0.92;
       const distM = Math.hypot(cx2 - mx, cy2 - my);
-      const back = Math.max(0, 1 - distM / 170);
+      const back = Math.max(0, 1 - distM / 230);
       const cg = g.createRadialGradient(cx2, cy2, 1, cx2, cy2, c.rx);
-      const lit = mix3(hexRGB(theme.skyBottom), [247, 240, 225], back * 0.75);
-      cg.addColorStop(0, rgb3(lit, c.o * (0.5 + back * 0.5)));
+      const lit = mix3(hexRGB(theme.skyBottom), [255, 247, 222], back * 0.9);
+      cg.addColorStop(0, rgb3(lit, c.o * (0.6 + back * 0.7)));
       cg.addColorStop(1, rgb3(lit, 0));
       g.fillStyle = cg;
       g.beginPath(); g.ellipse(cx2, cy2, c.rx, c.ry, 0, 0, TAU); g.fill();
@@ -3040,16 +3086,16 @@ function draw(L, dt) {
       }
     }
 
-    // Reflejo de la luna: destellos discontinuos que rielan bajo su posición
+    // Reflejo de la luna: sendero de destellos que rielan bajo su posición
     if (!isCiber) {
-      const mgx = w * 0.82;
-      for (let i2 = 0; i2 < 9; i2++) {
-        const kk2 = i2 / 8;
+      const mgx = w * 0.8;
+      for (let i2 = 0; i2 < 11; i2++) {
+        const kk2 = i2 / 10;
         const yy2 = hor + 8 + (h * 0.5 - 8) * Math.pow(kk2, 1.5);
-        const ww2 = (6 + 26 * kk2) * (0.7 + 0.3 * Math.sin(now * 0.8 + i2 * 1.9));
-        g.fillStyle = `rgba(223,233,242,${(0.16 - 0.13 * kk2) * (0.75 + 0.25 * Math.sin(now * 1.1 + i2 * 2.6))})`;
+        const ww2 = (7 + 32 * kk2) * (0.7 + 0.3 * Math.sin(now * 0.8 + i2 * 1.9));
+        g.fillStyle = `rgba(255,247,222,${(0.22 - 0.16 * kk2) * (0.75 + 0.25 * Math.sin(now * 1.1 + i2 * 2.6))})`;
         g.beginPath();
-        g.ellipse(mgx + Math.sin(i2 * 2.1) * 6 * kk2, yy2, ww2, 1.6 + 2.4 * kk2, 0, 0, TAU);
+        g.ellipse(mgx + Math.sin(i2 * 2.1) * 6 * kk2, yy2, ww2, 1.8 + 2.6 * kk2, 0, 0, TAU);
         g.fill();
       }
     }
@@ -3101,12 +3147,12 @@ function draw(L, dt) {
   // Isla: montículo de roca con volumen (luz de luna desde la derecha)
   {
     const ci = seaXY(0, 0, 0, L);
-    g.fillStyle = PAL.rockDark;
+    g.fillStyle = '#060c14';
     seaRing(g, CONFIG.island.radius, L, 28); g.fill();
     const ig = g.createRadialGradient(ci.x + 6, ci.y - 6, 2, ci.x, ci.y, GC.sMid * CONFIG.island.radius * 1.1);
-    ig.addColorStop(0, '#2e4257');
-    ig.addColorStop(0.6, PAL.rock);
-    ig.addColorStop(1, PAL.rockDark);
+    ig.addColorStop(0, '#4a5f6e');
+    ig.addColorStop(0.55, PAL.rock);
+    ig.addColorStop(1, '#0a1119');
     g.fillStyle = ig;
     seaRing(g, CONFIG.island.radius * 0.8, L, 28); g.fill();
   }
@@ -3565,19 +3611,24 @@ function draw(L, dt) {
   // GRADADO DE COLOR + VIÑETA: unifica el look pictórico nocturno también
   // cuando no hay WebGL (el shader ya aplica el suyo propio por píxel)
   if (!glOn) {
-    const vg = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.72);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(2,6,14,0.42)');
-    g.fillStyle = vg;
+    // Tono partido (teal en sombras / cálido en luces) + más saturación,
+    // buscando el mismo aire "cine nocturno" que el shader de WebGL.
+    g.globalCompositeOperation = 'overlay';
+    g.fillStyle = 'rgba(20,150,175,0.30)';
     g.fillRect(-20, -20, w + 40, h + 40);
     g.globalCompositeOperation = 'soft-light';
     const wg = g.createLinearGradient(0, 0, 0, h);
-    wg.addColorStop(0, 'rgba(120,150,190,0.16)');
+    wg.addColorStop(0, 'rgba(110,150,200,0.30)');
     wg.addColorStop(0.55, 'rgba(0,0,0,0)');
-    wg.addColorStop(1, 'rgba(255,170,110,0.10)');
+    wg.addColorStop(1, 'rgba(255,180,110,0.22)');
     g.fillStyle = wg;
     g.fillRect(-20, -20, w + 40, h + 40);
     g.globalCompositeOperation = 'source-over';
+    const vg = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.22, w / 2, h / 2, Math.max(w, h) * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(1,5,12,0.5)');
+    g.fillStyle = vg;
+    g.fillRect(-20, -20, w + 40, h + 40);
   }
 
   drawHUD(g, L);
@@ -4358,8 +4409,12 @@ function frame(t) {
     const bc = (superOn2 ? '255, 230, 150' : currentSkin().beam).split(',').map(Number);
     GL.render(GC, th2, {
       time: t / 1000,
-      moonX: L.w * 0.82, moonY: Math.min(L.h * 0.16, Math.max(24, GC.horizon) * 0.42),
-      moonCol: blood2 ? [0.95, 0.68, 0.6] : [0.97, 0.95, 0.85],
+      // La luna ahora se pinta siempre por encima (cielo o mar, ver shader),
+      // así que su altura ya no depende de dónde caiga la línea del
+      // horizonte en esta pantalla: solo necesita margen para no salirse
+      // por arriba ni taparse con el HUD.
+      moonX: L.w * 0.8, moonY: Math.max(85, Math.min(L.h * 0.22, 150)),
+      moonCol: blood2 ? [0.95, 0.68, 0.6] : [1.0, 0.98, 0.9],
       beamA: game.state === 'ready' ? (t / 1000) * 0.8 : game.beamAngle,
       beamHalf: game.state === 'ready' ? CONFIG.beam.halfWidth : game.beamHalfWidth,
       beamGlow: (game.holding ? 0.75 : 0.45) + (superOn2 ? 0.35 : 0),
