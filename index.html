@@ -1523,6 +1523,7 @@ let particles = [];
 let popups = [];
 let savedShips = [];
 let stars = [];
+let clouds = [];
 let shake = 0;
 let flash = 0;
 let culpritGhost = null;
@@ -1692,6 +1693,12 @@ let coastNoise = [];
 function makeStars(seed) {
   const r = mulberry32(seed ^ 0x5f3759df);
   stars = Array.from({ length: 90 }, () => ({ x: r(), y: r() * 0.6, s: 0.5 + r() * 1.3, tw: r() * TAU }));
+  // Nubes dramáticas a la deriva (siluetas pictóricas cerca de la luna)
+  clouds = Array.from({ length: 7 }, () => ({
+    x: r(), y: 0.05 + r() * 0.42,
+    rx: 46 + r() * 92, ry: 14 + r() * 26,
+    o: 0.22 + r() * 0.30, sp: 0.35 + r() * 0.9, ph: r() * TAU,
+  }));
   // Perfil de costa suave y determinista (suma de senos con fases aleatorias)
   const f1 = r() * TAU, f2 = r() * TAU, f3 = r() * TAU;
   coastNoise = Array.from({ length: 41 }, (_, i) =>
@@ -1914,6 +1921,21 @@ uniform float uMoonR,uBeamA,uBeamHalf,uBeamGlow,uDanger,uOct,uStarSeed;
 
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 
+float vnoise(vec2 p){
+  vec2 i=floor(p),f=fract(p);
+  float a=hash(i),b=hash(i+vec2(1.,0.)),c=hash(i+vec2(0.,1.)),d=hash(i+vec2(1.,1.));
+  vec2 u=f*f*(3.-2.*f);
+  return mix(a,b,u.x)+(c-a)*u.y*(1.-u.x)+(d-b)*u.x*u.y;
+}
+float fbm(vec2 p,float oct){
+  float v=0.,a=0.5;
+  for(int i=0;i<4;i++){
+    if(float(i)>=oct) break;
+    v+=a*vnoise(p); p*=2.05; a*=0.5;
+  }
+  return v;
+}
+
 float wH(vec2 p,float t){
   float h=sin(p.x*1.1+p.y*1.4+t*0.55)*0.035
         +sin(p.x*0.5-t*0.35+p.y)*0.025;
@@ -1942,12 +1964,29 @@ void main(){
       float tw=0.5+0.5*sin(uTime*2.0+st*40.0);
       col+=vec3(0.85,0.9,0.95)*tw*0.8*smoothstep(0.997,1.0,st)*8.0*(1.0-tt);
     }
+    // LUNA grande y dramática: halo ancho en dos capas + disco con cráteres
+    // (los divisores del exp() controlan cuán rápido cae el brillo: números
+    // pequeños = halo ceñido, grandes = halo amplio; deben quedarse MODESTOS
+    // o el resplandor inunda todo el cielo y lo deja gris y plano)
     float md=distance(vec2(x,yTop),uMoon);
-    col+=uMoonCol*0.55*exp(-md*md/(uMoonR*uMoonR*14.0));
+    col+=uMoonCol*0.48*exp(-md*md/(uMoonR*uMoonR*2.4));
+    col+=uMoonCol*0.15*exp(-md*md/(uMoonR*uMoonR*8.0));
     if(md<uMoonR){
-      col=uMoonCol*(0.92-0.25*smoothstep(uMoonR*0.2,uMoonR,md)
-        *hash(floor(vec2(x,yTop)/4.0))*0.4);
+      vec2 mp=(vec2(x,yTop)-uMoon)/uMoonR;
+      float craters=fbm(mp*3.4+17.0,3.0)*0.5+fbm(mp*8.0+41.0,2.0)*0.22;
+      float limb=smoothstep(uMoonR*0.55,uMoonR,md); // sombreado hacia el borde
+      col=uMoonCol*(1.04-craters*0.14-limb*0.12);
     }
+    // NUBES dramáticas: capas de fbm a la deriva, con el borde iluminado
+    // por detrás cuando pasan cerca de la luna (contraluz, como un cielo real)
+    float cloudT=uTime*0.012;
+    vec2 cp1=vec2(x*0.9,yTop)*0.0032+vec2(cloudT,cloudT*0.15);
+    float cloudN=fbm(cp1,uOct>2.5?4.0:2.0);
+    float cloud=smoothstep(0.4,0.7,cloudN)*smoothstep(0.0,0.14,tt);
+    float back=exp(-md*md/(uMoonR*uMoonR*4.0));
+    vec3 cloudDark=mix(uSkyHor,vec3(0.03,0.045,0.08),0.45);
+    vec3 cloudLit=mix(cloudDark,uMoonCol,clamp(back*1.1,0.0,0.75));
+    col=mix(col,cloudLit,cloud*0.75);
     col=mix(col,vec3(0.36,0.07,0.12),uDanger*(1.0-tt)*0.75);
   }else{
     // AGUA: intersección exacta con el plano del mar de la jugabilidad
@@ -1985,6 +2024,14 @@ void main(){
     col=mix(col,col*vec3(1.35,0.62,0.62),uDanger*0.28);
     col*=1.0-0.25*exp(-max(wz+2.3,0.)*2.0);
   }
+  // GRADADO DE COLOR CINEMATOGRÁFICO: viñeta + tono frío en sombras / cálido
+  // en luces + un pelín más de contraste, para un aire pictórico nocturno.
+  vec2 uv=gl_FragCoord.xy/uRes;
+  float vig=smoothstep(1.15,0.4,length((uv-0.5)*vec2(1.0,uRes.y/uRes.x))*1.2);
+  col*=mix(0.72,1.0,vig);
+  float lum=dot(col,vec3(0.299,0.587,0.114));
+  col*=mix(vec3(0.90,0.98,1.03),vec3(1.04,1.0,0.95),clamp(lum*1.1,0.0,1.0));
+  col=pow(max(col,0.0),vec3(0.95));
   gl_FragColor=vec4(col,1.0);
 }`;
     const mk = (type, src) => {
@@ -2040,7 +2087,7 @@ void main(){
           gl.uniform3f(U.uSeaLit, seaL[0] / 255, seaL[1] / 255, seaL[2] / 255);
           gl.uniform3f(U.uMoonCol, p.moonCol[0], p.moonCol[1], p.moonCol[2]);
           gl.uniform2f(U.uMoon, p.moonX * scale, p.moonY * scale);
-          gl.uniform1f(U.uMoonR, 20 * scale);
+          gl.uniform1f(U.uMoonR, 36 * scale);
           gl.uniform3f(U.uBeamCol, p.beamCol[0], p.beamCol[1], p.beamCol[2]);
           gl.uniform1f(U.uBeamA, p.beamA);
           gl.uniform1f(U.uBeamHalf, p.beamHalf);
@@ -2845,38 +2892,72 @@ function draw(L, dt) {
     g.fillRect(-20, -20, w + 40, h + 40);
   }
 
+  // La franja de cielo real (hasta el horizonte): en pantallas anchas y bajas
+  // el horizonte queda muy arriba, así que estrellas/luna/nubes se ubican
+  // relativas a él y no a una fracción fija de la altura, o quedarían tapadas
+  // por el océano al dibujarse éste encima.
+  const camNow = GC || gameCamera(L);
+  const skyH = Math.max(24, camNow.horizon);
+
   // Estrellas (titilan) — con WebGL las pinta el shader
   const now = performance.now() / 1000;
   if (!glOn) for (const s of stars) {
     const a = 0.35 + 0.3 * Math.sin(now * 1.5 + s.tw);
     g.globalAlpha = a;
     g.fillStyle = PAL.foam;
-    g.fillRect(s.x * w, s.y * h, s.s, s.s);
+    g.fillRect(s.x * w, s.y * skyH * 0.95, s.s, s.s);
   }
   g.globalAlpha = 1;
 
   // Luna (llena si está comprada; DE SANGRE cuando la dificultad aprieta)
-  const moonColor = bloodMoon ? '#f0b3a6' : '#dfe9f2';
-  const moonGlow = bloodMoon ? '224,120,100' : '223,233,242';
+  const moonColor = bloodMoon ? '#f0b3a6' : '#f6f1de';
+  const moonGlow = bloodMoon ? '224,120,100' : '247,240,222';
+  const mx = w * 0.82, my = Math.min(h * 0.16, skyH * 0.42);
   if (!prefs.fxOn.lunallena && glOn) {
-    // la luna base la pinta el shader
+    // la luna base (grande y con nubes) ya la pinta el shader
   } else if (prefs.fxOn.lunallena) {
-    const mg = g.createRadialGradient(w * 0.82, h * 0.14, 10, w * 0.82, h * 0.14, 70);
-    mg.addColorStop(0, `rgba(${moonGlow},${bloodMoon ? 0.45 : 0.35})`);
+    // LUNA LLENA (comprada): enorme, con halo en dos capas y cráteres suaves
+    const mg = g.createRadialGradient(mx, my, 14, mx, my, 130);
+    mg.addColorStop(0, `rgba(${moonGlow},${bloodMoon ? 0.5 : 0.4})`);
+    mg.addColorStop(0.42, `rgba(${moonGlow},${bloodMoon ? 0.22 : 0.16})`);
     mg.addColorStop(1, `rgba(${moonGlow},0)`);
     g.fillStyle = mg;
-    g.beginPath(); g.arc(w * 0.82, h * 0.14, 70, 0, TAU); g.fill();
-    g.fillStyle = bloodMoon ? '#f2beb0' : '#e8f0f7';
-    g.beginPath(); g.arc(w * 0.82, h * 0.14, 38, 0, TAU); g.fill();
-    g.fillStyle = bloodMoon ? 'rgba(170,90,80,0.4)' : 'rgba(160,175,190,0.35)';
-    g.beginPath(); g.arc(w * 0.82 - 10, h * 0.14 - 8, 7, 0, TAU); g.fill();
-    g.beginPath(); g.arc(w * 0.82 + 12, h * 0.14 + 6, 5, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx, my, 130, 0, TAU); g.fill();
+    g.fillStyle = bloodMoon ? '#f2beb0' : moonColor;
+    g.beginPath(); g.arc(mx, my, 54, 0, TAU); g.fill();
+    g.fillStyle = bloodMoon ? 'rgba(170,90,80,0.35)' : 'rgba(178,188,172,0.28)';
+    g.beginPath(); g.arc(mx - 14, my - 11, 9, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx + 17, my + 8, 6.5, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx + 4, my + 18, 5, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx - 20, my + 10, 4, 0, TAU); g.fill();
   } else {
+    // Luna modesta de serie (gibosa) — LUNA LLENA en la tienda la agranda
+    const mg0 = g.createRadialGradient(mx, my, 6, mx, my, 50);
+    mg0.addColorStop(0, `rgba(${moonGlow},0.3)`);
+    mg0.addColorStop(1, `rgba(${moonGlow},0)`);
+    g.fillStyle = mg0;
+    g.beginPath(); g.arc(mx, my, 50, 0, TAU); g.fill();
     g.fillStyle = moonColor;
-    g.beginPath(); g.arc(w * 0.82, h * 0.14, 26, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx, my, 30, 0, TAU); g.fill();
     g.fillStyle = theme.skyTop; g.globalAlpha = 0.85;
-    g.beginPath(); g.arc(w * 0.82 - 10, h * 0.14 - 4, 22, 0, TAU); g.fill();
+    g.beginPath(); g.arc(mx - 11, my - 5, 25, 0, TAU); g.fill();
     g.globalAlpha = 1;
+  }
+  // Nubes pictóricas a la deriva (solo en el mar 2D; el shader ya las dibuja)
+  if (!glOn) {
+    const ct = performance.now() / 1000;
+    for (const c of clouds) {
+      const cx2 = (((c.x + ct * 0.006 * c.sp) % 1.15) - 0.08) * w;
+      const cy2 = 6 + c.y * skyH * 0.92;
+      const distM = Math.hypot(cx2 - mx, cy2 - my);
+      const back = Math.max(0, 1 - distM / 170);
+      const cg = g.createRadialGradient(cx2, cy2, 1, cx2, cy2, c.rx);
+      const lit = mix3(hexRGB(theme.skyBottom), [247, 240, 225], back * 0.75);
+      cg.addColorStop(0, rgb3(lit, c.o * (0.5 + back * 0.5)));
+      cg.addColorStop(1, rgb3(lit, 0));
+      g.fillStyle = cg;
+      g.beginPath(); g.ellipse(cx2, cy2, c.rx, c.ry, 0, 0, TAU); g.fill();
+    }
   }
 
   // Estrellas fugaces (compradas)
@@ -3028,6 +3109,24 @@ function draw(L, dt) {
     ig.addColorStop(1, PAL.rockDark);
     g.fillStyle = ig;
     seaRing(g, CONFIG.island.radius * 0.8, L, 28); g.fill();
+  }
+  // Espuma blanca de las olas rompiendo contra las rocas del faro
+  {
+    const nowF = performance.now() / 1000;
+    const FOAM_N = 11;
+    for (let i = 0; i < FOAM_N; i++) {
+      const a = (i / FOAM_N) * TAU + 0.31;
+      const surge = 0.5 + 0.5 * Math.sin(nowF * 1.3 + i * 1.7);
+      const r0 = CONFIG.island.radius * (0.98 + 0.045 * surge);
+      const fp = seaXY(a, r0, 0, L);
+      const fs = (5 + 8 * surge) * Math.max(0.5, fp.k);
+      g.globalAlpha = 0.30 + 0.32 * surge;
+      g.fillStyle = '#eaf6ff';
+      g.beginPath(); g.ellipse(fp.x, fp.y - fs * 0.3, fs * 1.3, fs * 0.55, 0, 0, TAU); g.fill();
+      g.globalAlpha = (0.16 + 0.16 * surge);
+      g.beginPath(); g.ellipse(fp.x, fp.y + fs * 0.25, fs * 1.9, fs * 0.42, 0, 0, TAU); g.fill();
+    }
+    g.globalAlpha = 1;
   }
   const center0 = seaXY(0, 0, 0, L);
   const lh = GC.sMid * 0.115; // alto del personaje, escalado por la cámara
@@ -3461,6 +3560,24 @@ function draw(L, dt) {
         invHits.push({ x: bx2 - bs / 2 - 6, y: by - bs / 2 - 6, w: bs + 12, h: bs + 12, fn: () => game.useTool(idx) });
       }
     }
+  }
+
+  // GRADADO DE COLOR + VIÑETA: unifica el look pictórico nocturno también
+  // cuando no hay WebGL (el shader ya aplica el suyo propio por píxel)
+  if (!glOn) {
+    const vg = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.72);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(2,6,14,0.42)');
+    g.fillStyle = vg;
+    g.fillRect(-20, -20, w + 40, h + 40);
+    g.globalCompositeOperation = 'soft-light';
+    const wg = g.createLinearGradient(0, 0, 0, h);
+    wg.addColorStop(0, 'rgba(120,150,190,0.16)');
+    wg.addColorStop(0.55, 'rgba(0,0,0,0)');
+    wg.addColorStop(1, 'rgba(255,170,110,0.10)');
+    g.fillStyle = wg;
+    g.fillRect(-20, -20, w + 40, h + 40);
+    g.globalCompositeOperation = 'source-over';
   }
 
   drawHUD(g, L);
@@ -4241,8 +4358,8 @@ function frame(t) {
     const bc = (superOn2 ? '255, 230, 150' : currentSkin().beam).split(',').map(Number);
     GL.render(GC, th2, {
       time: t / 1000,
-      moonX: L.w * 0.82, moonY: L.h * 0.14,
-      moonCol: blood2 ? [0.95, 0.68, 0.6] : [0.87, 0.91, 0.95],
+      moonX: L.w * 0.82, moonY: Math.min(L.h * 0.16, Math.max(24, GC.horizon) * 0.42),
+      moonCol: blood2 ? [0.95, 0.68, 0.6] : [0.97, 0.95, 0.85],
       beamA: game.state === 'ready' ? (t / 1000) * 0.8 : game.beamAngle,
       beamHalf: game.state === 'ready' ? CONFIG.beam.halfWidth : game.beamHalfWidth,
       beamGlow: (game.holding ? 0.75 : 0.45) + (superOn2 ? 0.35 : 0),
