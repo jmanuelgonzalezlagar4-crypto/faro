@@ -76,3 +76,30 @@ Todo se controla con el archivo **`temporada.json`**, sin publicar una versión 
 - **Elegir ganadores:** en la app, «Más → Verificar participaciones», abre todos los archivos recibidos. Cada máquina se vuelve a probar desde su diseño, sin empujones y durante 10 minutos como máximo. La clasificación usa la eficiencia verificada, nunca la declarada, y descarta las pruebas con error de cálculo. En caso de empate, gana quien envió antes.
 - **Impuestos:** en España, los premios de más de 300 € llevan retención de IRPF que practica el organizador. Confírmalo con tu gestor.
 - **Play Console:** con patrocinadores, marca «Contiene anuncios» en *Contenido de la aplicación*.
+
+## 7. Maquetas con enlaces de afiliado (por ejemplo, AliExpress)
+
+En `temporada.json`, dentro de `tienda.productos`, añade una entrada por maqueta. Si la lista está vacía, el apartado no aparece.
+
+```json
+"tienda": {
+  "titulo": "Maquetas para probar en casa",
+  "aviso": "Publicidad. Son enlaces de afiliado: si compras, el Taller recibe una pequeña comisión que ayuda a pagar los premios del concurso. A ti no te cuesta más.",
+  "productos": [
+    {
+      "nombre": "Rueda de imanes de escritorio",
+      "precio": "desde 12 €",
+      "texto": "Móntala y comprueba en la app dónde pierde la energía.",
+      "enlace": "https://s.click.aliexpress.com/e/TU_ENLACE_DE_AFILIADO",
+      "imagen": "https://…/foto-del-producto.jpg",
+      "boton": "Ver en AliExpress",
+      "ejemplo": "motor"
+    }
+  ]
+}
+```
+
+- `enlace`: tu enlace de afiliado. Lo consigues en el programa de afiliados de AliExpress (AliExpress Portals). Lee sus condiciones y comprueba que permiten usar los enlaces dentro de una app.
+- `ejemplo` (opcional): si la maqueta se parece a un ejemplo de la app, pon su clave y también aparecerá en «Ayuda» al abrir ese ejemplo. Las claves son `mazos`, `bolas`, `wilkins`, `motor`, `pendulo`, `bucle` y `electro`.
+- **Marca siempre que es publicidad.** La app lo hace con el texto `aviso`, que la ley española (LSSI) exige para las comunicaciones comerciales.
+- **Cuida los textos.** Muchas maquetas se venden como «movimiento perpetuo». En el Taller no digas que lo son. Preséntalas como lo que son: maquetas para comprobar en casa por qué se paran, o dónde esconden la pila.

@@ -1540,7 +1540,7 @@
       '<li>Cambia entre <b>Plano</b> (para dibujar con precisión) y <b>3D</b> (para verla en perspectiva; arrastra el fondo para girarla).</li>' +
       '<li>Pulsa <b>Probar</b>. Durante la prueba puedes empujar piezas con el dedo. En <b>Cuentas</b> verás de dónde sale y a dónde va cada julio.</li></ol>' +
       '<p class="note">El banco calcula las máquinas en un plano, como una rueda o un péndulo de pared. La vista 3D les da grosor para que las veas como serían, pero las piezas no se mueven hacia delante ni hacia atrás.</p>';
-    if (st) el.innerHTML = '<h3>' + esc(st.title) + '</h3><p class="era">' + esc(st.era) + '</p><p>' + esc(st.what) + '</p><h4>Qué demuestra</h4><p>' + esc(st.why) + '</p>' + howto;
+    if (st) el.innerHTML = '<h3>' + esc(st.title) + '</h3><p class="era">' + esc(st.era) + '</p><p>' + esc(st.what) + '</p><h4>Qué demuestra</h4><p>' + esc(st.why) + '</p>' + exampleProductHtml(S.design.example) + howto;
     else el.innerHTML = '<h3>Tu máquina</h3><p>Dibuja tu idea a escala real: el banco usa centímetros, kilos y la gravedad de verdad. Lo que veas aquí es lo que harían esas piezas si las fabricaras.</p>' + howto;
   }
 
@@ -1801,7 +1801,7 @@
     S.season = load(KEYS.season, null);
     if (!STANDALONE || !window.fetch) return;
     fetch('temporada.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
-      if (j && typeof j === 'object') { S.season = j; store(KEYS.season, j); renderSponsor(); }
+      if (j && typeof j === 'object') { S.season = j; store(KEYS.season, j); renderSponsor(); renderAbout(); }
     }).catch(function () { /* sin conexión: se usa la copia guardada */ });
   }
   function contest() {
@@ -1820,6 +1820,33 @@
     return '<div class="sponsor"><span class="tag">Patrocinado</span>' + (img ? '<img src="' + esc(img) + '" alt="">' : '') +
       '<div' + (img ? '' : ' style="grid-column:1/-1"') + '><b>' + esc(p.nombre) + '</b><span>' + esc(p.texto || '') + '</span></div>' +
       (link ? '<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener sponsored">' + esc(p.boton || 'Ver') + '</a>' : '') + '</div>';
+  }
+  // maquetas para probar en casa (enlaces de afiliado, siempre marcados como publicidad)
+  function shop() {
+    var t = S.season && S.season.tienda, list = t && Array.isArray(t.productos) ? t.productos.filter(function (p) { return p && p.nombre && safeLink(p.enlace); }) : [];
+    return list.length ? { titulo: t.titulo || 'Maquetas para probar en casa', aviso: t.aviso || 'Publicidad. Enlaces de afiliado.', productos: list } : null;
+  }
+  function productHtml(p) {
+    var img = safeImg(p.imagen);
+    return '<div class="product">' + (img ? '<img src="' + esc(img) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="ph"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC.wheel + '</svg></span>') +
+      '<b>' + esc(p.nombre) + '</b>' + (p.precio ? '<span class="price">' + esc(p.precio) + '</span>' : '') + '<span>' + esc(p.texto || '') + '</span>' +
+      '<a class="btn" href="' + esc(safeLink(p.enlace)) + '" target="_blank" rel="noopener sponsored">' + esc(p.boton || 'Ver en la tienda') + '</a></div>';
+  }
+  function shopHtml() {
+    var sh = shop();
+    if (!sh) return '';
+    return '<p class="adtag">' + esc(sh.titulo) + '</p><p class="note">' + esc(sh.aviso) + '</p>' +
+      '<p class="note">Cuando tengas la tuya, hazle una foto de frente y cálcala aquí con «Foto de tu maqueta»: verás en las cuentas dónde pierde la energía y por qué acaba parándose.</p>' +
+      '<div class="row"><button class="btn" id="shopPhoto" type="button">Subir la foto de mi maqueta</button></div>' +
+      '<div class="products">' + sh.productos.map(productHtml).join('') + '</div>';
+  }
+  // en la historia de un ejemplo, la maqueta que se le parece (si el anunciante la ha enlazado a ese ejemplo)
+  function exampleProductHtml(ex) {
+    var sh = shop();
+    if (!sh || !ex) return '';
+    var list = sh.productos.filter(function (p) { return p.ejemplo === ex; });
+    if (!list.length) return '';
+    return '<h4>Pruébala en casa</h4><p class="note">' + esc(sh.aviso) + '</p><div class="products">' + list.map(productHtml).join('') + '</div>';
   }
   function renderSponsor() {
     var el = $('sponsorCard'), h = sponsorHtml();
@@ -2026,6 +2053,8 @@
       $('exTabRe').setAttribute('aria-selected', String(which === 'retos'));
       $('exTabRc').setAttribute('aria-selected', String(which === 'records'));
       $('exTabCo').setAttribute('aria-selected', String(which === 'contest'));
+      $('exTabSh').setAttribute('aria-selected', String(which === 'shop'));
+      $('exTabSh').hidden = !shop();
       var h = '';
       if (which === 'ejemplos') {
         h = '<p class="note">Máquinas que se han propuesto durante siglos. Ábrelas, pruébalas y lee en las cuentas por qué se paran.</p><div class="cards">' +
@@ -2035,6 +2064,8 @@
           }).join('') + '</div>';
       } else if (which === 'contest') {
         h = contestHtml();
+      } else if (which === 'shop') {
+        h = shopHtml() || '<p class="note">Ahora mismo no hay maquetas a la venta.</p>';
       } else if (which === 'records') {
         var rs = records(), df = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' });
         h = '<p class="note">La eficiencia es la electricidad útil que saca tu máquina dividida entre toda la energía que gasta (su reserva, tus empujones, la pila y la red). Nunca puede pasar del 100 %. Tus mejores pruebas se guardan en este móvil.</p><div class="lib">' +
@@ -2051,6 +2082,8 @@
       }
       $('exBody').innerHTML = h;
       bindContest();
+      var sp = $('shopPhoto');
+      if (sp) sp.onclick = function () { closeModal('examplesModal'); setTimeout(function () { $('photoFile').click(); }, 80); };
       $('exBody').querySelectorAll('[data-rec]').forEach(function (bt) {
         bt.addEventListener('click', function () {
           var r = records().filter(function (x) { return x.id === bt.getAttribute('data-rec'); })[0], d = r && sanitize(r.design);
@@ -2073,6 +2106,7 @@
     $('exTabRe').onclick = function () { which = 'retos'; render(); };
     $('exTabRc').onclick = function () { which = 'records'; render(); };
     $('exTabCo').onclick = function () { which = 'contest'; render(); };
+    $('exTabSh').onclick = function () { which = 'shop'; render(); };
     render();
     if ($('examplesModal').hidden) showModal('examplesModal');
   }

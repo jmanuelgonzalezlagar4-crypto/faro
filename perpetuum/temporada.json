@@ -22,5 +22,10 @@
       "boton": "Escríbenos",
       "imagen": ""
     }
-  ]
+  ],
+  "tienda": {
+    "titulo": "Maquetas para probar en casa",
+    "aviso": "Publicidad. Son enlaces de afiliado: si compras, el Taller recibe una pequeña comisión que ayuda a pagar los premios del concurso. A ti no te cuesta más.",
+    "productos": []
+  }
 }
