@@ -2,23 +2,24 @@
 (function (root) {
   'use strict';
   var E = root.PerpetuumEngine;
+  var T = (root.PerpetuumI18n && root.PerpetuumI18n.t) || function (s) { return s; };
   var DEG = Math.PI / 180;
 
   var BAR_R = 0.012, RAMP_R = 0.012, MAG_R = 0.016, RIM_R = 0.014, DIV_R = 0.011;
 
   // Calidad del eje. par de rozamiento = fc·carga + ft0  (fc = coeficiente × radio del eje)
   var BEARINGS = {
-    ideal:  { name: 'Sin rozamiento', note: 'No existe en la realidad', axle: [0, 0], pin: [0, 0] },
-    bolas:  { name: 'Rodamiento de bolas', note: 'El mejor eje que puedes comprar', axle: [0.0015 * 0.01, 0.002], pin: [0.0015 * 0.004, 0.0004] },
-    bronce: { name: 'Casquillo de bronce engrasado', note: 'Típico de un taller', axle: [0.08 * 0.01, 0], pin: [0.08 * 0.004, 0] },
-    madera: { name: 'Eje de madera', note: 'Como en las ruedas antiguas', axle: [0.3 * 0.015, 0], pin: [0.3 * 0.006, 0] }
+    ideal:  { name: T('Sin rozamiento'), note: T('No existe en la realidad'), axle: [0, 0], pin: [0, 0] },
+    bolas:  { name: T('Rodamiento de bolas'), note: T('El mejor eje que puedes comprar'), axle: [0.0015 * 0.01, 0.002], pin: [0.0015 * 0.004, 0.0004] },
+    bronce: { name: T('Casquillo de bronce engrasado'), note: T('Típico de un taller'), axle: [0.08 * 0.01, 0], pin: [0.08 * 0.004, 0] },
+    madera: { name: T('Eje de madera'), note: T('Como en las ruedas antiguas'), axle: [0.3 * 0.015, 0], pin: [0.3 * 0.006, 0] }
   };
 
   var MATERIALS = {
-    plomo:  { name: 'Plomo', e: 0.05, mu: 0.5, crr: 0.006, steel: false },
-    acero:  { name: 'Acero (lo atraen los imanes)', e: 0.55, mu: 0.3, crr: 0.0015, steel: true },
-    madera: { name: 'Madera', e: 0.35, mu: 0.45, crr: 0.004, steel: false },
-    goma:   { name: 'Goma', e: 0.75, mu: 0.9, crr: 0.012, steel: false }
+    plomo:  { name: T('Plomo'), e: 0.05, mu: 0.5, crr: 0.006, steel: false },
+    acero:  { name: T('Acero (lo atraen los imanes)'), e: 0.55, mu: 0.3, crr: 0.0015, steel: true },
+    madera: { name: T('Madera'), e: 0.35, mu: 0.45, crr: 0.004, steel: false },
+    goma:   { name: T('Goma'), e: 0.75, mu: 0.9, crr: 0.012, steel: false }
   };
 
   var GRAVITY = { tierra: 9.81, luna: 1.62, marte: 3.71 };
@@ -66,13 +67,13 @@
 
   // ---- imanes: forma, material y tamaño ----
   var GRADES = {
-    ferrita: { name: 'Ferrita (los negros de nevera)', br: 0.4 },
-    n35: { name: 'Neodimio N35', br: 1.2 },
-    n52: { name: 'Neodimio N52 (el más fuerte)', br: 1.45 }
+    ferrita: { name: T('Ferrita (los negros de nevera)'), br: 0.4 },
+    n35: { name: T('Neodimio N35'), br: 1.2 },
+    n52: { name: T('Neodimio N52 (el más fuerte)'), br: 1.45 }
   };
   var MAG_SHAPES = {
-    bar: 'Imán de barra', disc: 'Imán de disco', horseshoe: 'Imán de herradura',
-    halbach: 'Matriz de Halbach', electro: 'Electroimán'
+    bar: T('Imán de barra'), disc: T('Imán de disco'), horseshoe: T('Imán de herradura'),
+    halbach: T('Matriz de Halbach'), electro: T('Electroimán')
   };
   // Devuelve los dipolos (en coordenadas del mundo), las formas que chocan y la fuerza total.
   function magnetModel(p) {
@@ -362,6 +363,28 @@
     }
   }
 
+  // sitio para una bola en cada compartimento de una rueda de compartimentos
+  function ringSlots(wh, br) {
+    var g = ringGeometry(wh), rr = wh.r - RIM_R * 2 - br - 0.012, out = [];
+    function angleAt(dv) {
+      // punto del separador que está a distancia rr del centro
+      var ax = dv[0], ay = dv[1], bx = dv[2], by = dv[3], lo = 0, hi = 1;
+      for (var i = 0; i < 40; i++) {
+        var m = (lo + hi) / 2, x = ax + m * (bx - ax), y = ay + m * (by - ay);
+        if (Math.hypot(x, y) < rr) lo = m; else hi = m;
+      }
+      return Math.atan2(ay + lo * (by - ay), ax + lo * (bx - ax));
+    }
+    var n = g.dividers.length;
+    for (var k = 0; k < n; k++) {
+      var a0 = angleAt(g.dividers[k]), a1 = angleAt(g.dividers[(k + 1) % n]);
+      while (a1 < a0) a1 += 2 * Math.PI;
+      var th = (a0 + a1) / 2;
+      out.push({ x: wh.x + rr * Math.cos(th), y: wh.y + rr * Math.sin(th) });
+    }
+    return out;
+  }
+
   // ---- ejemplos ----
   function exampleMallets() {
     var d = emptyDesign();
@@ -391,25 +414,11 @@
     var wh = makeWheel(d, cx, cy, R);
     wh.style = 'ring'; wh.cells = 8; wh.tilt = 40; wh.m = 3; wh.bearing = 'bolas'; wh.rpm = 0;
     d.parts.push(wh);
-    var g = ringGeometry(wh), br = 0.05, rr = R - RIM_R * 2 - br - 0.012;
-    function angleAt(dv) {
-      // punto del separador que está a distancia rr del centro
-      var ax = dv[0], ay = dv[1], bx = dv[2], by = dv[3], lo = 0, hi = 1;
-      for (var i = 0; i < 40; i++) {
-        var m = (lo + hi) / 2, x = ax + m * (bx - ax), y = ay + m * (by - ay);
-        if (Math.hypot(x, y) < rr) lo = m; else hi = m;
-      }
-      return Math.atan2(ay + lo * (by - ay), ax + lo * (bx - ax));
-    }
-    var n = g.dividers.length;
-    for (var k = 0; k < n; k++) {
-      var a0 = angleAt(g.dividers[k]), a1 = angleAt(g.dividers[(k + 1) % n]);
-      while (a1 < a0) a1 += 2 * Math.PI;
-      var th = (a0 + a1) / 2;
-      var b = makeBall(d, cx + rr * Math.cos(th), cy + rr * Math.sin(th));
-      b.r = br; b.m = 0.8; b.mat = 'acero';
+    ringSlots(wh, 0.05).forEach(function (q) {
+      var b = makeBall(d, q.x, q.y);
+      b.r = 0.05; b.m = 0.8; b.mat = 'acero';
       d.parts.push(b);
-    }
+    });
     return d;
   }
 
@@ -498,17 +507,17 @@
   }
 
   var EXAMPLES = {
-    mazos: { title: 'Rueda de mazos', make: exampleMallets },
-    bolas: { title: 'Rueda de bolas', make: exampleBalls },
-    wilkins: { title: 'Rampa de Wilkins', make: exampleWilkins },
-    motor: { title: 'Motor de imanes', make: exampleMagnetMotor },
-    pendulo: { title: 'Péndulo de control', make: examplePendulum },
-    bucle: { title: 'Motor que se alimenta solo', make: exampleLoop },
-    electro: { title: 'Rueda con electroimán', make: exampleElectro }
+    mazos: { title: T('Rueda de mazos'), make: exampleMallets },
+    bolas: { title: T('Rueda de bolas'), make: exampleBalls },
+    wilkins: { title: T('Rampa de Wilkins'), make: exampleWilkins },
+    motor: { title: T('Motor de imanes'), make: exampleMagnetMotor },
+    pendulo: { title: T('Péndulo de control'), make: examplePendulum },
+    bucle: { title: T('Motor que se alimenta solo'), make: exampleLoop },
+    electro: { title: T('Rueda con electroimán'), make: exampleElectro }
   };
 
   root.PerpetuumBuild = {
-    build: build, emptyDesign: emptyDesign, find: find, isBodyPart: isBodyPart, ringGeometry: ringGeometry,
+    build: build, emptyDesign: emptyDesign, find: find, isBodyPart: isBodyPart, ringGeometry: ringGeometry, ringSlots: ringSlots,
     makeWheel: makeWheel, makeBall: makeBall, makeBar: makeBar, makeRamp: makeRamp, makePin: makePin,
     makeSpring: makeSpring, makeMagnet: makeMagnet, partMass: partMass, magSize: magSize,
     magnetModel: magnetModel, electroPower: electroPower, GRADES: GRADES, MAG_SHAPES: MAG_SHAPES,

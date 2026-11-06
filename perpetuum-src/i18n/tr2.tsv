@@ -1,0 +1,150 @@
+b73af1f	heat in motors, generators and coils
+cd342f1	The bench is empty
+82541fa	Press “Add” to choose a part, or load one of the examples.
+66f68c0	Ready to test
+08f5672	Press “Test”. The bench simulates real physics and records every joule that goes in and out of your machine.
+d741406	Test stopped: the calculation went out of control
+d09b834	In this machine the simulator started adding energy that doesn't exist (
+5752b10	). It's a calculation fault, not a discovery. It usually happens with very stiff springs on light parts, joined parts that don't fit together, or very strong magnets attached to light parts. Adjust those parts and test again.
+bb0e412	10-minute test finished
+e858510	In this time it has used 
+c793a99	 of it from the battery
+47189d6	. It hasn't produced anything on its own.
+483f6b8	It hasn't moved
+57ccbb4	It's in balance: what pulls one way is cancelled by what pulls the other way. If you like, push it with your finger.
+fdb89f0	It stopped after 
+d16e0a8	It had 
+1982f67	 to spend
+275cc9f	, counting your pushes
+04bad52	It went into 
+c177cec	Before stopping, its generators produced 
+2ac95cb	: enough to light a 1 W LED bulb for 
+06fb413	Efficiency: 
+df137d5	 (of every 100 joules it used, 
+2575927	 came out as useful electricity). 
+5a5dd2f	It hasn't produced a single joule it didn't have at the start.
+e7e45e8	Starting…
+7eb0c18	Watch it move. The ledger updates as it goes.
+90d0906	Plugged into the grid
+4214e9b	Running on a battery
+5bbb85c	It has taken from the grid 
+20b3b05	The battery has put in 
+9f2b135	. Of that, 
+dc4cef2	 has gone into heat
+463eaaa	 has come back as useful electricity
+1819a84	Unplugged, it would stop.
+2c71780	Without the battery, it would stop.
+807164f	Still for now
+57f72c1	If it doesn't start by itself, it's balanced. You can push it with your finger.
+b8d3d6c	Producing 
+5a97fba	Its generators have produced 
+b078651	 and its motors have used 
+d20d3a7	 of it
+e4b9d02	. All of it comes from the energy it had at the start or from your pushes. Every second it loses 
+f1f8a64	Neither loses nor gains
+60690bf	In this ideal world there is no friction or air, so it keeps its energy and keeps moving. But it doesn't gain a single joule. As soon as you take energy out with a generator, it will stop.
+5466945	Losing 
+9d648ee	 J every second
+b225dd5	It moves on the energy it had at the start
+6273f6c	 and your pushes
+2b15dd5	, and every second it pays for: 
+ee9af0e	friction and air
+14c9359	. No part gives it energy back.
+8b5b663	Simulator calculation error in this test: 
+0b9d579	 of the total). It shows up with many impacts at once and isn't real energy. We show it so the ledger is complete.
+d719e27	Check the ledger to see where the energy went.
+7c0930c	<tr><th colspan="2">In · where it comes from</th></tr>
+b83c209	<tr><td>Taken from its reserve<span class="sub">height of the parts, springs, magnets and initial spin
+94cbbfe	; if negative, it has stored it
+efb9ea6	><td>Your pushes<span class="sub">with your finger during the test</span></td><td class="v">
+8c6cfca	><td>Battery<span class="sub">motors and electromagnets connected to the battery</span></td><td class="v">
+1f94fe4	><td>Electrical grid<span class="sub">what the input meter reads</span></td><td class="v">
+277fd7c	<tr class="total"><td>Total in</td><td class="v">
+e14667b	<tr><th colspan="2">Out · where it goes</th></tr>
+5da5883	<tr class="err"><td>Simulator calculation error</td><td class="v">
+8dbce27	<tr class="total"><td>Total out</td><td class="v">
+5e003e2	You'll see the energy here when you press “Test”.
+e0baca8	 s · motion 
+35f02e1	 · lost 
+f7846f1	 · produced 
+887bfa2	 · battery 
+e3dff5f	<span><i style="background:var(--ink)"></i>Motion energy</span><span><i class="dash"></i>Total lost</span>
+668c738	<span><i style="background:var(--s7)"></i>Electricity produced</span>
+5005ad6	<span><i style="background:var(--s6)"></i>Put in by the battery</span>
+47ea40b	<div><span style="color:var(--s1)">■</span> Pulls to the left<b>
+4582b67	weight
+033cd89	weights
+8fb4af7	 m on average</div>
+f8b1c7d	<div class="r"><span style="color:var(--s2)">■</span> Pulls to the right<b>
+d7fa56d	Stopped with both sides even. The small difference is held by the axle friction.
+94ea24f	The weights on the 
+50b42d7	right
+61cc6a5	left
+263a05c	 are further from the axle, but on the 
+44ab1fe	 there are more of them. That's why, on average, both sides pull the same.
+48ef6ae	If one side always pulled more than the other, the wheel would turn by itself forever. Watch how they even out.
+0a12864	wheel of 
+923038c	 radius
+8df5a5f	Decrease
+d1007cb	Increase
+1a4dd85	Hinge
+0ef25ed	Magnet
+8efa709	<div class="empty"><h2>Part</h2><p>Tap a part on the bench to see and change its exact measurements.</p><ul>
+e13e817	<li>With <b>Add</b> you choose which part to place.</li><li>With <b>Clone</b> you repeat a part around a wheel or in a row, at exactly the spacing you want.</li>
+2d3fd9c	<li>With <b>Measure</b> you check distances and angles.</li></ul></div>
+3bfa0e2	<div class="insp-actions"><button class="btn" id="cloneBtn" type="button">Clone</button><button class="btn danger" id="delBtn" type="button">Remove</button></div>
+9a49682	<p class="note">Press “Design” to change this part.</p>
+ba46788	Centre X
+6496a75	Centre Y
+b11bf19	Radius
+f2fbced	Wheel mass
+6cc6198	Type
+a387d27	Disc with spokes
+b35832d	With compartments
+893b443	Compartments
+6fcdd56	Divider slant
+90e40b4	Spokes (drawing)
+bed10ae	Axle
+5a534d4	Fixed to the wall
+7a320fe	Loose
+387d2e1	Axle quality
+0316c7f	Initial spin
+4200290	Positive: clockwise. It counts as starting energy.
+4894cdb	Diameter
+65de4cf	Mass
+d816978	Material
+ebe6c03	Changes how it bounces and rubs. Magnets attract steel.
+4a5bf91	Start X
+56c864c	Start Y
+9b10237	Length
+cd7e87a	Angle
+3821a29	Stiffness
+0f67f2d	Force for every metre it stretches.
+673175b	Rest length
+127ad09	Damping
+dac1a27	<p class="note field wide">For parts this light, the bench can only simulate this spring with 
+0d987e2	 N·s/m. Any stiffer and it would vibrate faster than the calculation can follow.</p>
+ca1982f	Turns freely
+369002c	With stops
+40ed613	Welded
+dcc3d54	Stop one way
+04e381a	Stop the other way
+00bfc53	Hinge quality
+5a869a0	Joins 
+1acb680	Pinned to the wall.
+68d31c5	 Angles are measured from the drawn position; the blue area in the flat view shows how far it can turn.
+b9f9545	Magnet type
+f970a0b	North pole direction
+36eca58	Coil length
+35646e1	Force when switched on
+b80eacf	Uses 
+2b6c517	 W from the battery while it's on.
+e3724a9	Powered by
+712cd43	A battery
+d107ff4	The electrical grid
+a59165b	Switches on
+00a03e6	Always
+70656c6	Depending on a wheel's rotation
+b7b6831	Wheel that controls it
+5dfe0cd	Choose a wheel
+34c00d8	Wheel 

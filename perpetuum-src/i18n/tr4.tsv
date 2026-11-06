@@ -1,0 +1,141 @@
+a242925	<div class="sponsor"><span class="tag">Sponsored</span>
+49b3722	View
+9bf9ee8	Models to test at home
+ce30b52	Advertising. Affiliate links.
+89a9cb4	View in the shop
+8d8d538	<p class="note">When you have yours, take a photo of it from the front and turn it into parts here: the ledger will show you where it loses energy and why it ends up stopping.</p>
+694a83b	<div class="row"><button class="btn" id="shopPhoto" type="button">Turn my model into parts</button></div>
+952ca92	<h4>Try it at home</h4><p class="note">
+61382f1	<h3>Efficiency contest</h3><p class="note">Soon there will be prizes for the three most efficient machines of each season, paid for with what sponsors contribute. When it starts, you'll see the dates, the prizes and how to take part here.</p>
+ce39da2	<p class="note">Meanwhile, practise: your best tests are saved in “Records”.</p>
+691b8a6	Efficiency contest
+9382d0b	From 
+24a5c6c	<p class="note">The machine with the highest efficiency wins: the useful electricity it produces divided by all the energy it uses. The official efficiency is the one calculated by the organiser's verifier, which re-tests your machine without pushes and for 10 minutes at most. No machine can go above 100 %.</p>
+5a52a63	" target="_blank" rel="noopener">Read the contest rules</a></p>
+b32c5d4	<label class="sr" for="aliasIn">Your name or nickname</label><div class="saverow"><input id="aliasIn" maxlength="40" placeholder="Your name or nickname for the leaderboard" value="
+50926f9	<p class="note">Your best record: <b>
+80729c0	</b>, with 
+00d4761	<div class="row"><button class="btn primary" id="sendEntry" type="button">Send to the contest</button></div>
+9983e4c	<p class="note">A file with your machine is prepared. Email it to <span class="mail">
+e16ff7a	<p class="note">You don't have any records yet. Put a generator on your machine and test it until it stops: its efficiency will appear in “Records” and you'll be able to send it.</p>
+1814b59	Type your name or nickname for the leaderboard.
+a8289f4	Entry for «
+6213e68	the contest
+994d5f7	. Send to 
+6be370c	Contest entry
+0cc7805	damaged design
+41484a9	calculation error
+6654ab2	calculation out of control
+4806dd2	<p class="note">For the contest organiser. Open the files you've been sent: each machine is re-tested here, without pushes and for 10 minutes at most. The efficiency that counts is the verified one, not the declared one. In case of a tie, whoever sent it first wins.</p>
+170829f	<div class="row"><button class="btn primary" id="verPick" type="button">Open entry files</button></div>
+4c691f5	<div style="overflow-x:auto"><table class="vtable"><thead><tr><th>Place</th><th>Entrant</th><th>Declared</th><th>Verified</th><th></th></tr></thead><tbody>
+45c3890	<span class="ko">not valid</span><br><span style="font-size:12px">
+41bc841	testing…
+4210373	">Open</button></td></tr>
+d40d57b	Opened the machine by 
+0b979c4	Testing the machine by 
+4b9a18b	Untitled
+faccb59	Your best efficiency: 
+cf7972b	! You can send it to the contest.
+013301a	Contest
+14edce9	New personal efficiency record: 
+84cd82d	See records
+f866ae6	Keep it going
+2ef5b8b	Run a test where your machine is still moving after 20 seconds, with no battery and no pushes.
+c6ed853	Perfect balance
+9762162	Build a wheel with 6 or more weights that doesn't move at all when tested.
+a4b36c6	Arm factory
+83228b9	Use “Clone” to repeat an arm with a weight 8 times around a wheel.
+07f0c5f	Light the bulb
+a6f12cf	Get a generator to produce 10 joules in a single test.
+0332098	Frictionless world
+164481f	With “Ideal world” on, keep something moving for a minute.
+2392ac9	Caught
+101441d	Make a magnet catch a steel ball and hold on to it.
+ad32f6b	Halfway there
+dff61ba	Reach 50 % efficiency: half the energy your machine uses comes out as useful electricity.
+6701f2b	Perpetual motion
+033ac4f	Get your machine to put out more energy than it had. The bench watches for it in every test.
+009c348	Challenge completed: 
+45aff54	See challenges
+65eb85e	<p class="note">Machines that have been proposed for centuries. Open them, test them and read in the ledger why they stop.</p><div class="cards">
+558bc68	<p class="note">There are no models for sale right now.</p>
+dd5f5a5	<p class="note">Efficiency is the useful electricity your machine puts out divided by all the energy it uses (its reserve, your pushes, the battery and the grid). It can never go above 100 %. Your best tests are saved on this phone.</p><div class="lib">
+12dd799	 useful out of 
+937d505	">Open</button></div>
+cf5bb10	<p class="note">No records yet. Put a generator on a machine, test it until it stops and you'll see its efficiency here.</p>
+3ba94d5	<p class="progress">You've completed 
+807c38a	 challenges.</p><div class="cards">
+ac36f65	Done
+8f91664	Nobody has done it
+7d63af3	Pending
+a2e83ee	</div><p class="note">The last challenge is perpetual motion. If the bench ever saw energy coming out of nowhere, it would be a calculation error, and it would tell you so in the ledger.</p>
+2f337d6	Opened: 
+1a30b69	Example loaded: 
+eef40ec	Couldn't save: storage is full or blocked.
+3a482b0	 (my version)
+2a65320	My machine 
+0bce8a7	Saved in “My designs”.
+e030bdd	<p class="note">Your machines are saved on this device. To move them to another one, export them to a file.</p>
+133edac	<label class="sr" for="libName">Design name</label><div class="saverow"><input id="libName" maxlength="60" value="
+831d46b	Save changes
+a0b626d	Save
+795b75a	<div class="row" style="margin:6px 0 0"><button class="btn" id="libSaveNew" type="button">Save as a new design</button></div>
+7f96760	 parts · 
+b9a5de0	 · open
+a2e0214	">Open</button><button class="btn danger" type="button" data-del="
+50b1890	" aria-label="Delete 
+5e67d30	">Delete</button></div></div>
+c5e204e	<p class="note">You haven't saved any designs yet.</p>
+d50ff8d	<div class="row" style="margin-top:12px"><button class="btn" id="libExport" type="button">Export to a file</button><button class="btn" id="libImport" type="button">Open a file</button></div>
+2a96149	That design is damaged and can't be opened.
+6084ff0	Opened: 
+7ab9c52	Sure?
+b609138	my-machine
+0f043ae	Files can't be downloaded here. In the installed app, they can.
+f960425	Saved to your downloads: 
+ba786bb	This browser doesn't allow saving files from here.
+cc4daa4	Perpetuum Workshop
+b443ed6	That file isn't a workshop design.
+f1ae406	Design opened
+435bff3	My machine
+80b782a	Designed in the Perpetuum Workshop
+0771460	PERPETUUM WORKSHOP · build your machine and test it
+c27821e	Couldn't create the image.
+02658fd	Check out my machine in the Perpetuum Workshop.
+43e6b9d	New design
+74b8d61	Start with an empty bench
+6b9e47f	Share an image
+d4383e7	A picture of your machine with its result
+5701f99	Share the design
+1a66931	As text, so someone else can open it
+671580a	Export to a file
+afd17ba	Backup, or for another phone
+f44eed3	Open a file
+d843bcb	A design you exported earlier
+3eb301b	<h4>Settings</h4><div class="fields">
+6ae1bca	Theme
+b50a3a9	System
+21f72c3	Light
+36c9b4b	Dark
+3c680df	3D quality
+20ec175	Automatic
+ef9168c	High
+b98b4e5	Battery saver
+631840f	Vibration
+2991409	A short vibration when placing and removing parts.
+8bd4d7f	See the introduction
+38daae2	Verify entries
+1ac1e80	For whoever runs the contest
+b127633	</div><p class="about-app">Perpetuum Workshop 
+515cf7f	. Physics calculated on your phone, offline and without collecting any data.
+cac79c4	 <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.
+36932e9	 Uses three.js (MIT licence) and the Barlow and IBM Plex Mono fonts (OFL licence).</p>
+89b9bf8	Empty bench. Tap to place a wheel.
+441f608	Tap right on top of a part to remove it.
+15aec48	Press “Test” to see whether this wheel from 1235 turns forever.
+bd8953e	That file couldn't be read.
+21014aa	Design copied.
+48850f4	Select the text and copy it.
+de0d56c	<span class="wide">Speed </span>
+62b0a3a	Speed 

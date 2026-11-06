@@ -1,0 +1,6 @@
+{
+  "name": "perpetuum-herramientas",
+  "private": true,
+  "description": "Herramientas para generar el Taller Perpetuum: extracción de textos y traducción",
+  "dependencies": { "acorn": "8.11.3" }
+}

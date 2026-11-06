@@ -1,20 +1,23 @@
 // Taller Perpetuum — service worker: la app funciona sin conexión.
 // El nombre de la caché cambia con cada versión publicada y se borra la anterior.
-const CACHE = 'perpetuum-1.0.0-d087fc3e';
+const CACHE = 'perpetuum-1.1.0-a21cca8e';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './privacidad.html',
+  './privacy.html',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
   './apple-touch-icon.png',
   './lib/three.min.js',
-  './js/engine.js?v=1.0.0',
-  './js/build.js?v=1.0.0',
-  './js/gl3d.js?v=1.0.0',
-  './js/app.js?v=1.0.0',
+  './js/i18n.js?v=1.1.0',
+  './js/engine.js?v=1.1.0',
+  './js/build.js?v=1.1.0',
+  './js/gl3d.js?v=1.1.0',
+  './js/vision.js?v=1.1.0',
+  './js/app.js?v=1.1.0',
   './fonts/barlow-condensed-latin-500-normal.woff2',
   './fonts/barlow-condensed-latin-600-normal.woff2',
   './fonts/barlow-condensed-latin-700-normal.woff2',

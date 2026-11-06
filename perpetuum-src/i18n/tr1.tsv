@@ -1,0 +1,215 @@
+3004c1f	No friction
+51b32c3	Doesn't exist in real life
+990cfc6	Ball bearing
+6f7c2d3	The best axle money can buy
+273bf95	Greased bronze bushing
+1fd887c	Typical of a workshop
+c59a70e	Wooden axle
+e0c9200	Like old-time wheels
+b1a59ba	Lead
+e589cbb	Steel (magnets attract it)
+bb63933	Wood
+00292ee	Rubber
+c00d78d	Ferrite (black fridge magnets)
+7419ef8	Neodymium N35
+e08303f	Neodymium N52 (the strongest)
+8fcc616	Perpetuum
+e1f4b79	Build your machine and test it before you make it.
+c2c2e55	Examples and challenges
+654b5d3	My designs
+e4f75d5	More
+eac9e53	Flat
+58ace14	Design
+c9a5638	Speed
+2fd646b	Part
+d96a61a	Test
+e5bd065	Help
+eb3003d	Energy ledger
+f92a468	joules since the test started
+7c0ceff	The energy that goes out always equals the energy that comes in. That is the first law of thermodynamics, and this bench checks it at every step.
+226b569	Electricity meter
+7bc2b53	Energy during the test
+942a74b	joules
+b5b60bf	Torque balance
+07f0f8c	main wheel
+4b0816b	Close
+7b1787f	Examples
+72c5bcb	Challenges
+48898a2	Records
+fb9c933	Models
+977c756	More options
+d4799a2	Welcome to the Perpetuum Workshop
+96b9881	Here you can build your machine, test it with real physics and see where every joule of energy goes, before spending anything on building it.
+d4552c3	Build
+2b4952e	Wheels, weights, arms, springs, magnets and motors, at real scale and with exact measurements.
+ceab606	Watch it move in 3D and push the parts with your finger.
+3365267	Read the ledger
+38ef04c	The bench records where every joule comes from and where it goes: friction, impacts, air, heat.
+df55e88	The workshop rule: real physics applies here. If your machine could move by itself forever, this bench would prove it with its ledger.
+e3bf7bf	See a historical example
+b7ebc77	Start from scratch
+aec4c0f	I have a model: turn it into parts
+77d0196	Your model, as parts
+c111e0a	Cancel
+8dd4b0a	Looking for the wheel and the weights…
+7a8ddc4	Add a part
+c628e0e	Choose the part, then tap or drag on the bench.
+0d911d5	Copy this text and send it to anyone you like. To open a design someone sent you, paste it below.
+51f54c3	Your design
+3bc7838	Copy design
+105f2c9	Paste a design
+3f5dd31	Open the pasted design
+6094c93	Test bench
+eb1da8d	Test bench, flat view
+f7826fe	Test bench, perspective view
+462d2dd	View
+f609220	Zoom in
+b2ff575	Zoom out
+3114a02	Fit the machine
+ee490d2	Speed ×1
+3f19f9e	Tools
+547f5a5	Settings and results
+a577232	Close the panel
+948fecf	Balance comparing what pulls on each side of the wheel
+885697b	Photo of your model. Tap to mark the wheel and the weights.
+d68c21f	Paste a design here
+ad859dc	Move
+41261d0	Add
+3833f20	Join
+98a66bd	Clone
+a8d16f6	Measure
+d7b82b2	Erase
+26060e2	Undo
+de5df3a	Structure
+d38dc7b	Wheel
+9363ba4	With a fixed axle. Drag to set its size.
+18b717a	Compartment wheel
+94e48e0	Rim with dividers for balls.
+13d2fac	Arm with weight
+eb09171	Drag out from the edge of the wheel.
+29983c5	Arm
+02a5e65	Rigid bar. Drag from end to end.
+f1371d1	Weight
+b0dafea	Lead, steel, wood or rubber ball.
+bf7f5ca	Ramp
+de8e03d	Floor or fixed ramp.
+6dd3eef	Spring
+bcb5b01	Drag between two parts.
+820ec53	Magnets
+2b97fd9	Bar magnet
+805082f	The classic, neodymium or ferrite.
+f412999	Disc magnet
+4f19a69	Round, magnetised across its width.
+0342c61	Horseshoe magnet
+56696e6	Both poles facing forward.
+ee3a375	Halbach array
+fc26b33	Five magnets that strengthen one side.
+b29529d	Electromagnet
+01bc7c6	Switched on by a battery, depending on the rotation.
+0ac5b9d	Energy
+ceaed79	Motor
+81cacb8	Tap an axle or a hinge.
+8c513e2	Generator
+1f29d6b	Tap an axle or a hinge to take energy out.
+69834c3	Your model
+f331824	Turn your model into parts
+bd3ffb0	Take a photo: the app finds the wheel and the weights.
+809778d	Background photo to trace
+5b894de	For models that aren't a wheel: draw on top, with its measurements.
+e5249d4	Tap a part to see its measurements. Drag it to move it. Drag the background to rotate the view.
+e99b786	Tap a part to see its measurements. Drag it to move it. Drag the background to pan the view.
+18ba6e0	Tap on top of two parts to join them with a hinge. On a single part, you pin it to the wall.
+16edf2e	Drag to measure a distance and an angle.
+f6f7dde	Tap a part to remove it.
+7399fbf	Tap the part you want to clone.
+4b79fe0	Tap where the axle will go. If you drag, you choose the radius.
+b2a40e9	Drag outwards from the edge of a wheel: it creates the arm, the weight and the hinge.
+df3dd2c	Drag from one point to another. An end on top of another part is joined with a hinge.
+e3ff50c	Tap to place a weight.
+5b34d98	Drag to draw a ramp or a floor.
+fe5bc56	Drag between two parts, or between a part and the wall.
+3d089cb	Tap to place the magnet. On top of a part, it's attached to it.
+2a09c24	Tap to place the array. On top of a part, it's attached to it.
+8b1468a	Tap to place the electromagnet. Then choose when it switches on.
+c1f7dde	Tap a wheel or a hinge to give it a motor.
+7cdcec3	Tap a wheel or a hinge to give it a generator.
+adaf941	Drag a part to push it: the bench records that energy as yours.
+6a964f5	Mallet wheel
+098857f	Villard de Honnecourt drew it around 1235.
+ffb02ae	Seven mallets hang from hinges on the rim of the wheel. On the descending side they swing outwards; on the rising side they hang close in. The idea is that the open side weighs more and the wheel never stops.
+53130d8	The open mallets are further from the axle, but there are always more mallets on the rising side. The two effects cancel out and the wheel settles into a position of balance. On top of that, every time a mallet falls against its stop it loses energy in the impact: see the “Impacts” line in the ledger.
+294bf88	Ball wheel
+724c4b0	A variant with rolling balls, repeated by inventors since the 17th century.
+a1ba48c	Eight slanted compartments with a steel ball in each. On one side the balls roll towards the rim and on the other towards the centre.
+2db1715	Same as with the mallets: there are fewer far-out balls than close-in ones, and the wheel stays balanced. Every time a ball rolls and hits the wall of its compartment it loses energy. Give it a push with your finger during the test and see how long it lasts.
+64d9270	Wilkins ramp
+fdc369e	Described by Bishop John Wilkins in the 17th century.
+2d0c353	A magnet at the top pulls a steel ball up a ramp. Before it gets there, the ball drops through a hole and rolls back down another ramp to start again.
+97d7c74	A magnet's force falls off very quickly with distance. From the bottom it barely pulls, and the ball rolls downhill. During the test, drag the ball towards the magnet with your finger: if you let go far away, it rolls back; if you let go a few centimetres away, the magnet catches it and never lets go. A magnet strong enough to pull it up from the bottom wouldn't let it fall through the hole either.
+2c1e61d	Magnet motor
+4d70edb	An idea repeated in countless internet videos.
+d47a4a8	A wheel with eight slanted magnets turns past three fixed magnets. The idea is that the magnets always push in the same direction.
+2a068b8	The force between magnets, like gravity, gives back what it takes: what pushes on the way in brakes on the way out. In the ledger you'll see that all the energy it spends comes from the initial spin: over a full turn, the magnets give and take nothing. The wheel slows down from friction and finally gets stuck at a “sticky point”.
+9df3cd3	Control pendulum
+c7b9597	A test to check the bench itself.
+d3ecbcb	A pendulum hanging from a ball bearing. It shows how much the air and the axle slow things down.
+1ce269d	In the “Test” tab, turn on “Ideal world”: it will swing without stopping and its energy will stay the same. Then tap the hinge and connect the generator: the energy it takes out is exactly what the pendulum loses, and it stops. Without friction something can move forever, but it can't produce energy.
+75d3681	Self-powered motor
+35fd74a	A motor and a generator on the same axle is one of the most repeated ideas.
+b1270bb	A heavy flywheel with a generator and a motor on the same axle. The generator produces electricity and the motor uses it to keep pushing the wheel.
+35e6e66	No generator or motor is perfect: the generator turns 85 % of what it brakes into electricity, and the motor turns 80 % of that electricity into push. Almost a third is lost as heat on every trip around the loop. Look at the “Heat” line in the ledger: that's why the flywheel slows down.
+0991178	Electromagnet wheel
+890a0ee	Many “magnet” machines hide a battery.
+d22ef02	Six magnets on the rim of the wheel and a fixed electromagnet that switches on just as a magnet approaches, to pull it in, and switches off as it passes.
+26bfffa	This wheel really does keep turning, but only because the battery gives it energy every time the electromagnet switches on. In the ledger you'll see the battery puts in far more than the wheel gains: almost all of it goes into heating the coil. Remove the battery (erase the electromagnet) and it stops.
+c116ff2	Drag your finger to draw the part.
+c833191	Attach at least one end of the spring to a part that moves.
+8c85d73	Both ends are on the same part: the spring would do nothing.
+54f5fbb	Put the hinge on top of a part.
+d18dc66	There's already a hinge at that point.
+1208619	Pinned to the wall. Wheels already turn on their own axle.
+8b8c19e	Tap a wheel with a fixed axle or a hinge.
+cb48b42	Motor added. It runs on a battery: whatever it uses will show up in the ledger.
+6ffd6a4	Generator added. The bulb lights up with whatever it produces.
+77b70c3	Pause
+121b1ea	Test
+71f253d	Resume
+dfe849d	Design
+95e8415	Testing
+6578edf	Paused
+7fc0cb7	Stopped
+3b98dcd	Add a part that moves: a wheel, a weight or an arm.
+1f349ee	 · slower
+4d344b0	This device can't show the 3D view.
+4f0d038	radius 
+e342844	grid and battery
+7898801	grid
+415fad3	battery
+d74a4f3	In
+d664113	<span class="lab out">↑ Out</span><b>
+15a8c7b	<span class="lab tot">Balance</span><b class="tot"></b><span class="j tot">
+984363a	 cents per kWh
+ceab991	<div class="r"><span>Taken from the grid</span><b>
+96e3245	<div class="r"><span>Fed into the grid</span><b>
+40d36c4	<div class="r"><span>Bill balance</span><b>
+4cc7008	<p class="note">At this rate, earning 1 cent would take 
+8279a3d	<p class="note">It uses more than it feeds back: every hour like this would cost 
+cbdb5f3	 €. No machine gives back to the grid more than it takes from it and from its own reserve.</p>
+446bfcd	 seconds
+96f5ec6	 minutes
+7a93b7e	 hours
+960d050	 days
+4d15ec6	 years
+e8ee81d	Friction in axles and hinges
+8133e08	Impacts and collisions
+58c2eaf	Rubbing and rolling between parts
+d45fb0d	Air resistance
+745daef	Springs (damping)
+7c1af6a	Heat in motors, generators and coils
+73b4bae	Useful electricity (stored or fed into the grid)
+5fc6488	 and 
+a2c9c7d	axle friction
+516270a	impacts
+5c78567	rubbing between parts
+cf48810	air drag
+effe2d7	spring damping

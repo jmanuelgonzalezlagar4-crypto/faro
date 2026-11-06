@@ -1,0 +1,13 @@
+fonts/
+lib3/
+tools/node_modules/
+app/dist/
+app/i18n.js
+app/debug.html
+app/preview.html
+app/taller-perpetuum.html
+app/*.png
+app/store/
+app/store-en/
+app/store-raw/
+app/store-raw-en/

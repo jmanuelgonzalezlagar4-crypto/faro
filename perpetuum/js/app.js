@@ -1,6 +1,9 @@
 (function () {
   'use strict';
   var P = window.PerpetuumBuild, GL = window.PerpetuumGL;
+  // idioma: los textos están escritos en español y T() los traduce (i18n.js)
+  var I18N = window.PerpetuumI18n || { lang: 'es', locale: 'es-ES', t: function (s) { return s; }, dom: function () {} };
+  var T = I18N.t, LOCALE = I18N.locale;
   var DEG = Math.PI / 180;
   var STORE = 'taller-perpetuum.diseno.v1';
   function $(id) { return document.getElementById(id); }
@@ -12,7 +15,7 @@
     if (!isFinite(x)) x = 0;
     if (Math.abs(x) < 0.5 * Math.pow(10, -d)) x = 0;
     var k = 'f' + d;
-    if (!nfCache[k]) nfCache[k] = new Intl.NumberFormat('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+    if (!nfCache[k]) nfCache[k] = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: d, maximumFractionDigits: d });
     return nfCache[k].format(x);
   }
   function fmtJ(x) { var a = Math.abs(x); return fmt(x, a >= 100 ? 0 : (a >= 10 ? 1 : 2)) + ' J'; }
@@ -37,9 +40,9 @@
     panelsAt: 0, lastPanelMode: null, tab: 'pieza', sheetOpen: false, glDirty: true,
     measure: null, pendingClone: false, clone: null, clonePreview: null, touch: false,
     redo: [], dirty: true, libId: null, libName: '', runChecked: 0,
-    settings: { theme: 'system', quality: 'auto', haptics: true, alias: '' }, season: null
+    settings: { theme: 'system', quality: 'auto', haptics: true, alias: '', lang: 'auto' }, season: null
   };
-  var APP_VERSION = '1.0.0';
+  var APP_VERSION = '1.1.0';
   var KEYS = { settings: 'taller-perpetuum.ajustes', lib: 'taller-perpetuum.biblioteca', goals: 'taller-perpetuum.retos', welcome: 'taller-perpetuum.bienvenida', current: 'taller-perpetuum.actual', season: 'taller-perpetuum.temporada', records: 'taller-perpetuum.records', photo: 'taller-perpetuum.foto.' };
   var STANDALONE = (function () { try { return window.self === window.top; } catch (e) { return false; } })();
   function load(key, fb) { try { var v = JSON.parse(localStorage.getItem(key) || 'null'); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -71,101 +74,103 @@
     'mag-electro': '<rect x="3" y="10.5" width="18" height="3" fill="var(--steel)" stroke="currentColor" stroke-width="1"/><rect x="6" y="7" width="12" height="10" rx="2" fill="#b5652b" stroke="currentColor" stroke-width="1.2"/><path d="M8 7v10M10.5 7v10M13 7v10M15.5 7v10" stroke="#7a3f14" stroke-width="1"/>',
     motor: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 15.5V8.5l4 4 4-4v7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
     gen: '<circle cx="12" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 16h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 6l-2 4h4l-2 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
-    photo: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>'
+    photo: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+    scan: '<path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="17.2" cy="15.6" r="1.6" fill="currentColor"/>'
   };
 
   var DOCK = [
-    { id: 'move', label: 'Mover' }, { id: 'add', label: 'Añadir' }, { id: 'pin', label: 'Unir' },
-    { id: 'clone', label: 'Clonar' }, { id: 'measure', label: 'Medir' }, { id: 'erase', label: 'Borrar' }, { id: 'undo', label: 'Deshacer' }
+    { id: 'move', label: T('Mover') }, { id: 'add', label: T('Añadir') }, { id: 'pin', label: T('Unir') },
+    { id: 'clone', label: T('Clonar') }, { id: 'measure', label: T('Medir') }, { id: 'erase', label: T('Borrar') }, { id: 'undo', label: T('Deshacer') }
   ];
 
   var PALETTE = [
-    { group: 'Estructura', items: [
-      { id: 'wheel', name: 'Rueda', desc: 'Con eje fijo. Arrastra para el tamaño.' },
-      { id: 'ring', name: 'Rueda de compartimentos', desc: 'Aro con separadores para bolas.' },
-      { id: 'arm', name: 'Brazo con pesa', desc: 'Arrastra desde el borde de la rueda.' },
-      { id: 'bar', name: 'Brazo', desc: 'Barra rígida. Arrastra de punta a punta.' },
-      { id: 'ball', name: 'Pesa', desc: 'Bola de plomo, acero, madera o goma.' },
-      { id: 'ramp', name: 'Rampa', desc: 'Suelo o rampa fija.' },
-      { id: 'spring', name: 'Muelle', desc: 'Arrastra entre dos piezas.' }
+    { group: T('Estructura'), items: [
+      { id: 'wheel', name: T('Rueda'), desc: T('Con eje fijo. Arrastra para el tamaño.') },
+      { id: 'ring', name: T('Rueda de compartimentos'), desc: T('Aro con separadores para bolas.') },
+      { id: 'arm', name: T('Brazo con pesa'), desc: T('Arrastra desde el borde de la rueda.') },
+      { id: 'bar', name: T('Brazo'), desc: T('Barra rígida. Arrastra de punta a punta.') },
+      { id: 'ball', name: T('Pesa'), desc: T('Bola de plomo, acero, madera o goma.') },
+      { id: 'ramp', name: T('Rampa'), desc: T('Suelo o rampa fija.') },
+      { id: 'spring', name: T('Muelle'), desc: T('Arrastra entre dos piezas.') }
     ] },
-    { group: 'Imanes', items: [
-      { id: 'mag-bar', name: 'Imán de barra', desc: 'El clásico, de neodimio o ferrita.' },
-      { id: 'mag-disc', name: 'Imán de disco', desc: 'Redondo, imantado a lo ancho.' },
-      { id: 'mag-horseshoe', name: 'Imán de herradura', desc: 'Los dos polos mirando hacia delante.' },
-      { id: 'mag-halbach', name: 'Matriz de Halbach', desc: 'Cinco imanes que refuerzan un lado.' },
-      { id: 'mag-electro', name: 'Electroimán', desc: 'Se enciende con batería, según el giro.' }
+    { group: T('Imanes'), items: [
+      { id: 'mag-bar', name: T('Imán de barra'), desc: T('El clásico, de neodimio o ferrita.') },
+      { id: 'mag-disc', name: T('Imán de disco'), desc: T('Redondo, imantado a lo ancho.') },
+      { id: 'mag-horseshoe', name: T('Imán de herradura'), desc: T('Los dos polos mirando hacia delante.') },
+      { id: 'mag-halbach', name: T('Matriz de Halbach'), desc: T('Cinco imanes que refuerzan un lado.') },
+      { id: 'mag-electro', name: T('Electroimán'), desc: T('Se enciende con batería, según el giro.') }
     ] },
-    { group: 'Energía', items: [
-      { id: 'motor', name: 'Motor', desc: 'Toca un eje o una bisagra.' },
-      { id: 'gen', name: 'Generador', desc: 'Toca un eje o una bisagra para sacar energía.' }
+    { group: T('Energía'), items: [
+      { id: 'motor', name: T('Motor'), desc: T('Toca un eje o una bisagra.') },
+      { id: 'gen', name: T('Generador'), desc: T('Toca un eje o una bisagra para sacar energía.') }
     ] },
-    { group: 'Tu maqueta', items: [
-      { id: 'photo', name: 'Foto de tu maqueta', desc: 'Ponla de fondo y calca encima sus piezas con sus medidas.' }
+    { group: T('Tu maqueta'), items: [
+      { id: 'scan', name: T('Convertir tu maqueta en piezas'), desc: T('Hazle una foto: la app encuentra la rueda y las pesas.') },
+      { id: 'photo', name: T('Foto de fondo para calcar'), desc: T('Para maquetas que no son una rueda: dibuja encima, con sus medidas.') }
     ] }
   ];
   var PAL_BY_ID = {};
   PALETTE.forEach(function (g) { g.items.forEach(function (it) { PAL_BY_ID[it.id] = it; }); });
 
   var HINTS = {
-    move: 'Toca una pieza para ver sus medidas. Arrástrala para moverla. Arrastra el fondo para girar la vista.',
-    move2d: 'Toca una pieza para ver sus medidas. Arrástrala para moverla. Arrastra el fondo para desplazar la vista.',
-    pin: 'Toca encima de dos piezas para unirlas con una bisagra. Sobre una sola, la clavas a la pared.',
-    measure: 'Arrastra para medir una distancia y un ángulo.',
-    erase: 'Toca una pieza para quitarla.',
-    clone: 'Toca la pieza que quieres clonar.',
-    wheel: 'Toca donde irá el eje. Si arrastras, eliges el radio.',
-    ring: 'Toca donde irá el eje. Si arrastras, eliges el radio.',
-    arm: 'Arrastra desde el borde de una rueda hacia fuera: crea el brazo, la pesa y la bisagra.',
-    bar: 'Arrastra de un punto a otro. Un extremo sobre otra pieza se une con una bisagra.',
-    ball: 'Toca para poner una pesa.',
-    ramp: 'Arrastra para dibujar una rampa o un suelo.',
-    spring: 'Arrastra entre dos piezas, o entre una pieza y la pared.',
-    'mag-bar': 'Toca para poner el imán. Encima de una pieza va pegado a ella.',
-    'mag-disc': 'Toca para poner el imán. Encima de una pieza va pegado a ella.',
-    'mag-horseshoe': 'Toca para poner el imán. Encima de una pieza va pegado a ella.',
-    'mag-halbach': 'Toca para poner la matriz. Encima de una pieza va pegada a ella.',
-    'mag-electro': 'Toca para poner el electroimán. Después elige cuándo se enciende.',
-    motor: 'Toca una rueda o una bisagra para ponerle un motor.',
-    gen: 'Toca una rueda o una bisagra para ponerle un generador.'
+    move: T('Toca una pieza para ver sus medidas. Arrástrala para moverla. Arrastra el fondo para girar la vista.'),
+    move2d: T('Toca una pieza para ver sus medidas. Arrástrala para moverla. Arrastra el fondo para desplazar la vista.'),
+    pin: T('Toca encima de dos piezas para unirlas con una bisagra. Sobre una sola, la clavas a la pared.'),
+    measure: T('Arrastra para medir una distancia y un ángulo.'),
+    erase: T('Toca una pieza para quitarla.'),
+    clone: T('Toca la pieza que quieres clonar.'),
+    wheel: T('Toca donde irá el eje. Si arrastras, eliges el radio.'),
+    ring: T('Toca donde irá el eje. Si arrastras, eliges el radio.'),
+    arm: T('Arrastra desde el borde de una rueda hacia fuera: crea el brazo, la pesa y la bisagra.'),
+    bar: T('Arrastra de un punto a otro. Un extremo sobre otra pieza se une con una bisagra.'),
+    ball: T('Toca para poner una pesa.'),
+    ramp: T('Arrastra para dibujar una rampa o un suelo.'),
+    spring: T('Arrastra entre dos piezas, o entre una pieza y la pared.'),
+    'mag-bar': T('Toca para poner el imán. Encima de una pieza va pegado a ella.'),
+    'mag-disc': T('Toca para poner el imán. Encima de una pieza va pegado a ella.'),
+    'mag-horseshoe': T('Toca para poner el imán. Encima de una pieza va pegado a ella.'),
+    'mag-halbach': T('Toca para poner la matriz. Encima de una pieza va pegada a ella.'),
+    'mag-electro': T('Toca para poner el electroimán. Después elige cuándo se enciende.'),
+    motor: T('Toca una rueda o una bisagra para ponerle un motor.'),
+    gen: T('Toca una rueda o una bisagra para ponerle un generador.')
   };
-  var HAND_HINT = 'Arrastra una pieza para empujarla: el banco apunta esa energía como tuya.';
+  var HAND_HINT = T('Arrastra una pieza para empujarla: el banco apunta esa energía como tuya.');
 
   var STORIES = {
     mazos: {
-      title: 'Rueda de mazos', era: 'Villard de Honnecourt la dibujó hacia 1235.',
-      what: 'Siete mazos cuelgan de bisagras en el borde de la rueda. En el lado que baja se abren hacia fuera; en el lado que sube cuelgan pegados. La idea es que el lado abierto pese más y la rueda no se pare nunca.',
-      why: 'Los mazos abiertos están más lejos del eje, pero en el lado que sube siempre hay más mazos. Los dos efectos se compensan y la rueda busca una posición de equilibrio. Además, cada vez que un mazo cae contra su tope pierde energía en el golpe: míralo en la línea «Golpes» del libro de cuentas.'
+      title: T('Rueda de mazos'), era: T('Villard de Honnecourt la dibujó hacia 1235.'),
+      what: T('Siete mazos cuelgan de bisagras en el borde de la rueda. En el lado que baja se abren hacia fuera; en el lado que sube cuelgan pegados. La idea es que el lado abierto pese más y la rueda no se pare nunca.'),
+      why: T('Los mazos abiertos están más lejos del eje, pero en el lado que sube siempre hay más mazos. Los dos efectos se compensan y la rueda busca una posición de equilibrio. Además, cada vez que un mazo cae contra su tope pierde energía en el golpe: míralo en la línea «Golpes» del libro de cuentas.')
     },
     bolas: {
-      title: 'Rueda de bolas', era: 'Variante con bolas que ruedan, repetida por inventores desde el siglo XVII.',
-      what: 'Ocho compartimentos inclinados con una bola de acero en cada uno. En un lado las bolas ruedan hacia el borde y en el otro hacia el centro.',
-      why: 'Pasa lo mismo que con los mazos: las bolas lejanas son menos que las cercanas, y la rueda se queda equilibrada. Cada vez que una bola rueda y choca con la pared de su compartimento pierde energía. Dale un empujón con el dedo durante la prueba y mira cuánto dura.'
+      title: T('Rueda de bolas'), era: T('Variante con bolas que ruedan, repetida por inventores desde el siglo XVII.'),
+      what: T('Ocho compartimentos inclinados con una bola de acero en cada uno. En un lado las bolas ruedan hacia el borde y en el otro hacia el centro.'),
+      why: T('Pasa lo mismo que con los mazos: las bolas lejanas son menos que las cercanas, y la rueda se queda equilibrada. Cada vez que una bola rueda y choca con la pared de su compartimento pierde energía. Dale un empujón con el dedo durante la prueba y mira cuánto dura.')
     },
     wilkins: {
-      title: 'Rampa de Wilkins', era: 'La describió el obispo John Wilkins en el siglo XVII.',
-      what: 'Un imán en lo alto tira de una bola de acero rampa arriba. Antes de llegar, la bola cae por un agujero y vuelve abajo por otra rampa para empezar otra vez.',
-      why: 'La fuerza de un imán cae muy deprisa con la distancia. Desde abajo apenas tira, y la bola rueda cuesta abajo. Durante la prueba, arrastra la bola con el dedo hacia el imán: si la sueltas lejos, vuelve a caer; si la sueltas a pocos centímetros, el imán la atrapa y ya no la suelta. Un imán con fuerza para subirla desde abajo tampoco la dejaría caer por el agujero.'
+      title: T('Rampa de Wilkins'), era: T('La describió el obispo John Wilkins en el siglo XVII.'),
+      what: T('Un imán en lo alto tira de una bola de acero rampa arriba. Antes de llegar, la bola cae por un agujero y vuelve abajo por otra rampa para empezar otra vez.'),
+      why: T('La fuerza de un imán cae muy deprisa con la distancia. Desde abajo apenas tira, y la bola rueda cuesta abajo. Durante la prueba, arrastra la bola con el dedo hacia el imán: si la sueltas lejos, vuelve a caer; si la sueltas a pocos centímetros, el imán la atrapa y ya no la suelta. Un imán con fuerza para subirla desde abajo tampoco la dejaría caer por el agujero.')
     },
     motor: {
-      title: 'Motor de imanes', era: 'Idea muy repetida en vídeos de internet.',
-      what: 'Una rueda con ocho imanes inclinados gira frente a tres imanes fijos. La idea es que los imanes se empujen siempre en el mismo sentido.',
-      why: 'La fuerza entre imanes, como la gravedad, devuelve lo que da: lo que empuja al acercarse lo frena al alejarse. En el libro de cuentas verás que toda la energía que gasta sale del giro inicial: en una vuelta completa, los imanes no dan ni quitan nada. La rueda va frenando por el rozamiento y al final se queda clavada en un «punto pegajoso».'
+      title: T('Motor de imanes'), era: T('Idea muy repetida en vídeos de internet.'),
+      what: T('Una rueda con ocho imanes inclinados gira frente a tres imanes fijos. La idea es que los imanes se empujen siempre en el mismo sentido.'),
+      why: T('La fuerza entre imanes, como la gravedad, devuelve lo que da: lo que empuja al acercarse lo frena al alejarse. En el libro de cuentas verás que toda la energía que gasta sale del giro inicial: en una vuelta completa, los imanes no dan ni quitan nada. La rueda va frenando por el rozamiento y al final se queda clavada en un «punto pegajoso».')
     },
     pendulo: {
-      title: 'Péndulo de control', era: 'Una prueba para comprobar el propio banco.',
-      what: 'Un péndulo colgado de un rodamiento de bolas. Sirve para ver cuánto frenan el aire y el eje.',
-      why: 'En la pestaña «Prueba», activa «Mundo ideal»: oscilará sin pararse y su energía se mantendrá igual. Después toca la bisagra y conecta el generador: la energía que saca es justo la que pierde el péndulo, y se para. Sin rozamiento algo puede moverse para siempre, pero no puede producir energía.'
+      title: T('Péndulo de control'), era: T('Una prueba para comprobar el propio banco.'),
+      what: T('Un péndulo colgado de un rodamiento de bolas. Sirve para ver cuánto frenan el aire y el eje.'),
+      why: T('En la pestaña «Prueba», activa «Mundo ideal»: oscilará sin pararse y su energía se mantendrá igual. Después toca la bisagra y conecta el generador: la energía que saca es justo la que pierde el péndulo, y se para. Sin rozamiento algo puede moverse para siempre, pero no puede producir energía.')
     },
     bucle: {
-      title: 'Motor que se alimenta solo', era: 'La idea de motor y generador en el mismo eje es de las más repetidas.',
-      what: 'Un volante pesado con un generador y un motor en el mismo eje. El generador produce electricidad y el motor la usa para seguir empujando la rueda.',
-      why: 'Ningún generador ni motor es perfecto: el generador convierte el 85 % de lo que frena en electricidad, y el motor convierte el 80 % de esa electricidad en empuje. En cada vuelta del circuito se pierde casi un tercio en calor. Mira la línea «Calor» del libro de cuentas: por eso el volante frena.'
+      title: T('Motor que se alimenta solo'), era: T('La idea de motor y generador en el mismo eje es de las más repetidas.'),
+      what: T('Un volante pesado con un generador y un motor en el mismo eje. El generador produce electricidad y el motor la usa para seguir empujando la rueda.'),
+      why: T('Ningún generador ni motor es perfecto: el generador convierte el 85 % de lo que frena en electricidad, y el motor convierte el 80 % de esa electricidad en empuje. En cada vuelta del circuito se pierde casi un tercio en calor. Mira la línea «Calor» del libro de cuentas: por eso el volante frena.')
     },
     electro: {
-      title: 'Rueda con electroimán', era: 'Muchas máquinas «de imanes» esconden una pila.',
-      what: 'Seis imanes en el borde de la rueda y un electroimán fijo que se enciende justo cuando un imán se acerca, para tirar de él, y se apaga cuando pasa.',
-      why: 'Esta rueda sí gira sin parar, pero porque la batería le da energía cada vez que enciende el electroimán. En el libro de cuentas verás que la batería pone muchísimo más de lo que la rueda gana: casi todo se va en calor de la bobina. Quita la batería (borra el electroimán) y se para.'
+      title: T('Rueda con electroimán'), era: T('Muchas máquinas «de imanes» esconden una pila.'),
+      what: T('Seis imanes en el borde de la rueda y un electroimán fijo que se enciende justo cuando un imán se acerca, para tirar de él, y se apaga cuando pasa.'),
+      why: T('Esta rueda sí gira sin parar, pero porque la batería le da energía cada vez que enciende el electroimán. En el libro de cuentas verás que la batería pone muchísimo más de lo que la rueda gana: casi todo se va en calor de la bobina. Quita la batería (borra el electroimán) y se para.')
     }
   };
 
@@ -385,7 +390,7 @@
     } else if (kind === 'ball') {
       made = P.makeBall(d, a.x, a.y); d.parts.push(made);
     } else if (kind === 'bar' || kind === 'ramp' || kind === 'spring' || kind === 'arm') {
-      if (!dragged) { toast('Arrastra el dedo para dibujar la pieza.'); return; }
+      if (!dragged) { toast(T('Arrastra el dedo para dibujar la pieza.')); return; }
       if (kind === 'ramp') { made = P.makeRamp(d, a.x, a.y, b.x, b.y); d.parts.push(made); }
       else if (kind === 'bar' || kind === 'arm') {
         made = P.makeBar(d, a.x, a.y, b.x, b.y); d.parts.push(made);
@@ -405,17 +410,17 @@
         }
       } else {
         var ta = bodyPartsAt(a.x, a.y, 0.004)[0], tb = bodyPartsAt(b.x, b.y, 0.004)[0];
-        if (!ta && !tb) { toast('Engancha al menos un extremo del muelle a una pieza que se mueva.'); return; }
-        if (ta && tb && ta.id === tb.id) { toast('Los dos extremos están en la misma pieza: el muelle no haría nada.'); return; }
+        if (!ta && !tb) { toast(T('Engancha al menos un extremo del muelle a una pieza que se mueva.')); return; }
+        if (ta && tb && ta.id === tb.id) { toast(T('Los dos extremos están en la misma pieza: el muelle no haría nada.')); return; }
         made = P.makeSpring(d, a.x, a.y, b.x, b.y, ta ? ta.id : null, tb ? tb.id : null); d.parts.push(made);
       }
     } else if (kind === 'pin') {
       var cands = bodyPartsAt(a.x, a.y, 0.006);
-      if (!cands.length) { toast('Pon la bisagra encima de una pieza.'); return; }
+      if (!cands.length) { toast(T('Pon la bisagra encima de una pieza.')); return; }
       var top = cands[0], under = cands[1] || null;
-      if (parts().some(function (q) { return q.kind === 'pin' && Math.hypot(q.x - a.x, q.y - a.y) < 0.003 && q.b === top.id; })) { toast('Ya hay una bisagra en ese punto.'); return; }
+      if (parts().some(function (q) { return q.kind === 'pin' && Math.hypot(q.x - a.x, q.y - a.y) < 0.003 && q.b === top.id; })) { toast(T('Ya hay una bisagra en ese punto.')); return; }
       made = P.makePin(d, a.x, a.y, under ? under.id : null, top.id);
-      if (!under && top.kind === 'wheel') toast('Clavada a la pared. Las ruedas ya giran sobre su propio eje.');
+      if (!under && top.kind === 'wheel') toast(T('Clavada a la pared. Las ruedas ya giran sobre su propio eje.'));
       d.parts.push(made);
     } else if (kind.indexOf('mag-') === 0) {
       var host = bodyPartsAt(a.x, a.y, 0.004)[0];
@@ -424,9 +429,9 @@
     } else if (kind === 'motor' || kind === 'gen') {
       var tgt = partsAt(a.x, a.y, tolW(), function (q) { return q.kind === 'pin' && q.mode !== 'rigid'; })[0] ||
         partsAt(a.x, a.y, tolW(), function (q) { return q.kind === 'wheel' && q.axle === 'fixed'; })[0];
-      if (!tgt) { toast('Toca una rueda con eje fijo o una bisagra.'); return; }
-      if (kind === 'motor') { tgt.motor = true; tgt.mrpm = tgt.mrpm || 30; tgt.mtorque = tgt.mtorque || 0.5; tgt.msrc = tgt.msrc || 'battery'; toast('Motor puesto. Funciona con batería: lo que gaste saldrá en las cuentas.'); }
-      else { tgt.gen = tgt.gen || 0.1; toast('Generador puesto. La bombilla se enciende con lo que produzca.'); }
+      if (!tgt) { toast(T('Toca una rueda con eje fijo o una bisagra.')); return; }
+      if (kind === 'motor') { tgt.motor = true; tgt.mrpm = tgt.mrpm || 30; tgt.mtorque = tgt.mtorque || 0.5; tgt.msrc = tgt.msrc || 'battery'; toast(T('Motor puesto. Funciona con batería: lo que gaste saldrá en las cuentas.')); }
+      else { tgt.gen = tgt.gen || 0.1; toast(T('Generador puesto. La bombilla se enciende con lo que produzca.')); }
       made = tgt;
     }
     if (made) { S.sel = made.id; commit(before); openPiece(); buzz(8); }
@@ -475,7 +480,7 @@
     }
     var list = parts().filter(function (q) { return ids.has(q.id); });
     var count = {};
-    list.forEach(function (q) { var n = q.kind === 'magnet' ? 'imán' : { wheel: 'rueda', ball: 'pesa', bar: 'brazo', ramp: 'rampa', pin: 'bisagra', spring: 'muelle' }[q.kind]; count[n] = (count[n] || 0) + 1; });
+    list.forEach(function (q) { count[q.kind] = (count[q.kind] || 0) + 1; });
     return { ids: ids, list: list, host: host, sel: sel, summary: count };
   }
   function cloneTransforms(c) {
@@ -521,10 +526,10 @@
   function setMode(m) {
     S.mode = m; S.dirty = true;
     var play = $('playBtn'), chip = $('chip');
-    play.textContent = m === 'run' ? 'Pausa' : (m === 'design' ? 'Probar' : 'Seguir');
+    play.textContent = m === 'run' ? T('Pausa') : (m === 'design' ? T('Probar') : T('Seguir'));
     $('resetBtn').disabled = m === 'design';
     chip.className = 'chip' + (m === 'run' ? ' is-run' : (m === 'stopped' ? ' is-stop' : ''));
-    chip.textContent = m === 'design' ? 'Diseño' : (m === 'run' ? 'Probando' : (m === 'pause' ? 'En pausa' : 'Parada'));
+    chip.textContent = m === 'design' ? T('Diseño') : (m === 'run' ? T('Probando') : (m === 'pause' ? T('En pausa') : T('Parada')));
     $('clock').hidden = m === 'design';
     if (m !== 'design' && S.info) S.info.world.hand = null;
     S.drag = null;
@@ -534,7 +539,7 @@
   }
   function play() {
     if (S.mode === 'design') {
-      if (!parts().some(P.isBodyPart)) { toast('Añade alguna pieza que se mueva: una rueda, una pesa o un brazo.'); return; }
+      if (!parts().some(P.isBodyPart)) { toast(T('Añade alguna pieza que se mueva: una rueda, una pesa o un brazo.')); return; }
       rebuild();
       S.tool = 'move'; S.measure = null; S.pendingClone = false; closeClone();
       setMode('run');
@@ -583,7 +588,7 @@
         if (w.t >= 600) { recordHist(true); stopTest('time'); break; }
         if ((n & 7) === 0 && performance.now() - t0 > 11) { S.acc = 0; S.lagging = true; break; }
       }
-      $('clock').textContent = fmt(w.t, 1) + ' s' + (S.lagging ? ' · más lento' : '');
+      $('clock').textContent = fmt(w.t, 1) + ' s' + (S.lagging ? T(' · más lento') : '');
     }
     if (S.mode === 'run' || S.dirty || S.drag || S.glDirty) {
       if (is3d()) {
@@ -633,7 +638,7 @@
   }
   function setView(v) {
     S.dirty = true;
-    if (v === '3d' && !(GL && GL.ok())) { toast('Este dispositivo no puede mostrar la vista 3D.'); v = '2d'; }
+    if (v === '3d' && !(GL && GL.ok())) { toast(T('Este dispositivo no puede mostrar la vista 3D.')); v = '2d'; }
     S.view = v;
     $('cv').hidden = v === '3d';
     $('gl').hidden = v !== '3d';
@@ -950,7 +955,7 @@
       var p = find(S.sel);
       if (p) {
         if ('x1' in p) { txt = fmtCm(Math.hypot(p.x2 - p.x1, p.y2 - p.y1)) + ' · ' + fmt(Math.atan2(p.y2 - p.y1, p.x2 - p.x1) / DEG, 0) + '°'; at = { x: (p.x1 + p.x2) / 2, y: (p.y1 + p.y2) / 2, z: 0.05 }; }
-        else if (p.kind === 'wheel') { txt = 'radio ' + fmtCm(p.r); at = { x: p.x, y: p.y + p.r, z: 0.05 }; }
+        else if (p.kind === 'wheel') { txt = T('radio ') + fmtCm(p.r); at = { x: p.x, y: p.y + p.r, z: 0.05 }; }
         else if (p.kind === 'ball') { txt = 'Ø ' + fmtCm(2 * p.r) + ' · ' + fmt(p.m, 2) + ' kg'; at = { x: p.x, y: p.y + p.r, z: 0.08 }; }
         else if (p.kind === 'magnet') { var md = P.magnetModel(p); txt = fmtCm(md.size) + ' · ' + fmt(md.mu, 1) + ' A·m²'; at = { x: p.x, y: p.y + md.size / 2, z: 0.05 }; }
       }
@@ -1010,11 +1015,11 @@
     var w = S.info.world, b = w.balance(), m = w.meter || {};
     var pin = (m.gridIn || 0) + (m.battery || 0), pout = (m.gridOut || 0) + (m.store || 0);
     var ein = b.gridIn + b.battery, eout = b.gen;
-    var src = b.gridIn > 0 && b.battery > 0 ? 'red y pila' : (usesGrid() && !(b.battery > 0) ? 'red' : 'pila');
+    var src = b.gridIn > 0 && b.battery > 0 ? T('red y pila') : (usesGrid() && !(b.battery > 0) ? T('red') : T('pila'));
     function W(x) { return fmt(x, x < 10 ? 2 : 1) + ' W'; }
-    el.innerHTML = '<span class="lab in">↓ Entra · ' + src + '</span><b>' + W(pin) + '</b><span class="j">' + fmtJ(ein) + '</span>' +
-      '<span class="lab out">↑ Produce</span><b>' + W(pout) + '</b><span class="j">' + fmtJ(eout) + '</span>' +
-      '<span class="lab tot">Saldo</span><b class="tot"></b><span class="j tot">' + fmtJ(eout - ein) + '</span>';
+    el.innerHTML = '<span class="lab in">↓ ' + T('Entra') + ' · ' + src + '</span><b>' + W(pin) + '</b><span class="j">' + fmtJ(ein) + '</span>' +
+      T('<span class="lab out">↑ Produce</span><b>') + W(pout) + '</b><span class="j">' + fmtJ(eout) + '</span>' +
+      T('<span class="lab tot">Saldo</span><b class="tot"></b><span class="j tot">') + fmtJ(eout - ein) + '</span>';
     el.hidden = false;
   }
   function renderBill() {
@@ -1023,36 +1028,36 @@
     card.hidden = false;
     var b = S.info.world.balance(), price = (S.design.price != null ? S.design.price : 15) / 100;
     var kin = b.gridIn / 3.6e6, kout = b.gridOut / 3.6e6, t = Math.max(S.info.world.t, 0.1);
-    $('billPrice').textContent = 'a ' + fmt(price * 100, 1) + ' céntimos el kWh';
+    $('billPrice').textContent = T('a ') + fmt(price * 100, 1) + T(' céntimos el kWh');
     var h = '<div class="bill">' +
-      '<div class="r"><span>Consumido de la red</span><b>' + fmtSmall(kin) + ' kWh · ' + fmtSmall(kin * price) + ' €</b></div>' +
-      '<div class="r"><span>Vertido a la red</span><b>' + fmtSmall(kout) + ' kWh · ' + fmtSmall(kout * price) + ' €</b></div>' +
-      '<div class="r"><span>Saldo de la factura</span><b>' + fmtSmall((kout - kin) * price) + ' €</b></div></div>';
+      T('<div class="r"><span>Consumido de la red</span><b>') + fmtSmall(kin) + ' kWh · ' + fmtSmall(kin * price) + ' €</b></div>' +
+      T('<div class="r"><span>Vertido a la red</span><b>') + fmtSmall(kout) + ' kWh · ' + fmtSmall(kout * price) + ' €</b></div>' +
+      T('<div class="r"><span>Saldo de la factura</span><b>') + fmtSmall((kout - kin) * price) + ' €</b></div></div>';
     var rate = (b.gridOut - b.gridIn) / t;
     if (rate > 1e-6) {
       var secs = 0.01 / price * 3.6e6 / rate;
-      h += '<p class="note">A este ritmo, ganar 1 céntimo le llevaría ' + humanTime(secs) + '.</p>';
+      h += T('<p class="note">A este ritmo, ganar 1 céntimo le llevaría ') + humanTime(secs) + '.</p>';
     } else if (b.gridIn > 0.01) {
-      h += '<p class="note">Consume más de lo que vierte: cada hora así costaría ' + fmtSmall(-rate * 3600 / 3.6e6 * price) + ' €. Ninguna máquina devuelve a la red más de lo que toma de ella y de su propia reserva.</p>';
+      h += T('<p class="note">Consume más de lo que vierte: cada hora así costaría ') + fmtSmall(-rate * 3600 / 3.6e6 * price) + T(' €. Ninguna máquina devuelve a la red más de lo que toma de ella y de su propia reserva.</p>');
     }
     $('billBody').innerHTML = h;
   }
   function humanTime(s) {
-    if (s < 120) return fmt(s, 0) + ' segundos';
-    if (s < 7200) return fmt(s / 60, 0) + ' minutos';
-    if (s < 172800) return fmt(s / 3600, 0) + ' horas';
-    if (s < 63072000) return fmt(s / 86400, 0) + ' días';
-    return fmt(s / 31557600, 0) + ' años';
+    if (s < 120) return fmt(s, 0) + T(' segundos');
+    if (s < 7200) return fmt(s / 60, 0) + T(' minutos');
+    if (s < 172800) return fmt(s / 3600, 0) + T(' horas');
+    if (s < 63072000) return fmt(s / 86400, 0) + T(' días');
+    return fmt(s / 31557600, 0) + T(' años');
   }
   function categories(b) {
     return [
-      { k: 'axle', name: 'Rozamiento en ejes y bisagras', v: b.axle, c: 's1' },
-      { k: 'hits', name: 'Golpes y choques', v: b.hits, c: 's2' },
-      { k: 'rub', name: 'Roce y rodadura entre piezas', v: b.rub, c: 's3' },
-      { k: 'air', name: 'Resistencia del aire', v: b.air, c: 's4' },
-      { k: 'springs', name: 'Muelles (amortiguación)', v: b.springs, c: 's5' },
-      { k: 'heat', name: 'Calor en motores, generadores y bobinas', v: b.heat, c: 's6' },
-      { k: 'bus', name: 'Electricidad útil (guardada o vertida a la red)', v: b.bus + (b.gridOut || 0), c: 's7' }
+      { k: 'axle', name: T('Rozamiento en ejes y bisagras'), v: b.axle, c: 's1' },
+      { k: 'hits', name: T('Golpes y choques'), v: b.hits, c: 's2' },
+      { k: 'rub', name: T('Roce y rodadura entre piezas'), v: b.rub, c: 's3' },
+      { k: 'air', name: T('Resistencia del aire'), v: b.air, c: 's4' },
+      { k: 'springs', name: T('Muelles (amortiguación)'), v: b.springs, c: 's5' },
+      { k: 'heat', name: T('Calor en motores, generadores y bobinas'), v: b.heat, c: 's6' },
+      { k: 'bus', name: T('Electricidad útil (guardada o vertida a la red)'), v: b.bus + (b.gridOut || 0), c: 's7' }
     ];
   }
   function hasGen() { return parts().some(function (p) { return p.gen > 0; }); }
@@ -1063,17 +1068,17 @@
     return { eff: spent > 0.01 ? useful / spent : 0, useful: useful, spent: spent, valid: Math.abs(b.error) <= Math.max(0.02, 0.02 * scale) };
   }
   function hasElectric() { return parts().some(function (p) { return p.gen > 0 || p.motor || (p.kind === 'magnet' && p.shape === 'electro'); }); }
-  function joinEs(arr) { return arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1]; }
-  var LOSS_NAMES = { axle: 'el rozamiento de los ejes', hits: 'los golpes', rub: 'el roce entre piezas', air: 'el aire', springs: 'los muelles', heat: 'el calor de motores, generadores y bobinas' };
+  function joinEs(arr) { return arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + T(' y ') + arr[arr.length - 1]; }
+  var LOSS_NAMES = { axle: T('el rozamiento de los ejes'), hits: T('los golpes'), rub: T('el roce entre piezas'), air: T('el aire'), springs: T('los muelles'), heat: T('el calor de motores, generadores y bobinas') };
 
   function verdictData() {
     var w = S.info.world, b = w.balance();
-    var tone = 'design', state = 'Diseño', title = '', text = '', warn = '';
+    var tone = 'design', state = T('Diseño'), title = '', text = '', warn = '';
     var losses = b.axle + b.hits + b.rub + b.air + b.springs + b.heat, inflow = b.reserve + b.hand + b.battery + b.gridIn;
     var usefulOut = b.bus + b.gridOut;
     if (S.mode === 'design') {
-      if (!parts().length) { title = 'El banco está vacío'; text = 'Pulsa «Añadir» para elegir una pieza, o carga uno de los ejemplos.'; }
-      else { title = 'Lista para probar'; text = 'Pulsa «Probar». El banco simula la física real y apunta cada julio que entra y sale de tu máquina.'; }
+      if (!parts().length) { title = T('El banco está vacío'); text = T('Pulsa «Añadir» para elegir una pieza, o carga uno de los ejemplos.'); }
+      else { title = T('Lista para probar'); text = T('Pulsa «Probar». El banco simula la física real y apunta cada julio que entra y sale de tu máquina.'); }
       return { tone: tone, state: state, title: title, text: text, warn: '' };
     }
     var rate = 0, h = S.hist, last = h[h.length - 1];
@@ -1082,52 +1087,52 @@
     }
     var genW = w.genPower || 0;
     if (S.mode === 'stopped') {
-      tone = 'stop'; state = 'Parada';
+      tone = 'stop'; state = T('Parada');
       if (S.endReason === 'numeric') {
-        title = 'Prueba detenida: el cálculo se ha descontrolado';
-        text = 'En esta máquina el simulador ha empezado a sumar energía que no existe (' + fmtJ(-b.error) + '). Es un fallo de cálculo, no un hallazgo. Suele pasar con muelles muy rígidos en piezas ligeras, piezas unidas que no encajan entre sí o imanes muy fuertes pegados a piezas ligeras. Ajusta esas piezas y vuelve a probar.';
+        title = T('Prueba detenida: el cálculo se ha descontrolado');
+        text = T('En esta máquina el simulador ha empezado a sumar energía que no existe (') + fmtJ(-b.error) + T('). Es un fallo de cálculo, no un hallazgo. Suele pasar con muelles muy rígidos en piezas ligeras, piezas unidas que no encajan entre sí o imanes muy fuertes pegados a piezas ligeras. Ajusta esas piezas y vuelve a probar.');
       } else if (S.endReason === 'time') {
-        title = 'Prueba de 10 minutos terminada';
-        text = 'En este tiempo ha gastado ' + fmtJ(inflow) + (b.battery > 0.01 ? ', ' + fmtJ(b.battery) + ' de ellos de la batería' : '') + '. No ha producido nada por su cuenta.';
+        title = T('Prueba de 10 minutos terminada');
+        text = T('En este tiempo ha gastado ') + fmtJ(inflow) + (b.battery > 0.01 ? ', ' + fmtJ(b.battery) + T(' de ellos de la batería') : '') + T('. No ha producido nada por su cuenta.');
       } else if (S.maxK < 2e-4 && b.hand < 1e-3) {
-        title = 'No se ha movido';
-        text = 'Está en equilibrio: lo que tira hacia un lado se compensa con lo que tira hacia el otro. Si quieres, empújala con el dedo.';
+        title = T('No se ha movido');
+        text = T('Está en equilibrio: lo que tira hacia un lado se compensa con lo que tira hacia el otro. Si quieres, empújala con el dedo.');
       } else {
-        title = 'Se ha parado a los ' + fmt(w.t, 1) + ' s';
+        title = T('Se ha parado a los ') + fmt(w.t, 1) + ' s';
         var cats = categories(b).filter(function (c) { return c.k !== 'bus' && c.v > 0.0005; }).sort(function (x, y) { return y.v - x.v; });
         var tot = cats.reduce(function (s, c) { return s + c.v; }, 0) || 1;
         var ps = cats.filter(function (c) { return c.v / tot >= 0.01; }).slice(0, 3).map(function (c) { return LOSS_NAMES[c.k] + ' (' + pct(c.v / tot) + ')'; });
-        text = 'Tenía ' + fmtJ(inflow) + ' para gastar' + (b.hand > 0.001 ? ', contando tus empujones' : '') + '. ';
-        if (ps.length) text += 'Se fue en ' + joinEs(ps) + '. ';
-        if (b.gen > 0.0005) text += 'Antes de pararse sus generadores produjeron ' + fmtJ(b.gen) + ': una bombilla LED de 1 W lucería ' + fmt(b.gen, b.gen < 10 ? 1 : 0) + ' s. ';
+        text = T('Tenía ') + fmtJ(inflow) + T(' para gastar') + (b.hand > 0.001 ? T(', contando tus empujones') : '') + '. ';
+        if (ps.length) text += T('Se fue en ') + joinEs(ps) + '. ';
+        if (b.gen > 0.0005) text += T('Antes de pararse sus generadores produjeron ') + fmtJ(b.gen) + T(': una bombilla LED de 1 W lucería ') + fmt(b.gen, b.gen < 10 ? 1 : 0) + ' s. ';
         var ef = efficiency(b);
-        if (ef.useful > 0.005 && ef.valid) text += 'Eficiencia: ' + pct(ef.eff) + ' (de cada 100 julios que gastó, ' + fmt(ef.eff * 100, 0) + ' salieron como electricidad útil). ';
-        if (usefulOut <= inflow + 0.01) text += 'No ha sacado ni un julio que no tuviera al empezar.';
+        if (ef.useful > 0.005 && ef.valid) text += T('Eficiencia: ') + pct(ef.eff) + T(' (de cada 100 julios que gastó, ') + fmt(ef.eff * 100, 0) + T(' salieron como electricidad útil). ');
+        if (usefulOut <= inflow + 0.01) text += T('No ha sacado ni un julio que no tuviera al empezar.');
       }
     } else {
       tone = S.mode === 'run' ? 'run' : 'design';
-      state = S.mode === 'run' ? 'Probando' : 'En pausa';
-      if (w.t < 0.6) { title = 'Arrancando…'; text = 'Mira cómo se mueve. Las cuentas se actualizan mientras tanto.'; }
+      state = S.mode === 'run' ? T('Probando') : T('En pausa');
+      if (w.t < 0.6) { title = T('Arrancando…'); text = T('Mira cómo se mueve. Las cuentas se actualizan mientras tanto.'); }
       else if (b.battery + b.gridIn > 0.05) {
         var grid = b.gridIn >= b.battery;
-        title = grid ? 'Enchufada a la red' : 'Funciona con batería';
-        text = (grid ? 'Ha tomado de la red ' : 'La batería lleva puestos ') + fmtJ(b.battery + b.gridIn) + '. De eso, ' + fmtJ(b.heat) + ' se han ido en calor' + (usefulOut > 0.01 ? ' y ' + fmtJ(usefulOut) + ' han vuelto como electricidad útil' : '') + '. ' + (grid ? 'Desenchufada se pararía.' : 'Sin batería se pararía.');
-      } else if (S.maxK < 2e-4 && b.hand < 1e-3) { title = 'Quieta por ahora'; text = 'Si no arranca sola es que está equilibrada. Puedes empujarla con el dedo.'; }
+        title = grid ? T('Enchufada a la red') : T('Funciona con batería');
+        text = (grid ? T('Ha tomado de la red ') : T('La batería lleva puestos ')) + fmtJ(b.battery + b.gridIn) + T('. De eso, ') + fmtJ(b.heat) + T(' se han ido en calor') + (usefulOut > 0.01 ? T(' y ') + fmtJ(usefulOut) + T(' han vuelto como electricidad útil') : '') + '. ' + (grid ? T('Desenchufada se pararía.') : T('Sin batería se pararía.'));
+      } else if (S.maxK < 2e-4 && b.hand < 1e-3) { title = T('Quieta por ahora'); text = T('Si no arranca sola es que está equilibrada. Puedes empujarla con el dedo.'); }
       else if (genW > 0.0005) {
-        title = 'Produce ' + fmt(genW, genW < 1 ? 2 : 1) + ' W';
-        text = 'Sus generadores han producido ' + fmtJ(b.gen) + (b.busUsed > 0.01 ? ' y sus motores han gastado ' + fmtJ(b.busUsed) + ' de ellos' : '') + '. Todo sale de la energía que tenía al empezar o de tus empujones. Cada segundo pierde ' + fmt(rate, 2) + ' J.';
+        title = T('Produce ') + fmt(genW, genW < 1 ? 2 : 1) + ' W';
+        text = T('Sus generadores han producido ') + fmtJ(b.gen) + (b.busUsed > 0.01 ? T(' y sus motores han gastado ') + fmtJ(b.busUsed) + T(' de ellos') : '') + T('. Todo sale de la energía que tenía al empezar o de tus empujones. Cada segundo pierde ') + fmt(rate, 2) + ' J.';
       } else if (S.design.ideal && rate < 0.002) {
-        tone = 'ideal'; title = 'Ni pierde ni gana';
-        text = 'En este mundo ideal no hay rozamiento ni aire, así que conserva su energía y sigue moviéndose. Pero no gana ni un julio. En cuanto saques energía con un generador, se parará.';
+        tone = 'ideal'; title = T('Ni pierde ni gana');
+        text = T('En este mundo ideal no hay rozamiento ni aire, así que conserva su energía y sigue moviéndose. Pero no gana ni un julio. En cuanto saques energía con un generador, se parará.');
       } else {
-        title = 'Pierde ' + fmt(rate, rate < 0.1 ? 3 : 2) + ' J cada segundo';
+        title = T('Pierde ') + fmt(rate, rate < 0.1 ? 3 : 2) + T(' J cada segundo');
         var top = categories(b).filter(function (c) { return c.k !== 'bus' && c.v > 0.0005; }).sort(function (x, y) { return y.v - x.v; }).slice(0, 2).map(function (c) { return LOSS_NAMES[c.k]; });
-        text = 'Se mueve con la energía que tenía al empezar' + (b.hand > 0.001 ? ' y la de tus empujones' : '') + ', y cada segundo le cuesta: ' + (top.length ? joinEs(top) : 'rozamiento y aire') + '. Ninguna pieza le devuelve energía.';
+        text = T('Se mueve con la energía que tenía al empezar') + (b.hand > 0.001 ? T(' y la de tus empujones') : '') + T(', y cada segundo le cuesta: ') + (top.length ? joinEs(top) : T('rozamiento y aire')) + T('. Ninguna pieza le devuelve energía.');
       }
     }
     var errAbs = Math.abs(b.error), scale = Math.max(Math.abs(inflow), losses + b.bus, 0.01);
     if (S.endReason !== 'numeric' && errAbs > Math.max(0.02, 0.01 * scale)) {
-      warn = 'Error de cálculo del simulador en esta prueba: ' + fmtJ(b.error) + ' (' + pct(errAbs / scale) + ' del total). Aparece con muchos golpes a la vez y no es energía real. Te lo enseñamos para que las cuentas sean completas.';
+      warn = T('Error de cálculo del simulador en esta prueba: ') + fmtJ(b.error) + ' (' + pct(errAbs / scale) + T(' del total). Aparece con muchos golpes a la vez y no es energía real. Te lo enseñamos para que las cuentas sean completas.');
     }
     return { tone: tone, state: state, title: title, text: text, warn: warn };
   }
@@ -1135,7 +1140,7 @@
     var v = verdictData(), el = $('verdict');
     el.setAttribute('data-tone', v.tone);
     el.innerHTML = '<div class="state"><span class="dot"></span>' + esc(v.state) + '</div><h3>' + esc(v.title) + '</h3><p>' + esc(v.text) + '</p>' + (v.warn ? '<div class="warnline">' + esc(v.warn) + '</div>' : '');
-    if (S.mode !== 'design') $('hint').innerHTML = '<b>' + esc(v.title) + '.</b> ' + (S.mode === 'stopped' ? 'Mira las cuentas para ver a dónde fue la energía.' : esc(HAND_HINT));
+    if (S.mode !== 'design') $('hint').innerHTML = '<b>' + esc(v.title) + '.</b> ' + (S.mode === 'stopped' ? T('Mira las cuentas para ver a dónde fue la energía.') : esc(HAND_HINT));
   }
   function renderLedger() {
     var w = S.info.world, b = w.balance(), design = S.mode === 'design';
@@ -1143,16 +1148,16 @@
     var rows = categories(b).filter(function (c) { return (c.k !== 'springs' || springs) && ((c.k !== 'heat' && c.k !== 'bus') || elec); });
     var inflow = b.reserve + b.hand + b.battery + b.gridIn;
     function val(x) { return design ? '—' : fmtJ(x); }
-    var h = '<tr><th colspan="2">Entradas · de dónde sale</th></tr>';
-    h += '<tr><td>Gastada de su reserva<span class="sub">altura de las piezas, muelles, imanes y giro inicial' + (b.reserve < -0.0005 && !design ? '; en negativo, la ha acumulado' : '') + '</span></td><td class="v">' + val(b.reserve) + '</td></tr>';
-    h += '<tr' + (b.hand > 0.0005 ? '' : ' class="dim"') + '><td>Tus empujones<span class="sub">con el dedo durante la prueba</span></td><td class="v">' + val(b.hand) + '</td></tr>';
-    if (elec) h += '<tr' + (b.battery > 0.0005 ? '' : ' class="dim"') + '><td>Batería<span class="sub">motores y electroimanes conectados a la pila</span></td><td class="v">' + val(b.battery) + '</td></tr>';
-    if (usesGrid()) h += '<tr' + (b.gridIn > 0.0005 ? '' : ' class="dim"') + '><td>Red eléctrica<span class="sub">lo que marca el contador de entrada</span></td><td class="v">' + val(b.gridIn) + '</td></tr>';
-    h += '<tr class="total"><td>Total que entra</td><td class="v">' + val(inflow) + '</td></tr>';
-    h += '<tr><th colspan="2">Salidas · a dónde va</th></tr>';
+    var h = T('<tr><th colspan="2">Entradas · de dónde sale</th></tr>');
+    h += T('<tr><td>Gastada de su reserva<span class="sub">altura de las piezas, muelles, imanes y giro inicial') + (b.reserve < -0.0005 && !design ? T('; en negativo, la ha acumulado') : '') + '</span></td><td class="v">' + val(b.reserve) + '</td></tr>';
+    h += '<tr' + (b.hand > 0.0005 ? '' : ' class="dim"') + T('><td>Tus empujones<span class="sub">con el dedo durante la prueba</span></td><td class="v">') + val(b.hand) + '</td></tr>';
+    if (elec) h += '<tr' + (b.battery > 0.0005 ? '' : ' class="dim"') + T('><td>Batería<span class="sub">motores y electroimanes conectados a la pila</span></td><td class="v">') + val(b.battery) + '</td></tr>';
+    if (usesGrid()) h += '<tr' + (b.gridIn > 0.0005 ? '' : ' class="dim"') + T('><td>Red eléctrica<span class="sub">lo que marca el contador de entrada</span></td><td class="v">') + val(b.gridIn) + '</td></tr>';
+    h += T('<tr class="total"><td>Total que entra</td><td class="v">') + val(inflow) + '</td></tr>';
+    h += T('<tr><th colspan="2">Salidas · a dónde va</th></tr>');
     rows.forEach(function (c) { h += '<tr' + (c.v > 0.0005 || design ? '' : ' class="dim"') + '><td><span class="sw" style="background:var(--' + c.c + ')"></span>' + esc(c.name) + '</td><td class="v">' + val(c.v) + '</td></tr>'; });
-    h += '<tr class="err"><td>Error de cálculo del simulador</td><td class="v">' + val(b.error) + '</td></tr>';
-    h += '<tr class="total"><td>Total que sale</td><td class="v">' + val(inflow) + '</td></tr>';
+    h += T('<tr class="err"><td>Error de cálculo del simulador</td><td class="v">') + val(b.error) + '</td></tr>';
+    h += T('<tr class="total"><td>Total que sale</td><td class="v">') + val(inflow) + '</td></tr>';
     $('ledger').innerHTML = h;
     var tot = rows.reduce(function (s, c) { return s + Math.max(0, c.v); }, 0), sp_ = $('split');
     if (design || tot < 1e-4) { sp_.innerHTML = ''; return; }
@@ -1172,15 +1177,15 @@
     var h = S.hist, gen = hasGen(), bat = hasPower();
     if (h.length < 2) {
       g.fillStyle = C['ink-3']; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '13px ' + F.body;
-      g.fillText('Aquí verás la energía cuando pulses «Probar».', W / 2, H / 2);
+      g.fillText(T('Aquí verás la energía cuando pulses «Probar».'), W / 2, H / 2);
       $('tip').hidden = true; $('legend').innerHTML = ''; return;
     }
     var tMax = Math.max(10, h[h.length - 1].t), yMax = 0;
     h.forEach(function (p) { yMax = Math.max(yMax, p.K, p.lost, gen ? p.gen : 0, bat ? p.bat : 0); });
     yMax = niceMax(Math.max(yMax, 0.01));
-    var L = 44, Rp = 12, T = 8, B = 22, pw = W - L - Rp, ph = H - T - B;
+    var L = 44, Rp = 12, TP = 8, B = 22, pw = W - L - Rp, ph = H - TP - B;
     function X(t) { return L + t / tMax * pw; }
-    function Y(v) { return T + ph - v / yMax * ph; }
+    function Y(v) { return TP + ph - v / yMax * ph; }
     g.font = '11px ' + F.mono; g.fillStyle = C['ink-3']; g.strokeStyle = C.rule; g.lineWidth = 1;
     for (var i = 0; i <= 4; i++) {
       var v = yMax * i / 4, y = Math.round(Y(v)) + 0.5;
@@ -1189,7 +1194,7 @@
     }
     var tStep = niceStep(tMax / 5);
     g.textAlign = 'center'; g.textBaseline = 'top';
-    for (var t = 0; t <= tMax + 1e-9; t += tStep) g.fillText(fmt(t, tStep < 1 ? 1 : 0) + ' s', X(t), T + ph + 6);
+    for (var t = 0; t <= tMax + 1e-9; t += tStep) g.fillText(fmt(t, tStep < 1 ? 1 : 0) + ' s', X(t), TP + ph + 6);
     g.beginPath(); g.moveTo(X(h[0].t), Y(0));
     h.forEach(function (p) { g.lineTo(X(p.t), Y(p.K)); });
     g.lineTo(X(h[h.length - 1].t), Y(0)); g.closePath(); g.fillStyle = C['accent-soft']; g.fill();
@@ -1204,14 +1209,14 @@
       var tt = (chartHover - L) / pw * tMax, best = h[0];
       h.forEach(function (p) { if (Math.abs(p.t - tt) < Math.abs(best.t - tt)) best = p; });
       var hx = X(best.t);
-      g.strokeStyle = C['ink-3']; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(hx, T); g.lineTo(hx, T + ph); g.stroke(); g.setLineDash([]);
+      g.strokeStyle = C['ink-3']; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(hx, TP); g.lineTo(hx, TP + ph); g.stroke(); g.setLineDash([]);
       tip.hidden = false;
-      tip.textContent = fmt(best.t, 1) + ' s · movimiento ' + fmtJ(best.K) + ' · perdida ' + fmtJ(best.lost) + (gen ? ' · producida ' + fmtJ(best.gen) : '') + (bat ? ' · batería ' + fmtJ(best.bat) : '');
+      tip.textContent = fmt(best.t, 1) + T(' s · movimiento ') + fmtJ(best.K) + T(' · perdida ') + fmtJ(best.lost) + (gen ? T(' · producida ') + fmtJ(best.gen) : '') + (bat ? T(' · batería ') + fmtJ(best.bat) : '');
       var tw = tip.offsetWidth;
-      tip.style.left = Math.min(W - tw - 2, Math.max(2, hx - tw / 2)) + 'px'; tip.style.top = (T + 2) + 'px';
+      tip.style.left = Math.min(W - tw - 2, Math.max(2, hx - tw / 2)) + 'px'; tip.style.top = (TP + 2) + 'px';
     } else tip.hidden = true;
-    $('legend').innerHTML = '<span><i style="background:var(--ink)"></i>Energía de movimiento</span><span><i class="dash"></i>Perdida en total</span>' +
-      (gen ? '<span><i style="background:var(--s7)"></i>Electricidad producida</span>' : '') + (bat ? '<span><i style="background:var(--s6)"></i>Puesta por la batería</span>' : '');
+    $('legend').innerHTML = T('<span><i style="background:var(--ink)"></i>Energía de movimiento</span><span><i class="dash"></i>Perdida en total</span>') +
+      (gen ? T('<span><i style="background:var(--s7)"></i>Electricidad producida</span>') : '') + (bat ? T('<span><i style="background:var(--s6)"></i>Puesta por la batería</span>') : '');
   }
   function line(g, h, X, Y, key, color, dash) {
     g.strokeStyle = color; g.lineWidth = 2; g.setLineDash(dash); g.lineJoin = 'round';
@@ -1228,14 +1233,14 @@
     function weights(side, n) { var o = ''; for (var k = 0; k < Math.min(n, 8); k++) o += '<circle cx="' + side * (40 + k * 11) + '" cy="-8" r="6" fill="var(--' + (side < 0 ? 's1' : 's2') + ')" stroke="var(--ink)" stroke-width="1"/>'; return o; }
     $('seesaw').innerHTML = '<g transform="translate(160 64)"><path d="M0 0 L-12 26 L12 26 Z" fill="var(--part)" stroke="var(--ink)" stroke-width="1.5"/><g transform="rotate(' + tilt.toFixed(2) + ')"><line x1="-130" y1="0" x2="130" y2="0" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>' + weights(-1, tb.nL) + weights(1, tb.nR) + '</g><circle r="4" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.5"/></g>';
     $('sides').innerHTML =
-      '<div><span style="color:var(--s1)">■</span> Tira hacia la izquierda<b>' + fmt(tb.L, 1) + ' N·m</b>' + tb.nL + ' ' + (tb.nL === 1 ? 'pesa' : 'pesas') + ', a ' + fmt(tb.armL, 2) + ' m de media</div>' +
-      '<div class="r"><span style="color:var(--s2)">■</span> Tira hacia la derecha<b>' + fmt(tb.R, 1) + ' N·m</b>' + tb.nR + ' ' + (tb.nR === 1 ? 'pesa' : 'pesas') + ', a ' + fmt(tb.armR, 2) + ' m de media</div>';
+      T('<div><span style="color:var(--s1)">■</span> Tira hacia la izquierda<b>') + fmt(tb.L, 1) + ' N·m</b>' + tb.nL + ' ' + (tb.nL === 1 ? T('pesa') : T('pesas')) + ', a ' + fmt(tb.armL, 2) + T(' m de media</div>') +
+      T('<div class="r"><span style="color:var(--s2)">■</span> Tira hacia la derecha<b>') + fmt(tb.R, 1) + ' N·m</b>' + tb.nR + ' ' + (tb.nR === 1 ? T('pesa') : T('pesas')) + ', a ' + fmt(tb.armR, 2) + T(' m de media</div>');
     var farR = tb.armR > tb.armL * 1.08, farL = tb.armL > tb.armR * 1.08, note;
-    if (S.mode === 'stopped' && S.endReason === 'stopped') note = 'Parada con los dos lados igualados. La pequeña diferencia la sujeta el rozamiento del eje.';
-    else if ((farR && tb.nL > tb.nR) || (farL && tb.nR > tb.nL)) note = 'Las pesas de la ' + (farR ? 'derecha' : 'izquierda') + ' están más lejos del eje, pero a la ' + (farR ? 'izquierda' : 'derecha') + ' hay más. Por eso, de media, los dos lados tiran lo mismo.';
-    else note = 'Si un lado tirara siempre más que el otro, la rueda giraría sola para siempre. Fíjate en cómo se igualan.';
+    if (S.mode === 'stopped' && S.endReason === 'stopped') note = T('Parada con los dos lados igualados. La pequeña diferencia la sujeta el rozamiento del eje.');
+    else if ((farR && tb.nL > tb.nR) || (farL && tb.nR > tb.nL)) note = T('Las pesas de la ') + (farR ? T('derecha') : T('izquierda')) + T(' están más lejos del eje, pero a la ') + (farR ? T('izquierda') : T('derecha')) + T(' hay más. Por eso, de media, los dos lados tiran lo mismo.');
+    else note = T('Si un lado tirara siempre más que el otro, la rueda giraría sola para siempre. Fíjate en cómo se igualan.');
     $('balanceNote').textContent = note;
-    $('balanceWho').textContent = 'rueda de ' + fmtCm(mainWheel().r) + ' de radio';
+    $('balanceWho').textContent = T('rueda de ') + fmtCm(mainWheel().r) + T(' de radio');
   }
 
   // ---------- inspector ----------
@@ -1245,9 +1250,9 @@
   }
   function numField(label, id, value, unit, step, wide) {
     return '<div class="field' + (wide ? ' wide' : '') + '"><span class="lab"><span id="' + id + '_l">' + esc(label) + '</span></span><div class="num">' +
-      '<button type="button" data-num="' + id + '" data-dir="-1" aria-label="Restar">−</button>' +
+      '<button type="button" data-num="' + id + '" data-dir="-1" aria-label="' + T('Restar') + '">−</button>' +
       '<input id="' + id + '" type="number" inputmode="decimal" step="' + step + '" value="' + r1(value) + '" aria-labelledby="' + id + '_l">' +
-      '<span class="unit">' + esc(unit) + '</span><button type="button" data-num="' + id + '" data-dir="1" aria-label="Sumar">+</button></div></div>';
+      '<span class="unit">' + esc(unit) + '</span><button type="button" data-num="' + id + '" data-dir="1" aria-label="' + T('Sumar') + '">+</button></div></div>';
   }
   function selectField(label, id, options, value, help) {
     return '<div class="field"><label for="' + id + '"><span>' + esc(label) + '</span></label><select id="' + id + '">' +
@@ -1266,84 +1271,84 @@
   var GRADE_OPTS = Object.keys(P.GRADES).map(function (k) { return [k, P.GRADES[k].name]; });
   var SHAPE_OPTS = Object.keys(P.MAG_SHAPES).map(function (k) { return [k, P.MAG_SHAPES[k]]; });
   var DENS = { plomo: 11340, acero: 7850, madera: 700, goma: 1100 };
-  var NAMES = { wheel: 'Rueda', ball: 'Pesa', bar: 'Brazo', ramp: 'Rampa', pin: 'Bisagra', spring: 'Muelle', magnet: 'Imán' };
-  function partName(p) { return p.kind === 'magnet' ? P.MAG_SHAPES[p.shape || 'bar'] : (p.kind === 'wheel' && p.style === 'ring' ? 'Rueda de compartimentos' : NAMES[p.kind]); }
+  var NAMES = { wheel: T('Rueda'), ball: T('Pesa'), bar: T('Brazo'), ramp: T('Rampa'), pin: T('Bisagra'), spring: T('Muelle'), magnet: T('Imán') };
+  function partName(p) { return p.kind === 'magnet' ? P.MAG_SHAPES[p.shape || 'bar'] : (p.kind === 'wheel' && p.style === 'ring' ? T('Rueda de compartimentos') : NAMES[p.kind]); }
 
   function renderInspector() {
     S.dirty = true;
     var el = $('inspector'), p = find(S.sel), design = S.mode === 'design';
     if (!p) {
-      el.innerHTML = '<div class="empty"><h2>Pieza</h2><p>Toca una pieza en el banco para ver y cambiar sus medidas exactas.</p><ul>' +
-        '<li>Con <b>Añadir</b> eliges qué pieza poner.</li><li>Con <b>Clonar</b> repites una pieza alrededor de una rueda o en fila, a la distancia exacta que quieras.</li>' +
-        '<li>Con <b>Medir</b> compruebas distancias y ángulos.</li></ul></div>';
+      el.innerHTML = T('<div class="empty"><h2>Pieza</h2><p>Toca una pieza en el banco para ver y cambiar sus medidas exactas.</p><ul>') +
+        T('<li>Con <b>Añadir</b> eliges qué pieza poner.</li><li>Con <b>Clonar</b> repites una pieza alrededor de una rueda o en fila, a la distancia exacta que quieras.</li>') +
+        T('<li>Con <b>Medir</b> compruebas distancias y ángulos.</li></ul></div>');
       return;
     }
-    var h = '<div class="insp-head"><h3>' + esc(partName(p)) + '</h3>' + (design ? '<div class="insp-actions"><button class="btn" id="cloneBtn" type="button">Clonar</button><button class="btn danger" id="delBtn" type="button">Quitar</button></div>' : '') + '</div>';
-    if (!design) h += '<p class="note">Pulsa «Diseñar» para cambiar esta pieza.</p>';
+    var h = '<div class="insp-head"><h3>' + esc(partName(p)) + '</h3>' + (design ? T('<div class="insp-actions"><button class="btn" id="cloneBtn" type="button">Clonar</button><button class="btn danger" id="delBtn" type="button">Quitar</button></div>') : '') + '</div>';
+    if (!design) h += T('<p class="note">Pulsa «Diseñar» para cambiar esta pieza.</p>');
     h += '<div class="fields">';
     if (p.kind === 'wheel') {
-      h += numField('Centro X', 'n_x', p.x * 100, 'cm', 1) + numField('Centro Y', 'n_y', p.y * 100, 'cm', 1);
-      h += numField('Radio', 'n_r', p.r * 100, 'cm', 1);
-      h += field('Masa de la rueda', 'f_m', 0.2, 20, 0.1, p.m, 'kg', null, 1);
-      h += segField('Tipo', 'f_style', [['disc', 'Disco con radios'], ['ring', 'Con compartimentos']], p.style, true);
-      if (p.style === 'ring') { h += field('Compartimentos', 'f_cells', 3, 16, 1, p.cells, '', null, 0); h += field('Inclinación de los separadores', 'f_tilt', 0, 70, 1, p.tilt, '°', null, 0); }
-      else h += field('Radios (dibujo)', 'f_spokes', 3, 16, 1, p.spokes || 8, '', null, 0);
-      h += segField('Eje', 'f_axle', [['fixed', 'Fijo a la pared'], ['free', 'Suelto']], p.axle, true);
+      h += numField(T('Centro X'), 'n_x', p.x * 100, 'cm', 1) + numField(T('Centro Y'), 'n_y', p.y * 100, 'cm', 1);
+      h += numField(T('Radio'), 'n_r', p.r * 100, 'cm', 1);
+      h += field(T('Masa de la rueda'), 'f_m', 0.2, 20, 0.1, p.m, 'kg', null, 1);
+      h += segField(T('Tipo'), 'f_style', [['disc', T('Disco con radios')], ['ring', T('Con compartimentos')]], p.style, true);
+      if (p.style === 'ring') { h += field(T('Compartimentos'), 'f_cells', 3, 16, 1, p.cells, '', null, 0); h += field(T('Inclinación de los separadores'), 'f_tilt', 0, 70, 1, p.tilt, '°', null, 0); }
+      else h += field(T('Radios (dibujo)'), 'f_spokes', 3, 16, 1, p.spokes || 8, '', null, 0);
+      h += segField(T('Eje'), 'f_axle', [['fixed', T('Fijo a la pared')], ['free', T('Suelto')]], p.axle, true);
       if (p.axle === 'fixed') {
-        h += selectField('Calidad del eje', 'f_bearing', BEAR_OPTS, p.bearing);
-        h += field('Giro inicial', 'f_rpm', -120, 120, 1, p.rpm, 'rpm', 'Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.', 0);
+        h += selectField(T('Calidad del eje'), 'f_bearing', BEAR_OPTS, p.bearing);
+        h += field(T('Giro inicial'), 'f_rpm', -120, 120, 1, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
         h += deviceFields(p);
       }
     } else if (p.kind === 'ball') {
-      h += numField('Centro X', 'n_x', p.x * 100, 'cm', 1) + numField('Centro Y', 'n_y', p.y * 100, 'cm', 1);
-      h += numField('Diámetro', 'n_d', p.r * 200, 'cm', 0.5);
-      h += field('Masa', 'f_m', 0.02, 10, 0.01, p.m, 'kg', massHelp(p));
-      h += selectField('Material', 'f_mat', MAT_OPTS, p.mat, 'Cambia cómo rebota y roza. El acero lo atraen los imanes.');
+      h += numField(T('Centro X'), 'n_x', p.x * 100, 'cm', 1) + numField(T('Centro Y'), 'n_y', p.y * 100, 'cm', 1);
+      h += numField(T('Diámetro'), 'n_d', p.r * 200, 'cm', 0.5);
+      h += field(T('Masa'), 'f_m', 0.02, 10, 0.01, p.m, 'kg', massHelp(p));
+      h += selectField(T('Material'), 'f_mat', MAT_OPTS, p.mat, T('Cambia cómo rebota y roza. El acero lo atraen los imanes.'));
     } else if (p.kind === 'bar' || p.kind === 'ramp' || p.kind === 'spring') {
-      h += numField('Inicio X', 'n_x', p.x1 * 100, 'cm', 1) + numField('Inicio Y', 'n_y', p.y1 * 100, 'cm', 1);
-      h += numField('Longitud', 'n_len', Math.hypot(p.x2 - p.x1, p.y2 - p.y1) * 100, 'cm', 1);
-      h += numField('Ángulo', 'n_ang', Math.atan2(p.y2 - p.y1, p.x2 - p.x1) / DEG, '°', 1);
-      if (p.kind === 'bar') h += field('Masa', 'f_m', 0.05, 5, 0.01, p.m, 'kg');
-      if (p.kind === 'ramp') h += selectField('Material', 'f_mat', MAT_OPTS.filter(function (o) { return o[0] !== 'plomo'; }), p.mat);
+      h += numField(T('Inicio X'), 'n_x', p.x1 * 100, 'cm', 1) + numField(T('Inicio Y'), 'n_y', p.y1 * 100, 'cm', 1);
+      h += numField(T('Longitud'), 'n_len', Math.hypot(p.x2 - p.x1, p.y2 - p.y1) * 100, 'cm', 1);
+      h += numField(T('Ángulo'), 'n_ang', Math.atan2(p.y2 - p.y1, p.x2 - p.x1) / DEG, '°', 1);
+      if (p.kind === 'bar') h += field(T('Masa'), 'f_m', 0.05, 5, 0.01, p.m, 'kg');
+      if (p.kind === 'ramp') h += selectField(T('Material'), 'f_mat', MAT_OPTS.filter(function (o) { return o[0] !== 'plomo'; }), p.mat);
       if (p.kind === 'spring') {
         var L0 = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
-        h += field('Rigidez', 'f_k', 5, 3000, 5, p.k, 'N/m', 'Fuerza por cada metro que se estira.', 0);
-        h += field('Longitud sin estirar', 'f_rest', 0.02, 2, 0.01, p.rest == null ? L0 : p.rest, 'm');
-        h += field('Amortiguación', 'f_damp', 0, 10, 0.1, p.damp, 'N·s/m', null, 1);
+        h += field(T('Rigidez'), 'f_k', 5, 3000, 5, p.k, 'N/m', T('Fuerza por cada metro que se estira.'), 0);
+        h += field(T('Longitud sin estirar'), 'f_rest', 0.02, 2, 0.01, p.rest == null ? L0 : p.rest, 'm');
+        h += field(T('Amortiguación'), 'f_damp', 0, 10, 0.1, p.damp, 'N·s/m', null, 1);
         var spr = S.info.springOf[p.id];
-        if (spr && spr.limited) h += '<p class="note field wide">Para piezas tan ligeras, el banco solo puede simular este muelle con ' + fmt(spr.k, 0) + ' N/m y ' + fmt(spr.c, 1) + ' N·s/m. Más rígido vibraría más rápido de lo que el cálculo puede seguir.</p>';
+        if (spr && spr.limited) h += T('<p class="note field wide">Para piezas tan ligeras, el banco solo puede simular este muelle con ') + fmt(spr.k, 0) + T(' N/m y ') + fmt(spr.c, 1) + T(' N·s/m. Más rígido vibraría más rápido de lo que el cálculo puede seguir.</p>');
       }
     } else if (p.kind === 'pin') {
-      h += segField('Tipo', 'f_mode', [['free', 'Gira libre'], ['limits', 'Con topes'], ['rigid', 'Soldada']], p.mode, true);
+      h += segField(T('Tipo'), 'f_mode', [['free', T('Gira libre')], ['limits', T('Con topes')], ['rigid', T('Soldada')]], p.mode, true);
       if (p.mode === 'limits') {
-        h += numField('Tope en un sentido', 'n_lo', Math.min(0, p.lo), '°', 5);
-        h += numField('Tope en el otro', 'n_hi', Math.max(0, p.hi), '°', 5);
+        h += numField(T('Tope en un sentido'), 'n_lo', Math.min(0, p.lo), '°', 5);
+        h += numField(T('Tope en el otro'), 'n_hi', Math.max(0, p.hi), '°', 5);
       }
-      if (p.mode !== 'rigid') { h += selectField('Calidad de la bisagra', 'f_bearing', BEAR_OPTS, p.bearing); h += deviceFields(p); }
-      h += '<p class="note field wide">' + (p.a && find(p.a) ? 'Une ' + partName(find(p.a)).toLowerCase() + ' y ' + partName(find(p.b)).toLowerCase() + '.' : 'Clavada a la pared.') + (p.mode === 'limits' ? ' Los ángulos se miden desde la posición dibujada; la zona azul de la vista plana muestra hasta dónde puede girar.' : '') + '</p>';
+      if (p.mode !== 'rigid') { h += selectField(T('Calidad de la bisagra'), 'f_bearing', BEAR_OPTS, p.bearing); h += deviceFields(p); }
+      h += '<p class="note field wide">' + (p.a && find(p.a) ? T('Une ') + partName(find(p.a)).toLowerCase() + T(' y ') + partName(find(p.b)).toLowerCase() + '.' : T('Clavada a la pared.')) + (p.mode === 'limits' ? T(' Los ángulos se miden desde la posición dibujada; la zona azul de la vista plana muestra hasta dónde puede girar.') : '') + '</p>';
     } else if (p.kind === 'magnet') {
       var model = P.magnetModel(p);
-      h += selectField('Tipo de imán', 'f_shape', SHAPE_OPTS, p.shape || 'bar');
-      h += numField('Centro X', 'n_x', p.x * 100, 'cm', 0.5) + numField('Centro Y', 'n_y', p.y * 100, 'cm', 0.5);
-      h += numField('Dirección del polo norte', 'n_dir', ((p.ang % 360) + 360) % 360, '°', 5);
+      h += selectField(T('Tipo de imán'), 'f_shape', SHAPE_OPTS, p.shape || 'bar');
+      h += numField(T('Centro X'), 'n_x', p.x * 100, 'cm', 0.5) + numField(T('Centro Y'), 'n_y', p.y * 100, 'cm', 0.5);
+      h += numField(T('Dirección del polo norte'), 'n_dir', ((p.ang % 360) + 360) % 360, '°', 5);
       if (p.shape === 'electro') {
-        h += numField('Largo de la bobina', 'n_size', model.size * 100, 'cm', 0.5);
-        h += field('Fuerza al encenderlo', 'f_mu', 0.5, 40, 0.5, p.mu, 'A·m²', 'Consume ' + fmt(P.electroPower(p.mu), 1) + ' W de la batería mientras está encendido.', 1);
-        h += segField('Se alimenta de', 'f_esrc', [['battery', 'Una batería'], ['grid', 'La red eléctrica']], p.esrc === 'grid' ? 'grid' : 'battery', true);
-        h += segField('Se enciende', 'f_emode', [['always', 'Siempre'], ['window', 'Según el giro de una rueda']], p.emode || 'always', true);
+        h += numField(T('Largo de la bobina'), 'n_size', model.size * 100, 'cm', 0.5);
+        h += field(T('Fuerza al encenderlo'), 'f_mu', 0.5, 40, 0.5, p.mu, 'A·m²', T('Consume ') + fmt(P.electroPower(p.mu), 1) + T(' W de la batería mientras está encendido.'), 1);
+        h += segField(T('Se alimenta de'), 'f_esrc', [['battery', T('Una batería')], ['grid', T('La red eléctrica')]], p.esrc === 'grid' ? 'grid' : 'battery', true);
+        h += segField(T('Se enciende'), 'f_emode', [['always', T('Siempre')], ['window', T('Según el giro de una rueda')]], p.emode || 'always', true);
         if (p.emode === 'window') {
           var wheels = parts().filter(function (q) { return q.kind === 'wheel' && q.axle === 'fixed'; });
-          h += selectField('Rueda que lo controla', 'f_ewheel', [['', 'Elige una rueda']].concat(wheels.map(function (q, i) { return [q.id, 'Rueda ' + (i + 1) + ' (radio ' + fmtCm(q.r) + ')']; })), p.ewheel || '');
-          h += numField('Se enciende a los', 'n_efrom', p.efrom || 0, '°', 1) + numField('Se apaga a los', 'n_eto', p.eto || 0, '°', 1);
-          h += numField('Repite cada', 'n_eevery', p.eevery || 360, '°', 5);
-          h += '<p class="note field wide">Los grados son el giro de la rueda desde la posición dibujada, en el sentido de las agujas del reloj.</p>';
+          h += selectField(T('Rueda que lo controla'), 'f_ewheel', [['', T('Elige una rueda')]].concat(wheels.map(function (q, i) { return [q.id, T('Rueda ') + (i + 1) + T(' (radio ') + fmtCm(q.r) + ')']; })), p.ewheel || '');
+          h += numField(T('Se enciende a los'), 'n_efrom', p.efrom || 0, '°', 1) + numField(T('Se apaga a los'), 'n_eto', p.eto || 0, '°', 1);
+          h += numField(T('Repite cada'), 'n_eevery', p.eevery || 360, '°', 5);
+          h += T('<p class="note field wide">Los grados son el giro de la rueda desde la posición dibujada, en el sentido de las agujas del reloj.</p>');
         }
       } else {
-        h += selectField('Material', 'f_grade', GRADE_OPTS, p.grade || 'n52');
-        h += numField(p.shape === 'disc' ? 'Diámetro' : 'Largo', 'n_size', model.size * 100, 'cm', 0.5);
-        h += '<div class="field"><span class="lab"><span>Fuerza</span><output>' + fmt(model.mu, 1) + ' A·m²</output></span><span class="help">Calculada con el material y el tamaño.</span></div>';
+        h += selectField(T('Material'), 'f_grade', GRADE_OPTS, p.grade || 'n52');
+        h += numField(p.shape === 'disc' ? T('Diámetro') : T('Largo'), 'n_size', model.size * 100, 'cm', 0.5);
+        h += T('<div class="field"><span class="lab"><span>Fuerza</span><output>') + fmt(model.mu, 1) + T(' A·m²</output></span><span class="help">Calculada con el material y el tamaño.</span></div>');
       }
-      h += '<p class="note field wide">' + (p.host && find(p.host) ? 'Va pegado a ' + partName(find(p.host)).toLowerCase() + '.' : 'Fijo a la pared.') + '</p>';
+      h += '<p class="note field wide">' + (p.host && find(p.host) ? T('Va pegado a ') + partName(find(p.host)).toLowerCase() + '.' : T('Fijo a la pared.')) + '</p>';
     }
     h += '</div>';
     el.innerHTML = h;
@@ -1353,19 +1358,19 @@
     bindInspector(el, p);
   }
   function deviceFields(p) {
-    var h = field('Generador', 'f_gen', 0, 1, 0.01, p.gen || 0, 'N·m·s', 'Saca electricidad del giro. 0 = desconectado.');
-    h += segField('Lo que produce el generador', 'f_gdest', [['bus', 'Se guarda'], ['grid', 'Se vierte a la red']], p.gdest === 'grid' ? 'grid' : 'bus', true);
-    h += toggleField('Motor', 'f_motor', !!p.motor, 'Empuja el giro con electricidad.');
+    var h = field(T('Generador'), 'f_gen', 0, 1, 0.01, p.gen || 0, 'N·m·s', T('Saca electricidad del giro. 0 = desconectado.'));
+    h += segField(T('Lo que produce el generador'), 'f_gdest', [['bus', T('Se guarda')], ['grid', T('Se vierte a la red')]], p.gdest === 'grid' ? 'grid' : 'bus', true);
+    h += toggleField(T('Motor'), 'f_motor', !!p.motor, T('Empuja el giro con electricidad.'));
     if (p.motor) {
-      h += field('Velocidad del motor', 'f_mrpm', -200, 200, 1, p.mrpm || 0, 'rpm', 'Positivo: sentido de las agujas del reloj.', 0);
-      h += field('Fuerza máxima del motor', 'f_mtorque', 0.05, 5, 0.05, p.mtorque || 0.5, 'N·m');
-      h += segField('El motor se alimenta de', 'f_msrc', [['battery', 'Una batería'], ['grid', 'La red eléctrica'], ['bus', 'Sus generadores']], p.msrc || 'battery', true);
+      h += field(T('Velocidad del motor'), 'f_mrpm', -200, 200, 1, p.mrpm || 0, 'rpm', T('Positivo: sentido de las agujas del reloj.'), 0);
+      h += field(T('Fuerza máxima del motor'), 'f_mtorque', 0.05, 5, 0.05, p.mtorque || 0.5, 'N·m');
+      h += segField(T('El motor se alimenta de'), 'f_msrc', [['battery', T('Una batería')], ['grid', T('La red eléctrica')], ['bus', T('Sus generadores')]], p.msrc || 'battery', true);
     }
     return h;
   }
   function massHelp(p) {
     var V = 4 / 3 * Math.PI * p.r * p.r * p.r, m = V * (DENS[p.mat] || 7850);
-    return 'Una bola maciza de ' + P.MATERIALS[p.mat].name.split(' ')[0].toLowerCase() + ' de este tamaño pesaría ' + fmt(m, m < 1 ? 2 : 1) + ' kg.';
+    return T('Una bola maciza de ') + P.MATERIALS[p.mat].name.split(' ')[0].toLowerCase() + T(' de este tamaño pesaría ') + fmt(m, m < 1 ? 2 : 1) + ' kg.';
   }
   function bindInspector(el, p) {
     function liveRange(id, key, unit, digits, after) {
@@ -1385,7 +1390,7 @@
     liveRange('f_rpm', 'rpm', 'rpm', 0); liveRange('f_gen', 'gen', 'N·m·s', 2);
     liveRange('f_mrpm', 'mrpm', 'rpm', 0); liveRange('f_mtorque', 'mtorque', 'N·m', 2);
     liveRange('f_k', 'k', 'N/m', 0); liveRange('f_rest', 'rest', 'm', 2); liveRange('f_damp', 'damp', 'N·s/m', 1);
-    liveRange('f_mu', 'mu', 'A·m²', 1, function () { var hh = $('f_mu_h'); if (hh) hh.textContent = 'Consume ' + fmt(P.electroPower(p.mu), 1) + ' W de la batería mientras está encendido.'; });
+    liveRange('f_mu', 'mu', 'A·m²', 1, function () { var hh = $('f_mu_h'); if (hh) hh.textContent = T('Consume ') + fmt(P.electroPower(p.mu), 1) + T(' W de la batería mientras está encendido.'); });
     function sel(id, fn) { var c = $(id); if (c) c.addEventListener('change', function () { var b = snapshot(); fn(c.value); commit(b); }); }
     sel('f_bearing', function (v) { p.bearing = v; });
     sel('f_mat', function (v) { p.mat = v; });
@@ -1452,14 +1457,14 @@
 
   function renderConditions() {
     var el = $('conditions'), dz = S.design, design = S.mode === 'design';
-    el.innerHTML = '<h2>Condiciones de la prueba</h2><div class="fields">' +
-      segField('Gravedad', 'c_grav', [['tierra', 'Tierra'], ['luna', 'Luna'], ['marte', 'Marte']], dz.gravity, true) +
-      toggleField('Mundo ideal', 'c_ideal', dz.ideal, 'Sin rozamiento en los ejes ni aire. No existe, pero sirve para ver que ni así se gana energía.', !design) +
-      toggleField('Aire', 'c_air', dz.air && !dz.ideal, 'Frena lo que se mueve deprisa.', !design || dz.ideal) +
-      toggleField('Ajustar a la cuadrícula', 'c_snap', S.snap, 'Coloca las piezas en centímetros exactos y engancha bordes y centros.') +
-      toggleField('Ver lo que tira de cada lado', 'c_forces', S.forces, 'En la vista plana, dibuja la distancia de cada pesa al eje de la rueda.') +
-      numField('Precio de la luz', 'c_price', dz.price != null ? dz.price : 15, 'cént./kWh', 1, true) +
-      '</div>' + (design ? '' : '<p class="note">Para cambiar las condiciones, pulsa «Diseñar».</p>') + photoSection();
+    el.innerHTML = T('<h2>Condiciones de la prueba</h2><div class="fields">') +
+      segField(T('Gravedad'), 'c_grav', [['tierra', T('Tierra')], ['luna', T('Luna')], ['marte', T('Marte')]], dz.gravity, true) +
+      toggleField(T('Mundo ideal'), 'c_ideal', dz.ideal, T('Sin rozamiento en los ejes ni aire. No existe, pero sirve para ver que ni así se gana energía.'), !design) +
+      toggleField(T('Aire'), 'c_air', dz.air && !dz.ideal, T('Frena lo que se mueve deprisa.'), !design || dz.ideal) +
+      toggleField(T('Ajustar a la cuadrícula'), 'c_snap', S.snap, T('Coloca las piezas en centímetros exactos y engancha bordes y centros.')) +
+      toggleField(T('Ver lo que tira de cada lado'), 'c_forces', S.forces, T('En la vista plana, dibuja la distancia de cada pesa al eje de la rueda.')) +
+      numField(T('Precio de la luz'), 'c_price', dz.price != null ? dz.price : 15, T('cént./kWh'), 1, true) +
+      '</div>' + (design ? '' : T('<p class="note">Para cambiar las condiciones, pulsa «Diseñar».</p>')) + photoSection();
     el.querySelectorAll('[data-seg="c_grav"]').forEach(function (b) { b.disabled = !design; b.addEventListener('click', function () { var s0 = snapshot(); S.design.gravity = b.getAttribute('data-val'); commit(s0); }); });
     function chk(id, fn) { var c = $(id); if (c) c.addEventListener('change', function () { fn(c.checked); renderConditions(); }); }
     chk('c_ideal', function (v) { var b = snapshot(); S.design.ideal = v; commit(b); });
@@ -1478,26 +1483,29 @@
   }
   function photoSection() {
     var ph = S.design.photo, design = S.mode === 'design';
-    var h = '<h2 style="margin-top:16px">Foto de tu maqueta</h2>';
+    var h = T('<h2 style="margin-top:16px">Foto de tu maqueta</h2>');
     if (!ph) {
-      return h + '<p class="note">Si ya tienes una maqueta hecha que no funciona, hazle una foto de frente. La pones de fondo, la ajustas a su tamaño real y calcas encima sus piezas para probarla aquí. La app no reconoce sola las piezas de la foto: tú las dibujas encima, con sus medidas.</p>' +
-        '<div class="row"><button class="btn primary" id="ph_add" type="button"' + (design ? '' : ' disabled') + '>Subir una foto de tu maqueta</button></div>';
+      return h + T('<p class="note">Si ya tienes una maqueta hecha que no funciona, hazle una foto de frente, con toda la rueda dentro. La app busca en la foto la rueda y las pesas, tú lo confirmas y pones las medidas reales, y se convierte en piezas que puedes probar aquí.</p>') +
+        '<div class="row"><button class="btn primary" id="ph_scan" type="button"' + (design ? '' : ' disabled') + T('>Convertir mi maqueta en piezas</button><button class="btn" id="ph_add" type="button"') + (design ? '' : ' disabled') + T('>Solo ponerla de fondo</button></div>') +
+        T('<p class="note">La foto se analiza en tu dispositivo y no se envía a ningún sitio. Si tu maqueta no es una rueda, ponla de fondo y calca encima sus piezas.</p>');
     }
     var data = photoData(ph.id);
-    h += (data ? '<img class="photo-thumb" alt="Foto de tu maqueta" src="' + data + '">' : '<p class="note">La imagen de esta foto no está en este dispositivo.</p>');
-    h += '<div class="fields">' + numField('Ancho de la foto', 'ph_w', ph.w * 100, 'cm', 1) + numField('Giro', 'ph_rot', ph.rot || 0, '°', 1) +
-      numField('Centro X', 'ph_x', ph.x * 100, 'cm', 1) + numField('Centro Y', 'ph_y', ph.y * 100, 'cm', 1) +
-      field('Transparencia', 'ph_op', 0.1, 1, 0.05, ph.op, '', null, 2) + '</div>' +
-      '<p class="note"><b>Para ponerla a escala:</b> con <b>Medir</b>, marca en la foto algo cuya medida real conozcas (por ejemplo el diámetro de la rueda) y escribe aquí cuánto mide de verdad.</p>' +
-      '<div class="fields">' + numField('La medida marcada mide de verdad', 'ph_cal', S.lastCal || 50, 'cm', 1, true) + '</div>' +
-      '<div class="row"><button class="btn primary" id="ph_scale" type="button">Ajustar la escala</button><button class="btn" id="ph_change" type="button">Cambiar la foto</button><button class="btn danger" id="ph_del" type="button">Quitar la foto</button></div>';
+    h += (data ? '<img class="photo-thumb" alt="Foto de tu maqueta" src="' + data + '">' : T('<p class="note">La imagen de esta foto no está en este dispositivo.</p>'));
+    h += '<div class="fields">' + numField(T('Ancho de la foto'), 'ph_w', ph.w * 100, 'cm', 1) + numField(T('Giro'), 'ph_rot', ph.rot || 0, '°', 1) +
+      numField(T('Centro X'), 'ph_x', ph.x * 100, 'cm', 1) + numField(T('Centro Y'), 'ph_y', ph.y * 100, 'cm', 1) +
+      field(T('Transparencia'), 'ph_op', 0.1, 1, 0.05, ph.op, '', null, 2) + '</div>' +
+      T('<p class="note"><b>Para ponerla a escala:</b> con <b>Medir</b>, marca en la foto algo cuya medida real conozcas (por ejemplo el diámetro de la rueda) y escribe aquí cuánto mide de verdad.</p>') +
+      '<div class="fields">' + numField(T('La medida marcada mide de verdad'), 'ph_cal', S.lastCal || 50, 'cm', 1, true) + '</div>' +
+      T('<div class="row"><button class="btn primary" id="ph_scale" type="button">Ajustar la escala</button><button class="btn" id="ph_scan2" type="button">Convertir la foto en piezas</button><button class="btn" id="ph_change" type="button">Cambiar la foto</button><button class="btn danger" id="ph_del" type="button">Quitar la foto</button></div>');
     return h;
   }
   function bindPhotoSection(el) {
     var add = $('ph_add'); if (add) add.onclick = function () { $('photoFile').click(); };
+    var sc = $('ph_scan'); if (sc) sc.onclick = openScanFile;
     var ph = S.design.photo;
     if (!ph) return;
-    if (S.mode !== 'design') { el.querySelectorAll('#ph_scale,#ph_change,#ph_del,[data-num^="ph_"],input[id^="ph_"]').forEach(function (c) { c.disabled = true; }); return; }
+    if (S.mode !== 'design') { el.querySelectorAll('#ph_scale,#ph_scan2,#ph_change,#ph_del,[data-num^="ph_"],input[id^="ph_"]').forEach(function (c) { c.disabled = true; }); return; }
+    $('ph_scan2').onclick = scanCurrentPhoto;
     function upd(fn) { return function (v) { var b = snapshot(); fn(v); commit(b); }; }
     bindNumSimple(el, 'ph_w', upd(function (v) { ph.w = Math.max(0.02, v / 100); }));
     bindNumSimple(el, 'ph_rot', upd(function (v) { ph.rot = v; }));
@@ -1509,15 +1517,15 @@
     op.addEventListener('change', function () { save(); });
     $('ph_scale').onclick = function () {
       var m = S.measure, real = (parseFloat(String($('ph_cal').value).replace(',', '.')) || 0) / 100;
-      if (!m || !m.b) { toast('Primero marca una medida en la foto con la herramienta «Medir».'); return; }
+      if (!m || !m.b) { toast(T('Primero marca una medida en la foto con la herramienta «Medir».')); return; }
       var len = Math.hypot(m.b.x - m.a.x, m.b.y - m.a.y);
-      if (len < 0.005 || real <= 0) { toast('La medida marcada es demasiado corta.'); return; }
+      if (len < 0.005 || real <= 0) { toast(T('La medida marcada es demasiado corta.')); return; }
       var k = real / len, b = snapshot();
       ph.x = m.a.x + (ph.x - m.a.x) * k; ph.y = m.a.y + (ph.y - m.a.y) * k; ph.w *= k;
       S.lastCal = real * 100;
       S.measure = { a: m.a, b: { x: m.a.x + (m.b.x - m.a.x) * k, y: m.a.y + (m.b.y - m.a.y) * k } };
       commit(b); fitPhoto();
-      toast('Escala ajustada: la medida marcada ahora mide ' + fmtCm(real) + '.');
+      toast(T('Escala ajustada: la medida marcada ahora mide ') + fmtCm(real) + '.');
     };
     $('ph_change').onclick = function () { $('photoFile').click(); };
     $('ph_del').onclick = removePhoto;
@@ -1533,15 +1541,15 @@
 
   function renderAbout() {
     var el = $('about'), st = S.design.example && STORIES[S.design.example];
-    var howto = '<h4>Cómo se usa</h4><ol>' +
-      '<li>Pulsa <b>Añadir</b>, elige una pieza y tócala o arrástrala en el banco. Las líneas finas de la cuadrícula están cada 10 cm.</li>' +
-      '<li>Toca una pieza con <b>Mover</b> para ver sus medidas exactas en centímetros y grados, y cambiarlas con + y −.</li>' +
-      '<li>Con <b>Clonar</b> repites una pieza: alrededor de una rueda (por ejemplo 8 brazos iguales) o en fila, a la distancia que digas.</li>' +
-      '<li>Cambia entre <b>Plano</b> (para dibujar con precisión) y <b>3D</b> (para verla en perspectiva; arrastra el fondo para girarla).</li>' +
-      '<li>Pulsa <b>Probar</b>. Durante la prueba puedes empujar piezas con el dedo. En <b>Cuentas</b> verás de dónde sale y a dónde va cada julio.</li></ol>' +
-      '<p class="note">El banco calcula las máquinas en un plano, como una rueda o un péndulo de pared. La vista 3D les da grosor para que las veas como serían, pero las piezas no se mueven hacia delante ni hacia atrás.</p>';
-    if (st) el.innerHTML = '<h3>' + esc(st.title) + '</h3><p class="era">' + esc(st.era) + '</p><p>' + esc(st.what) + '</p><h4>Qué demuestra</h4><p>' + esc(st.why) + '</p>' + exampleProductHtml(S.design.example) + howto;
-    else el.innerHTML = '<h3>Tu máquina</h3><p>Dibuja tu idea a escala real: el banco usa centímetros, kilos y la gravedad de verdad. Lo que veas aquí es lo que harían esas piezas si las fabricaras.</p>' + howto;
+    var howto = T('<h4>Cómo se usa</h4><ol>') +
+      T('<li>Pulsa <b>Añadir</b>, elige una pieza y tócala o arrástrala en el banco. Las líneas finas de la cuadrícula están cada 10 cm.</li>') +
+      T('<li>Toca una pieza con <b>Mover</b> para ver sus medidas exactas en centímetros y grados, y cambiarlas con + y −.</li>') +
+      T('<li>Con <b>Clonar</b> repites una pieza: alrededor de una rueda (por ejemplo 8 brazos iguales) o en fila, a la distancia que digas.</li>') +
+      T('<li>Cambia entre <b>Plano</b> (para dibujar con precisión) y <b>3D</b> (para verla en perspectiva; arrastra el fondo para girarla).</li>') +
+      T('<li>Pulsa <b>Probar</b>. Durante la prueba puedes empujar piezas con el dedo. En <b>Cuentas</b> verás de dónde sale y a dónde va cada julio.</li></ol>') +
+      T('<p class="note">El banco calcula las máquinas en un plano, como una rueda o un péndulo de pared. La vista 3D les da grosor para que las veas como serían, pero las piezas no se mueven hacia delante ni hacia atrás.</p>');
+    if (st) el.innerHTML = '<h3>' + esc(st.title) + '</h3><p class="era">' + esc(st.era) + '</p><p>' + esc(st.what) + T('</p><h4>Qué demuestra</h4><p>') + esc(st.why) + '</p>' + exampleProductHtml(S.design.example) + howto;
+    else el.innerHTML = T('<h3>Tu máquina</h3><p>Dibuja tu idea a escala real: el banco usa centímetros, kilos y la gravedad de verdad. Lo que veas aquí es lo que harían esas piezas si las fabricaras.</p>') + howto;
   }
 
   // ---------- pestañas y hoja ----------
@@ -1557,7 +1565,7 @@
   function applySheet(open) {
     S.sheetOpen = open;
     $('side').setAttribute('data-open', String(open));
-    $('stripBtn').textContent = open && mqMobile.matches ? 'Ocultar panel' : 'Cuentas';
+    $('stripBtn').textContent = open && mqMobile.matches ? T('Ocultar panel') : T('Cuentas');
     requestAnimationFrame(function () { resize(); markDirty(); });
   }
   function setSheet(open) {
@@ -1602,11 +1610,11 @@
   }
   function onTool(id) {
     if (id === 'undo') { doUndo(); return; }
-    if (S.mode !== 'design' && id !== 'move') { toast('Pulsa «Diseñar» para cambiar la máquina.'); return; }
+    if (S.mode !== 'design' && id !== 'move') { toast(T('Pulsa «Diseñar» para cambiar la máquina.')); return; }
     if (id === 'add') { openPalette(); return; }
     if (id === 'clone') {
       if (S.sel && find(S.sel)) { openClone(S.sel); return; }
-      S.tool = 'move'; S.pendingClone = true; updateTools(); updateHint(); toast('Toca la pieza que quieres clonar.'); return;
+      S.tool = 'move'; S.pendingClone = true; updateTools(); updateHint(); toast(T('Toca la pieza que quieres clonar.')); return;
     }
     S.pendingClone = false;
     S.tool = id; S.addKind = null;
@@ -1624,7 +1632,7 @@
       if (id === 'add') {
         var it = S.tool === 'add' && S.addKind ? PAL_BY_ID[S.addKind] : null;
         b.querySelector('svg').innerHTML = it ? IC[S.addKind] : IC.add;
-        b.querySelector('.lbl').textContent = it ? it.name.split(' ')[0] : 'Añadir';
+        b.querySelector('.lbl').textContent = it ? it.name.split(' ')[0] : T('Añadir');
       }
     });
   }
@@ -1649,16 +1657,16 @@
   }
   function doUndo() {
     if (S.mode !== 'design') backToDesign();
-    if (!S.undo.length) { toast('No hay nada que deshacer.'); return; }
+    if (!S.undo.length) { toast(T('No hay nada que deshacer.')); return; }
     S.redo.push(snapshot());
     var d = sanitize(JSON.parse(S.undo.pop()));
-    if (d) { setDesign(d, true); toast('Deshecho.', 'Rehacer', doRedo); }
+    if (d) { setDesign(d, true); toast(T('Deshecho.'), T('Rehacer'), doRedo); }
   }
   function doRedo() {
-    if (!S.redo.length) { toast('No hay nada que rehacer.'); return; }
+    if (!S.redo.length) { toast(T('No hay nada que rehacer.')); return; }
     S.undo.push(snapshot());
     var d = sanitize(JSON.parse(S.redo.pop()));
-    if (d) { setDesign(d, true); toast('Rehecho.', 'Deshacer', doUndo); }
+    if (d) { setDesign(d, true); toast(T('Rehecho.'), T('Deshacer'), doUndo); }
   }
 
   // ---------- paleta ----------
@@ -1671,6 +1679,7 @@
     $('palBody').querySelectorAll('[data-kind]').forEach(function (b) {
       b.addEventListener('click', function () {
         if (b.dataset.kind === 'photo') { closeModal('palette'); setTimeout(function () { $('photoFile').click(); }, 60); return; }
+        if (b.dataset.kind === 'scan') { closeModal('palette'); setTimeout(openScanFile, 60); return; }
         S.tool = 'add'; S.addKind = b.dataset.kind; S.pendingClone = false; S.measure = null;
         closeModal('palette'); updateTools(); updateHint();
       });
@@ -1695,23 +1704,23 @@
   function closeClone() { S.clone = null; S.clonePreview = null; closeModal('cloneModal'); markDirty(); }
   function renderClone() {
     var c = S.clone, u = c.unit;
-    var plural = { 'imán': 'imanes', rueda: 'ruedas', pesa: 'pesas', brazo: 'brazos', rampa: 'rampas', bisagra: 'bisagras', muelle: 'muelles' };
-    var ps = Object.keys(u.summary).map(function (k) { var n = u.summary[k]; return n + ' ' + (n === 1 ? k : plural[k]); });
+    var word = { magnet: [T('imán'), T('imanes')], wheel: [T('rueda'), T('ruedas')], ball: [T('pesa'), T('pesas')], bar: [T('brazo'), T('brazos')], ramp: [T('rampa'), T('rampas')], pin: [T('bisagra'), T('bisagras')], spring: [T('muelle'), T('muelles')] };
+    var ps = Object.keys(u.summary).map(function (k) { var n = u.summary[k]; return n + ' ' + word[k][n === 1 ? 0 : 1]; });
     var wheels = parts().filter(function (q) { return q.kind === 'wheel' && !u.ids.has(q.id); });
-    var h = '<p class="note">Se copiará: ' + esc(joinEs(ps)) + '.</p><div class="fields">';
-    h += segField('Cómo', 'k_mode', (u.sel.kind === 'wheel' ? [] : [['circle', 'En círculo']]).concat([['line', 'En fila']]), c.mode, true);
+    var h = T('<p class="note">Se copiará: ') + esc(joinEs(ps)) + '.</p><div class="fields">';
+    h += segField(T('Cómo'), 'k_mode', (u.sel.kind === 'wheel' ? [] : [['circle', T('En círculo')]]).concat([['line', T('En fila')]]), c.mode, true);
     if (c.mode === 'circle') {
-      h += selectField('Alrededor de', 'k_center', wheels.map(function (q, i) { return [q.id, 'El eje de la rueda ' + (i + 1) + ' (radio ' + fmtCm(q.r) + ')']; }).concat([['', 'Otro punto']]), c.center);
-      if (!c.center) h += numField('Centro X', 'k_cx', c.cx * 100, 'cm', 1) + numField('Centro Y', 'k_cy', c.cy * 100, 'cm', 1);
-      h += numField('Piezas en total en el círculo', 'k_n', c.n, 'uds.', 1);
-      h += numField('Repartidas en', 'k_span', c.span, '°', 15);
+      h += selectField(T('Alrededor de'), 'k_center', wheels.map(function (q, i) { return [q.id, T('El eje de la rueda ') + (i + 1) + T(' (radio ') + fmtCm(q.r) + ')']; }).concat([['', T('Otro punto')]]), c.center);
+      if (!c.center) h += numField(T('Centro X'), 'k_cx', c.cx * 100, 'cm', 1) + numField(T('Centro Y'), 'k_cy', c.cy * 100, 'cm', 1);
+      h += numField(T('Piezas en total en el círculo'), 'k_n', c.n, T('uds.'), 1);
+      h += numField(T('Repartidas en'), 'k_span', c.span, '°', 15);
       var step = c.span >= 359.9 ? 360 / c.n : c.span / Math.max(1, c.n - 1);
-      h += '<p class="note field wide">Una cada ' + fmt(step, 1) + '°. La original cuenta como la primera.</p>';
+      h += T('<p class="note field wide">Una cada ') + fmt(step, 1) + T('°. La original cuenta como la primera.</p>');
     } else {
-      h += numField('Copias nuevas', 'k_n', c.n, 'uds.', 1, true);
-      h += numField('Separación X', 'k_dx', c.dx * 100, 'cm', 1) + numField('Separación Y', 'k_dy', c.dy * 100, 'cm', 1);
+      h += numField(T('Copias nuevas'), 'k_n', c.n, T('uds.'), 1, true);
+      h += numField(T('Separación X'), 'k_dx', c.dx * 100, 'cm', 1) + numField(T('Separación Y'), 'k_dy', c.dy * 100, 'cm', 1);
     }
-    h += '</div><div class="row"><button class="btn primary" id="k_go" type="button">Crear copias</button></div>';
+    h += T('</div><div class="row"><button class="btn primary" id="k_go" type="button">Crear copias</button></div>');
     var body = $('cloneBody');
     body.innerHTML = h;
     body.querySelectorAll('[data-seg="k_mode"]').forEach(function (b) { b.addEventListener('click', function () { c.mode = b.getAttribute('data-val'); if (c.mode === 'line') c.n = Math.min(c.n, 4); renderClone(); }); });
@@ -1731,12 +1740,12 @@
       S.design.parts = S.design.parts.concat(copies);
       closeClone(); commit(before); buzz(15);
       if (c.mode === 'circle' && cloneTransforms(c).length + 1 >= 8 && u.list.some(function (q) { return q.kind === 'ball'; }) && u.host) completeGoal('fabrica');
-      toast((tr.length === 1 ? 'Creada 1 copia' : 'Creadas ' + tr.length + ' copias') + '. «Deshacer» las quita.');
+      toast((tr.length === 1 ? T('Creada 1 copia') : T('Creadas ') + tr.length + T(' copias')) + T('. «Deshacer» las quita.'));
     });
   }
 
   // ---------- foto de la maqueta ----------
-  // La app no reconoce las piezas de una foto: la pone de plantilla, a escala, para calcarlas encima.
+  // Dos caminos: convertirla en piezas (más abajo, con vision.js) o ponerla de plantilla, a escala, para calcar encima.
   var PHOTO = { id: null, img: null, ok: false };
   function photoData(id) { try { return localStorage.getItem(KEYS.photo + id); } catch (e) { return null; } }
   function savePhotoData(id, data) { try { localStorage.setItem(KEYS.photo + id, data); return true; } catch (e) { return false; } }
@@ -1753,39 +1762,65 @@
     }
     return PHOTO.ok ? PHOTO.img : null;
   }
-  function loadPhotoFile(file) {
+  // Lee la foto, la reduce a un tamaño razonable y devuelve sus datos y la imagen ya cargada.
+  function readPhoto(file, cb) {
     var r = new FileReader();
-    r.onerror = function () { toast('No se ha podido leer esa foto.'); };
+    r.onerror = function () { toast(T('No se ha podido leer esa foto.')); };
     r.onload = function () {
       var img = new Image();
-      img.onerror = function () { toast('Ese archivo no es una imagen que se pueda abrir.'); };
+      img.onerror = function () { toast(T('Ese archivo no es una imagen que se pueda abrir.')); };
       img.onload = function () {
         var max = 1400, k = Math.min(1, max / Math.max(img.width, img.height));
         var c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        var data = c.toDataURL('image/jpeg', 0.78), id = 'f' + Date.now().toString(36);
-        if (!savePhotoData(id, data)) { toast('No queda sitio para guardar la foto en este dispositivo. Borra algún diseño o usa una foto más pequeña.'); return; }
-        var before = snapshot();
-        if (S.design.photo) { try { localStorage.removeItem(KEYS.photo + S.design.photo.id); } catch (e) { /* nada */ } }
-        var w = is3d() ? 1.2 : Math.max(0.3, S.vw / S.cam.s * 0.8);
-        var cx = is3d() ? GL.cam.tx : S.cam.x, cy = is3d() ? GL.cam.ty : S.cam.y;
-        S.design.photo = { id: id, x: cx, y: cy, w: Math.round(w * 100) / 100, rot: 0, op: 0.6 };
-        if (S.mode !== 'design') backToDesign();
-        setView('2d');
-        commit(before);
-        setTab('prueba', true);
-        toast('Foto puesta. Ajusta su escala con la regla y calca encima las piezas.');
+        var data = c.toDataURL('image/jpeg', 0.78), im2 = new Image();
+        im2.onload = function () { cb(data, im2); };
+        im2.src = data;
       };
       img.src = String(r.result || '');
     };
     r.readAsDataURL(file);
+  }
+  // Guarda la foto en el dispositivo. Si no cabe, borra antes las fotos que ya no usa ningún diseño abierto.
+  function storePhoto(data) {
+    var id = 'f' + Date.now().toString(36);
+    if (savePhotoData(id, data)) return id;
+    prunePhotos();
+    return savePhotoData(id, data) ? id : null;
+  }
+  function prunePhotos() {
+    var keep = {}, snaps = [snapshot()].concat(S.undo, S.redo);
+    snaps.forEach(function (sn) { var m = /"photo":\{"id":"([^"]+)"/.exec(sn || ''); if (m) keep[m[1]] = 1; });
+    try {
+      var del = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf(KEYS.photo) === 0 && !keep[key.slice(KEYS.photo.length)]) del.push(key);
+      }
+      del.forEach(function (key) { localStorage.removeItem(key); });
+    } catch (e) { /* sin almacenamiento */ }
+  }
+  function loadPhotoFile(file) { readPhoto(file, function (data) { tracePhoto(data); }); }
+  // La foto de fondo, para calcar encima las piezas a mano.
+  function tracePhoto(data) {
+    var id = storePhoto(data);
+    if (!id) { toast(T('No queda sitio para guardar la foto en este dispositivo. Borra algún diseño o usa una foto más pequeña.')); return; }
+    var before = snapshot();
+    var w = is3d() ? 1.2 : Math.max(0.3, S.vw / S.cam.s * 0.8);
+    var cx = is3d() ? GL.cam.tx : S.cam.x, cy = is3d() ? GL.cam.ty : S.cam.y;
+    S.design.photo = { id: id, x: cx, y: cy, w: Math.round(w * 100) / 100, rot: 0, op: 0.6 };
+    if (S.mode !== 'design') backToDesign();
+    setView('2d');
+    commit(before);
+    setTab('prueba', true);
+    toast(T('Foto puesta. Ajusta su escala con la regla y calca encima las piezas.'));
   }
   function removePhoto() {
     if (!S.design.photo) return;
     var before = snapshot();
     S.design.photo = null;
     commit(before);
-    toast('Foto quitada.', 'Deshacer', doUndo);
+    toast(T('Foto quitada.'), T('Deshacer'), doUndo);
   }
   function drawPhoto() {
     var ph = S.design.photo, img = photoImg();
@@ -1793,6 +1828,270 @@
     var c = W2S(ph.x, ph.y), w = ph.w * S.cam.s, h = w * img.height / img.width;
     ctx.save(); ctx.globalAlpha = Math.max(0.1, Math.min(1, ph.op)); ctx.translate(c.x, c.y); ctx.rotate(-(ph.rot || 0) * DEG);
     ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
+  }
+
+  // ---------- convertir una maqueta real en piezas ----------
+  // La foto se analiza en el propio dispositivo (vision.js): busca la rueda y las pesas, la persona lo
+  // confirma o lo corrige con el dedo, pone las medidas reales y la app crea las piezas a tamaño real.
+  var VIS = window.PerpetuumVision, SC = null;
+  var MOUNTS = [['topes', T('Brazos con topes')], ['libres', T('Brazos que cuelgan libres')], ['fijas', T('Pegadas a la rueda')], ['sueltas', T('Sueltas dentro de la rueda')]];
+  var MOUNT_HELP = {
+    topes: T('Cada pesa va en un brazo con bisagra que solo se abre hasta un tope, como la rueda de mazos.'),
+    libres: T('Cada pesa cuelga de una bisagra y puede dar la vuelta entera.'),
+    fijas: T('Las pesas no se mueven respecto de la rueda: van pegadas, atornilladas o en brazos rígidos.'),
+    sueltas: T('Bolas que ruedan dentro de la rueda. La app pone un compartimento por bola.')
+  };
+  function scanArms() { return SC && SC.mount !== 'sueltas'; }
+  function openScanFile() { $('scanFile').click(); }
+  function startScan(data, img, photoId) {
+    if (!VIS) { tracePhoto(data); return; }
+    if (S.mode !== 'design') backToDesign();
+    SC = { data: data, img: img, photoId: photoId || null, step: 0, busy: true, A: null, wheel: null, weights: [], found: false,
+      tap: 'center', pc: null, wheelDirty: false, mount: null, fitAuto: null, adj: 0,
+      diam: S.lastScanDiam || 40, wmass: null, mat: 'acero', armMass: null, wheelMass: null, bearing: 'bolas' };
+    showModal('scanModal', function () { SC = null; });
+    renderScan();
+    setTimeout(function () {
+      if (!SC) return;
+      try {
+        SC.A = VIS.analyze(img);
+        SC.wheel = VIS.findWheel(SC.A);
+        if (SC.wheel) SC.weights = VIS.findWeights(SC.A, SC.wheel);
+      } catch (e) { SC.wheel = null; SC.weights = []; }
+      SC.found = !!SC.wheel; SC.busy = false;
+      renderScan();
+    }, 80);
+  }
+  function scanTypicalR() {
+    if (!SC.weights.length) return SC.wheel ? SC.wheel.r * 0.1 : 20;
+    var rs = SC.weights.map(function (w) { return w.r; }).sort(function (a, b) { return a - b; });
+    return rs[Math.floor(rs.length / 2)];
+  }
+  function scanFit() {
+    if (!SC.wheel || !SC.weights.length || !scanArms()) return null;
+    if (!SC.fitAuto) SC.fitAuto = VIS.fitHinges(SC.wheel, SC.weights);
+    if (!SC.adj) return SC.fitAuto;
+    return VIS.fitHinges(SC.wheel, SC.weights, SC.fitAuto.phase + SC.adj * DEG, SC.fitAuto.rf);
+  }
+  function scanScale() { return SC.wheel ? (SC.diam / 100) / (2 * SC.wheel.r) : 0; }
+  // valores de partida razonables: lo que pesarían las piezas por su tamaño
+  function scanDefaults() {
+    var k = scanScale(), rs = scanTypicalR() * k;
+    if (SC.wmass == null) SC.wmass = Math.max(5, Math.min(5000, Math.round(4 / 3 * Math.PI * rs * rs * rs * DENS[SC.mat] * 1000 / 5) * 5));
+    if (SC.wheelMass == null) { var R = SC.diam / 200; SC.wheelMass = Math.max(20, Math.min(50000, Math.round(Math.PI * R * R * 0.012 * 600 * 1000 / 10) * 10)); }
+    if (SC.armMass == null) {
+      var f = scanFit(), L = f ? f.L * k : 0.15;
+      SC.armMass = Math.max(5, Math.round(L * 100 / 5) * 5);
+    }
+    if (!SC.mount) {
+      var inside = SC.weights.filter(function (w) { return Math.hypot(w.x - SC.wheel.cx, w.y - SC.wheel.cy) < SC.wheel.r * 0.92; }).length;
+      SC.mount = SC.weights.length && inside > SC.weights.length / 2 ? 'sueltas' : 'topes';
+    }
+  }
+  function renderScan() {
+    if (!SC) return;
+    var names = [T('La rueda'), T('Las pesas'), T('Cómo van')];
+    $('scanSteps').innerHTML = names.map(function (n, i) {
+      return '<li' + (i === SC.step ? ' aria-current="step"' : '') + (i < SC.step ? ' class="done"' : '') + '><b>' + (i + 1) + '</b> ' + n + '</li>';
+    }).join('');
+    $('scanBusy').hidden = !SC.busy;
+    var h = '', n = SC.weights.length;
+    if (SC.busy) h = T('<p class="note">Analizando la foto en tu dispositivo. No se envía a ningún sitio.</p>');
+    else if (SC.step === 0) {
+      h += '<p class="scan-say">' + (SC.tap === 'edge' ? T('Ahora toca un punto del <b>borde</b> de la rueda.') :
+        (SC.wheel ? (SC.found ? T('He encontrado la rueda: es el círculo verde. ') : T('Rueda marcada. ')) + T('Si no coincide, toca el <b>centro del eje</b> y después un punto del <b>borde</b>.') :
+          T('No he encontrado la rueda. Toca el <b>centro del eje</b> y después un punto del <b>borde</b>.'))) + '</p>' +
+        '<div class="fields">' + numField(T('Diámetro real de la rueda'), 'sc_diam', SC.diam, 'cm', 1, true) + '</div>' +
+        T('<p class="note">Mídela de lado a lado con un metro: con esa medida, todas las piezas salen a su tamaño real.</p>') +
+        T('<div class="row scan-nav"><button class="btn" id="sc_trace" type="button">No es una rueda: calcarla a mano</button><button class="btn primary" id="sc_next" type="button">Siguiente</button></div>');
+    } else if (SC.step === 1) {
+      h += '<p class="scan-say">' + (n ? T(n === 1 ? 'He encontrado <b>1 pesa</b> (círculo amarillo). Toca una para quitarla, o toca donde haya otra para añadirla.' : 'He encontrado <b>{n} pesas</b> (círculos amarillos). Toca una para quitarla, o toca donde haya otra para añadirla.', { n: n }) :
+        T('No he encontrado pesas. Toca cada pesa de la foto para marcarla.')) + '</p>' +
+        T('<p class="note">Marca todas, también las que tape un brazo o se salgan un poco de la foto: el número de pesas decide cuántas bisagras hay.</p>') +
+        T('<div class="row scan-nav"><button class="btn" id="sc_back" type="button">Atrás</button><button class="btn primary" id="sc_next" type="button">Siguiente</button></div>');
+    } else {
+      scanDefaults();
+      var arms = scanArms() && n > 0, half = n ? Math.floor(180 / n) : 0;
+      h += segField(T('¿Cómo van las pesas?'), 'sc_mount', MOUNTS, SC.mount, true) +
+        '<p class="note">' + MOUNT_HELP[SC.mount] + (arms ? T(' Las líneas blancas son los brazos: salen de cada bisagra hasta su pesa.') : '') + '</p><div class="fields">' +
+        (arms && n > 1 ? field(T('Girar las bisagras'), 'sc_adj', -half, half, 1, SC.adj, '°', T('Si las bisagras no caen donde están en tu maqueta, gíralas.'), 0) : '') +
+        (n ? numField(T('Peso de cada pesa'), 'sc_wm', SC.wmass, 'g', 5) + selectField(T('Material de las pesas'), 'sc_mat', MAT_OPTS, SC.mat) : '') +
+        (arms ? numField(T('Peso de cada brazo'), 'sc_am', SC.armMass, 'g', 5) : '') +
+        numField(T('Peso de la rueda'), 'sc_whm', SC.wheelMass, 'g', 10) +
+        selectField(T('Eje de la rueda y bisagras'), 'sc_bear', BEAR_OPTS.filter(function (o) { return o[0] !== 'ideal'; }), SC.bearing) + '</div>' +
+        T('<p class="note">Pésalo con una báscula de cocina. Si no puedes, deja lo que sale: es lo que pesaría por su tamaño.</p>') +
+        '<p class="scan-sum">' + scanSummary() + '</p>' +
+        T('<div class="row scan-nav"><button class="btn" id="sc_back" type="button">Atrás</button><button class="btn primary" id="sc_make" type="button">Crear la máquina</button></div>');
+    }
+    $('scanCtl').innerHTML = h;
+    bindScan();
+    requestAnimationFrame(drawScan);
+  }
+  function scanSummary() {
+    var n = SC.weights.length, m = MOUNTS.filter(function (o) { return o[0] === SC.mount; })[0];
+    if (!n) return T('Rueda de {d} cm, sin pesas.', { d: fmt(SC.diam, 0) });
+    return T(n === 1 ? 'Rueda de {d} cm, 1 pesa de {m} g · {how}.' : 'Rueda de {d} cm, {n} pesas de {m} g · {how}.', { d: fmt(SC.diam, 0), n: n, m: fmt(SC.wmass, 0), how: m[1].toLowerCase() });
+  }
+  function bindScan() {
+    var el = $('scanCtl');
+    function num(id, fn) { bindNumSimple(el, id, function (v) { fn(v); renderScan(); }); }
+    num('sc_diam', function (v) { SC.diam = Math.max(2, Math.min(500, v)); SC.wmass = null; SC.wheelMass = null; SC.armMass = null; });
+    num('sc_wm', function (v) { SC.wmass = Math.max(1, Math.min(20000, v)); });
+    num('sc_am', function (v) { SC.armMass = Math.max(1, Math.min(5000, v)); });
+    num('sc_whm', function (v) { SC.wheelMass = Math.max(5, Math.min(100000, v)); });
+    el.querySelectorAll('[data-seg="sc_mount"]').forEach(function (b) { b.addEventListener('click', function () { SC.mount = b.getAttribute('data-val'); SC.fitAuto = null; SC.adj = 0; SC.armMass = null; renderScan(); }); });
+    var adj = $('sc_adj');
+    if (adj) adj.addEventListener('input', function () { SC.adj = parseFloat(adj.value) || 0; $('sc_adj_o').textContent = fmt(SC.adj, 0) + ' °'; drawScan(); });
+    var mat = $('sc_mat');
+    if (mat) mat.addEventListener('change', function () { SC.mat = mat.value; SC.wmass = null; renderScan(); });
+    var bear = $('sc_bear');
+    if (bear) bear.addEventListener('change', function () { SC.bearing = bear.value; });
+    var tr = $('sc_trace');
+    if (tr) tr.onclick = function () { var data = SC.data, had = SC.photoId; closeModal('scanModal'); if (!had) tracePhoto(data); else { setView('2d'); setTab('prueba', true); } };
+    var bk = $('sc_back');
+    if (bk) bk.onclick = function () { SC.step--; renderScan(); };
+    var nx = $('sc_next');
+    if (nx) nx.onclick = function () {
+      if (SC.step === 0) {
+        if (!SC.wheel) { toast(T('Marca primero la rueda: toca el centro del eje y un punto del borde.')); return; }
+        if (SC.wheelDirty && SC.A) { SC.weights = VIS.findWeights(SC.A, SC.wheel); SC.wheelDirty = false; }
+        SC.fitAuto = null; SC.adj = 0;
+      }
+      SC.step++; renderScan();
+    };
+    var mk = $('sc_make');
+    if (mk) mk.onclick = scanBuild;
+  }
+  function drawScan() {
+    var cv = $('scanCv');
+    if (!cv || !SC) return;
+    var r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    var W = Math.max(10, Math.round(r.width)), H = Math.max(10, Math.round(r.height));
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    var x = cv.getContext('2d');
+    x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+    var iw = SC.img.width, ih = SC.img.height, f = Math.min(W / iw, H / ih), ox = (W - iw * f) / 2, oy = (H - ih * f) / 2;
+    SC.view = { f: f, ox: ox, oy: oy };
+    x.drawImage(SC.img, ox, oy, iw * f, ih * f);
+    if (SC.busy) return;
+    function line(pts, col, wd, close) {
+      [['rgba(0,0,0,0.6)', wd + 2.5], [col, wd]].forEach(function (s) {
+        x.strokeStyle = s[0]; x.lineWidth = s[1]; x.beginPath();
+        pts.forEach(function (p, i) { if (i) x.lineTo(ox + p[0] * f, oy + p[1] * f); else x.moveTo(ox + p[0] * f, oy + p[1] * f); });
+        if (close) x.closePath();
+        x.stroke();
+      });
+    }
+    function circle(cx, cy, rr, col, wd) {
+      var pts = [];
+      for (var i = 0; i < 48; i++) pts.push([cx + rr * Math.cos(i / 48 * 2 * Math.PI), cy + rr * Math.sin(i / 48 * 2 * Math.PI)]);
+      line(pts, col, wd, true);
+    }
+    function cross(cx, cy, col) { var s = 9 / f; line([[cx - s, cy], [cx + s, cy]], col, 2); line([[cx, cy - s], [cx, cy + s]], col, 2); }
+    var GREEN = '#3ddc84', YELLOW = '#ffd23f', WHITE = '#ffffff';
+    var wh = SC.wheel;
+    if (wh) { circle(wh.cx, wh.cy, wh.r, GREEN, SC.step === 0 ? 3 : 2); cross(wh.cx, wh.cy, GREEN); }
+    if (SC.pc) cross(SC.pc.x, SC.pc.y, YELLOW);
+    if (SC.step >= 1) {
+      var fit = SC.step === 2 ? scanFit() : null;
+      if (fit) SC.weights.forEach(function (w, i) {
+        var hh = fit.hinges[i];
+        line([[hh.x, hh.y], [w.x, w.y]], WHITE, 2);
+        x.fillStyle = WHITE; x.strokeStyle = 'rgba(0,0,0,0.7)'; x.lineWidth = 2;
+        x.beginPath(); x.arc(ox + hh.x * f, oy + hh.y * f, 4.5, 0, 2 * Math.PI); x.fill(); x.stroke();
+      });
+      SC.weights.forEach(function (w, i) {
+        circle(w.x, w.y, Math.max(w.r, 6 / f), YELLOW, 2.5);
+        if (SC.step === 1) {
+          x.font = '600 12px ' + F.body; x.textAlign = 'center'; x.textBaseline = 'middle';
+          x.lineWidth = 3; x.strokeStyle = 'rgba(0,0,0,0.7)'; x.strokeText(String(i + 1), ox + w.x * f, oy + w.y * f);
+          x.fillStyle = YELLOW; x.fillText(String(i + 1), ox + w.x * f, oy + w.y * f);
+        }
+      });
+    }
+  }
+  function scanTap(e) {
+    if (!SC || SC.busy || !SC.view || SC.step > 1) return;
+    var r = $('scanCv').getBoundingClientRect(), v = SC.view;
+    var px = (e.clientX - r.left - v.ox) / v.f, py = (e.clientY - r.top - v.oy) / v.f;
+    if (px < 0 || py < 0 || px > SC.img.width || py > SC.img.height) return;
+    if (SC.step === 0) {
+      if (SC.tap === 'center') { SC.pc = { x: px, y: py }; SC.tap = 'edge'; }
+      else {
+        var rr = Math.hypot(px - SC.pc.x, py - SC.pc.y);
+        if (rr * v.f < 12) return;
+        SC.wheel = { cx: SC.pc.x, cy: SC.pc.y, r: rr }; SC.pc = null; SC.tap = 'center'; SC.wheelDirty = true; SC.found = false;
+      }
+    } else {
+      var tol = 16 / v.f, hit = -1, best = Infinity;
+      SC.weights.forEach(function (w, i) { var d = Math.hypot(w.x - px, w.y - py); if (d < Math.max(w.r * 1.15, tol) && d < best) { best = d; hit = i; } });
+      if (hit >= 0) SC.weights.splice(hit, 1); else SC.weights.push({ x: px, y: py, r: scanTypicalR() });
+      SC.fitAuto = null; SC.adj = 0; SC.armMass = null; SC.wmass = null;
+    }
+    buzz(8);
+    renderScan();
+  }
+  // De la foto al diseño: la rueda en el centro del banco, y todo a escala con el diámetro medido.
+  function scanBuild() {
+    var wh = SC.wheel, k = scanScale(), n = SC.weights.length;
+    var X = function (px) { return (px - wh.cx) * k; }, Y = function (py) { return -(py - wh.cy) * k; };
+    var d = P.emptyDesign(), R = SC.diam / 200;
+    var w = P.makeWheel(d, 0, 0, R);
+    w.m = Math.max(0.005, SC.wheelMass / 1000); w.bearing = SC.bearing; w.rpm = 0;
+    if (n >= 3 && n <= 16) w.spokes = n;
+    d.parts.push(w);
+    var rs = Math.max(0.004, Math.min(R * 0.4, scanTypicalR() * k)), m = Math.max(0.001, SC.wmass / 1000);
+    function ball(x, y) { var b = P.makeBall(d, x, y); b.r = Math.round(rs * 1000) / 1000; b.m = m; b.mat = SC.mat; d.parts.push(b); return b; }
+    if (SC.mount === 'sueltas' && n) {
+      w.style = 'ring'; w.cells = Math.max(2, Math.min(24, n)); w.tilt = 35;
+      P.ringSlots(w, rs).forEach(function (q) { ball(q.x, q.y); });
+    } else if (n) {
+      var fit = scanFit();
+      // con topes: ángulo de cada brazo respecto de «hacia fuera»; los topes dejan abrirse 100° hacia el lado en que estén
+      var al = SC.weights.map(function (wt, i) {
+        var hx = X(fit.hinges[i].x), hy = Y(fit.hinges[i].y), a = Math.atan2(Y(wt.y) - hy, X(wt.x) - hx) - Math.atan2(hy, hx);
+        while (a > Math.PI) a -= 2 * Math.PI;
+        while (a <= -Math.PI) a += 2 * Math.PI;
+        return a / DEG;
+      });
+      var side = al.reduce(function (s, a) { return s + a; }, 0) >= 0 ? 1 : -1, rlo = side > 0 ? 0 : -100, rhi = side > 0 ? 100 : 0;
+      SC.weights.forEach(function (wt, i) {
+        var hx = X(fit.hinges[i].x), hy = Y(fit.hinges[i].y), bx = X(wt.x), by = Y(wt.y), b;
+        if (Math.hypot(bx - hx, by - hy) < rs + 0.008 || SC.mount === 'fijas' && Math.hypot(bx, by) < R) {
+          // la pesa está sobre la propia rueda: va pegada a ella
+          b = ball(bx, by);
+          var weld0 = P.makePin(d, bx, by, w.id, b.id); weld0.mode = 'rigid'; d.parts.push(weld0);
+          return;
+        }
+        var bar = P.makeBar(d, hx, hy, bx, by); bar.m = Math.max(0.001, SC.armMass / 1000);
+        d.parts.push(bar);
+        b = ball(bx, by);
+        var pin = P.makePin(d, hx, hy, w.id, bar.id); pin.bearing = SC.bearing;
+        if (SC.mount === 'fijas') pin.mode = 'rigid';
+        else if (SC.mount === 'libres') pin.mode = 'free';
+        else { pin.mode = 'limits'; pin.lo = Math.max(-180, Math.min(0, Math.round(rlo - al[i]))); pin.hi = Math.min(180, Math.max(0, Math.round(rhi - al[i]))); }
+        var weld = P.makePin(d, bx, by, bar.id, b.id); weld.mode = 'rigid';
+        d.parts.push(pin, weld);
+      });
+    }
+    var id = SC.photoId || storePhoto(SC.data);
+    if (id) d.photo = { id: id, x: Math.round(X(SC.img.width / 2) * 1000) / 1000, y: Math.round(Y(SC.img.height / 2) * 1000) / 1000, w: Math.round(SC.img.width * k * 1000) / 1000, rot: 0, op: 0.45 };
+    d.next = Math.max(d.next, 1);
+    S.lastScanDiam = SC.diam;
+    var summary = scanSummary();
+    pushUndo(); S.libId = null; S.libName = '';
+    closeModal('scanModal');
+    setView('2d');
+    setDesign(d);
+    toast((id ? T('Tu maqueta ya está en el banco, encima de su foto y a tamaño real. ') : T('No queda sitio para guardar la foto, pero las piezas sí están. ')) + summary + T(' Pulsa «Probar».'), T('Deshacer'), doUndo);
+  }
+  // convertir la foto que ya está de fondo
+  function scanCurrentPhoto() {
+    var ph = S.design.photo, data = ph && photoData(ph.id);
+    if (!data) { openScanFile(); return; }
+    var img = new Image();
+    img.onload = function () { startScan(data, img, ph.id); };
+    img.src = data;
   }
 
   // ---------- temporada: patrocinadores y concurso ----------
@@ -1811,33 +2110,35 @@
     if ((c.desde && now < c.desde) || (c.hasta && now > c.hasta)) return null;
     return c;
   }
+  // textos de temporada.json: si la app está en inglés y hay versión «_en», se usa esa
+  function loc(o, k) { return o ? (I18N.lang === 'en' && o[k + '_en'] != null ? o[k + '_en'] : o[k]) : undefined; }
   function safeLink(u) { u = String(u || ''); return /^(https:\/\/|mailto:)/i.test(u) ? u : ''; }
   function safeImg(u) { u = String(u || ''); return /^(https:\/\/|[a-z0-9_\-\/]+\.(png|jpe?g|webp|svg)$)/i.test(u) ? u : ''; }
   function sponsorHtml() {
-    var list = (S.season && Array.isArray(S.season.patrocinadores)) ? S.season.patrocinadores.filter(function (p) { return p && p.nombre; }) : [];
+    var list = (S.season && Array.isArray(S.season.patrocinadores)) ? S.season.patrocinadores.filter(function (p) { return p && loc(p, 'nombre'); }) : [];
     if (!list.length) return '';
     var p = list[Math.floor(Date.now() / 86400000) % list.length], link = safeLink(p.enlace), img = safeImg(p.imagen);
-    return '<div class="sponsor"><span class="tag">Patrocinado</span>' + (img ? '<img src="' + esc(img) + '" alt="">' : '') +
-      '<div' + (img ? '' : ' style="grid-column:1/-1"') + '><b>' + esc(p.nombre) + '</b><span>' + esc(p.texto || '') + '</span></div>' +
-      (link ? '<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener sponsored">' + esc(p.boton || 'Ver') + '</a>' : '') + '</div>';
+    return T('<div class="sponsor"><span class="tag">Patrocinado</span>') + (img ? '<img src="' + esc(img) + '" alt="">' : '') +
+      '<div' + (img ? '' : ' style="grid-column:1/-1"') + '><b>' + esc(loc(p, 'nombre')) + '</b><span>' + esc(loc(p, 'texto') || '') + '</span></div>' +
+      (link ? '<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener sponsored">' + esc(loc(p, 'boton') || T('Ver')) + '</a>' : '') + '</div>';
   }
   // maquetas para probar en casa (enlaces de afiliado, siempre marcados como publicidad)
   function shop() {
-    var t = S.season && S.season.tienda, list = t && Array.isArray(t.productos) ? t.productos.filter(function (p) { return p && p.nombre && safeLink(p.enlace); }) : [];
-    return list.length ? { titulo: t.titulo || 'Maquetas para probar en casa', aviso: t.aviso || 'Publicidad. Enlaces de afiliado.', productos: list } : null;
+    var t = S.season && S.season.tienda, list = t && Array.isArray(t.productos) ? t.productos.filter(function (p) { return p && loc(p, 'nombre') && safeLink(p.enlace); }) : [];
+    return list.length ? { titulo: loc(t, 'titulo') || T('Maquetas para probar en casa'), aviso: loc(t, 'aviso') || T('Publicidad. Enlaces de afiliado.'), productos: list } : null;
   }
   function productHtml(p) {
     var img = safeImg(p.imagen);
     return '<div class="product">' + (img ? '<img src="' + esc(img) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="ph"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC.wheel + '</svg></span>') +
-      '<b>' + esc(p.nombre) + '</b>' + (p.precio ? '<span class="price">' + esc(p.precio) + '</span>' : '') + '<span>' + esc(p.texto || '') + '</span>' +
-      '<a class="btn" href="' + esc(safeLink(p.enlace)) + '" target="_blank" rel="noopener sponsored">' + esc(p.boton || 'Ver en la tienda') + '</a></div>';
+      '<b>' + esc(loc(p, 'nombre')) + '</b>' + (loc(p, 'precio') ? '<span class="price">' + esc(loc(p, 'precio')) + '</span>' : '') + '<span>' + esc(loc(p, 'texto') || '') + '</span>' +
+      '<a class="btn" href="' + esc(safeLink(p.enlace)) + '" target="_blank" rel="noopener sponsored">' + esc(loc(p, 'boton') || T('Ver en la tienda')) + '</a></div>';
   }
   function shopHtml() {
     var sh = shop();
     if (!sh) return '';
     return '<p class="adtag">' + esc(sh.titulo) + '</p><p class="note">' + esc(sh.aviso) + '</p>' +
-      '<p class="note">Cuando tengas la tuya, hazle una foto de frente y cálcala aquí con «Foto de tu maqueta»: verás en las cuentas dónde pierde la energía y por qué acaba parándose.</p>' +
-      '<div class="row"><button class="btn" id="shopPhoto" type="button">Subir la foto de mi maqueta</button></div>' +
+      T('<p class="note">Cuando tengas la tuya, hazle una foto de frente y conviértela aquí en piezas: verás en las cuentas dónde pierde la energía y por qué acaba parándose.</p>') +
+      T('<div class="row"><button class="btn" id="shopPhoto" type="button">Convertir mi maqueta en piezas</button></div>') +
       '<div class="products">' + sh.productos.map(productHtml).join('') + '</div>';
   }
   // en la historia de un ejemplo, la maqueta que se le parece (si el anunciante la ha enlazado a ese ejemplo)
@@ -1846,7 +2147,7 @@
     if (!sh || !ex) return '';
     var list = sh.productos.filter(function (p) { return p.ejemplo === ex; });
     if (!list.length) return '';
-    return '<h4>Pruébala en casa</h4><p class="note">' + esc(sh.aviso) + '</p><div class="products">' + list.map(productHtml).join('') + '</div>';
+    return T('<h4>Pruébala en casa</h4><p class="note">') + esc(sh.aviso) + '</p><div class="products">' + list.map(productHtml).join('') + '</div>';
   }
   function renderSponsor() {
     var el = $('sponsorCard'), h = sponsorHtml();
@@ -1854,25 +2155,25 @@
   }
   function contestHtml() {
     var c = contest(), best = records()[0];
-    var df = function (d) { try { return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d + 'T12:00:00')); } catch (e) { return d; } };
+    var df = function (d) { try { return new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d + 'T12:00:00')); } catch (e) { return d; } };
     var h = '<div class="contest">';
     if (!c) {
-      h += '<h3>Concurso de eficiencia</h3><p class="note">Próximamente habrá premios para las tres máquinas más eficientes de cada temporada, pagados con lo que aportan los patrocinadores. Cuando empiece, aquí verás las fechas, los premios y cómo participar.</p>' +
-        '<p class="note">Mientras tanto, entrena: tus mejores pruebas se guardan en «Récords».</p>';
+      h += T('<h3>Concurso de eficiencia</h3><p class="note">Próximamente habrá premios para las tres máquinas más eficientes de cada temporada, pagados con lo que aportan los patrocinadores. Cuando empiece, aquí verás las fechas, los premios y cómo participar.</p>') +
+        T('<p class="note">Mientras tanto, entrena: tus mejores pruebas se guardan en «Récords».</p>');
     } else {
-      h += '<h3>' + esc(c.titulo || 'Concurso de eficiencia') + '</h3>' +
-        '<p class="dates">' + (c.desde ? 'Del ' + esc(df(c.desde)) + ' ' : '') + (c.hasta ? 'al ' + esc(df(c.hasta)) : '') + '</p>' +
-        (Array.isArray(c.premios) && c.premios.length ? '<ul style="list-style:none;padding-left:0">' + c.premios.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>' : '') +
-        (c.reparto ? '<p class="note">' + esc(c.reparto) + '</p>' : '') +
-        '<p class="note">Gana la máquina con más eficiencia: la electricidad útil que saca dividida entre toda la energía que gasta. La eficiencia oficial es la que calcula el verificador del organizador, que vuelve a probar tu máquina sin empujones y durante 10 minutos como máximo. Ninguna máquina puede pasar del 100 %.</p>' +
-        (safeLink(c.bases) || /^[a-z0-9_\-]+\.html$/i.test(c.bases || '') ? '<p class="note"><a href="' + esc(c.bases) + '" target="_blank" rel="noopener">Leer las bases del concurso</a></p>' : '');
-      h += '<label class="sr" for="aliasIn">Tu nombre o apodo</label><div class="saverow"><input id="aliasIn" maxlength="40" placeholder="Tu nombre o apodo para la clasificación" value="' + esc(S.settings.alias || '') + '"></div>';
+      h += '<h3>' + esc(loc(c, 'titulo') || T('Concurso de eficiencia')) + '</h3>' +
+        '<p class="dates">' + (c.desde ? T('Del ') + esc(df(c.desde)) + ' ' : '') + (c.hasta ? T('al ') + esc(df(c.hasta)) : '') + '</p>' +
+        (Array.isArray(loc(c, 'premios')) && loc(c, 'premios').length ? '<ul style="list-style:none;padding-left:0">' + loc(c, 'premios').map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>' : '') +
+        (loc(c, 'reparto') ? '<p class="note">' + esc(loc(c, 'reparto')) + '</p>' : '') +
+        T('<p class="note">Gana la máquina con más eficiencia: la electricidad útil que saca dividida entre toda la energía que gasta. La eficiencia oficial es la que calcula el verificador del organizador, que vuelve a probar tu máquina sin empujones y durante 10 minutos como máximo. Ninguna máquina puede pasar del 100 %.</p>') +
+        (safeLink(c.bases) || /^[a-z0-9_\-]+\.html$/i.test(c.bases || '') ? '<p class="note"><a href="' + esc(c.bases) + T('" target="_blank" rel="noopener">Leer las bases del concurso</a></p>') : '');
+      h += T('<label class="sr" for="aliasIn">Tu nombre o apodo</label><div class="saverow"><input id="aliasIn" maxlength="40" placeholder="Tu nombre o apodo para la clasificación" value="') + esc(S.settings.alias || '') + '"></div>';
       if (best) {
-        h += '<p class="note">Tu mejor récord: <b>' + esc(best.name) + '</b>, con ' + pct(best.eff) + '.</p>' +
-          '<div class="row"><button class="btn primary" id="sendEntry" type="button">Enviar al concurso</button></div>' +
-          '<p class="note">Se prepara un archivo con tu máquina. Envíalo por correo a <span class="mail">' + esc(c.correo || '') + '</span></p>';
+        h += T('<p class="note">Tu mejor récord: <b>') + esc(best.name) + T('</b>, con ') + pct(best.eff) + '.</p>' +
+          T('<div class="row"><button class="btn primary" id="sendEntry" type="button">Enviar al concurso</button></div>') +
+          T('<p class="note">Se prepara un archivo con tu máquina. Envíalo por correo a <span class="mail">') + esc(c.correo || '') + '</span></p>';
       } else {
-        h += '<p class="note">Aún no tienes récords. Pon un generador en tu máquina y pruébala hasta que se pare: su eficiencia aparecerá en «Récords» y podrás enviarla.</p>';
+        h += T('<p class="note">Aún no tienes récords. Pon un generador en tu máquina y pruébala hasta que se pare: su eficiencia aparecerá en «Récords» y podrás enviarla.</p>');
       }
     }
     return h + '</div>' + (sponsorHtml() ? '<div style="margin-top:12px">' + sponsorHtml() + '</div>' : '');
@@ -1885,16 +2186,16 @@
       var c = contest(), best = records()[0];
       if (!c || !best) return;
       var alias = ($('aliasIn') && $('aliasIn').value.trim()) || S.settings.alias || '';
-      if (!alias) { toast('Escribe tu nombre o apodo para la clasificación.'); $('aliasIn').focus(); return; }
+      if (!alias) { toast(T('Escribe tu nombre o apodo para la clasificación.')); $('aliasIn').focus(); return; }
       S.settings.alias = alias; store(KEYS.settings, S.settings);
       var entry = { app: 'taller-perpetuum', tipo: 'participacion', version: 1, appVersion: APP_VERSION, temporada: (S.season && S.season.temporada) || '',
         participante: alias, nombre: best.name, eficienciaDeclarada: best.eff, util: best.useful, gastada: best.spent, fecha: new Date().toISOString(), design: best.design };
       var blob = new Blob([JSON.stringify(entry)], { type: 'application/json' }), name = 'concurso-' + fileName('.perpetuum.json');
       var file = null;
       try { file = new File([blob], name, { type: 'application/json' }); } catch (e) { file = null; }
-      var text = 'Participación en «' + (c.titulo || 'el concurso') + '»: ' + alias + ', «' + best.name + '», ' + pct(best.eff) + '. Enviar a ' + (c.correo || '') + '.';
+      var text = T('Participación en «') + (loc(c, 'titulo') || T('el concurso')) + '»: ' + alias + ', «' + best.name + '», ' + pct(best.eff) + T('. Enviar a ') + (c.correo || '') + '.';
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: 'Participación en el concurso', text: text }).catch(function () { /* cancelado */ });
+        navigator.share({ files: [file], title: T('Participación en el concurso'), text: text }).catch(function () { /* cancelado */ });
       } else download(blob, name);
     };
   }
@@ -1903,14 +2204,14 @@
   // Vuelve a probar cada máquina desde su diseño, sin empujones, hasta que se pare o 10 minutos.
   function verifyEntry(d, onProgress, onDone) {
     var info;
-    try { info = P.build(d); } catch (e) { onDone({ valid: false, why: 'diseño dañado' }); return; }
+    try { info = P.build(d); } catch (e) { onDone({ valid: false, why: T('diseño dañado') }); return; }
     var w = info.world, powered = d.parts.some(function (p) { return (p.motor && p.msrc !== 'bus') || (p.kind === 'magnet' && p.shape === 'electro'); });
-    function finish(why) { var b = w.balance(), ef = efficiency(b); onDone({ eff: ef.eff, useful: ef.useful, spent: ef.spent, t: w.t, valid: !why && ef.valid, why: why || (ef.valid ? '' : 'error de cálculo') }); }
+    function finish(why) { var b = w.balance(), ef = efficiency(b); onDone({ eff: ef.eff, useful: ef.useful, spent: ef.spent, t: w.t, valid: !why && ef.valid, why: why || (ef.valid ? '' : T('error de cálculo')) }); }
     function slice() {
       var t0 = performance.now();
       while (performance.now() - t0 < 30) {
         for (var k = 0; k < 48; k++) w.step();
-        if (broken(w)) { finish('cálculo descontrolado'); return; }
+        if (broken(w)) { finish(T('cálculo descontrolado')); return; }
         if ((w.isStopped() && !powered) || w.t >= 600) { finish(''); return; }
       }
       onProgress(w.t / 600);
@@ -1923,16 +2224,16 @@
     function render(progressText) {
       var sorted = rows.slice().sort(function (a, b) { return (b.res && b.res.valid ? 1 : 0) - (a.res && a.res.valid ? 1 : 0) || ((b.res && b.res.eff) || 0) - ((a.res && a.res.eff) || 0) || String(a.fecha).localeCompare(String(b.fecha)); });
       var pos = 0;
-      var h = '<p class="note">Para el organizador del concurso. Abre los archivos que te han enviado: cada máquina se vuelve a probar aquí, sin empujones y durante 10 minutos como máximo. La eficiencia que cuenta es la verificada, no la declarada. En caso de empate, gana quien envió antes.</p>' +
-        '<div class="row"><button class="btn primary" id="verPick" type="button">Abrir archivos de participación</button></div>' + (progressText ? '<p class="note">' + esc(progressText) + '</p><div class="vbar"><i id="verBar"></i></div>' : '');
+      var h = T('<p class="note">Para el organizador del concurso. Abre los archivos que te han enviado: cada máquina se vuelve a probar aquí, sin empujones y durante 10 minutos como máximo. La eficiencia que cuenta es la verificada, no la declarada. En caso de empate, gana quien envió antes.</p>') +
+        T('<div class="row"><button class="btn primary" id="verPick" type="button">Abrir archivos de participación</button></div>') + (progressText ? '<p class="note">' + esc(progressText) + '</p><div class="vbar"><i id="verBar"></i></div>' : '');
       if (rows.length) {
-        h += '<div style="overflow-x:auto"><table class="vtable"><thead><tr><th>Puesto</th><th>Participante</th><th>Declarada</th><th>Verificada</th><th></th></tr></thead><tbody>' +
+        h += T('<div style="overflow-x:auto"><table class="vtable"><thead><tr><th>Puesto</th><th>Participante</th><th>Declarada</th><th>Verificada</th><th></th></tr></thead><tbody>') +
           sorted.map(function (r) {
             var ok = r.res && r.res.valid, place = ok ? ++pos : '—';
             return '<tr><td>' + (ok && place <= 3 ? '<b>' + place + '.º</b>' : place) + '</td><td>' + esc(r.participante) + '<br><span class="note" style="font-size:12px">' + esc(r.nombre) + '</span></td>' +
               '<td class="n">' + (isFinite(r.declarada) ? pct(r.declarada) : '—') + '</td>' +
-              '<td class="n">' + (r.res ? (ok ? '<span class="ok">' + pct(r.res.eff) + '</span>' : '<span class="ko">no válida</span><br><span style="font-size:12px">' + esc(r.res.why || '') + '</span>') : 'probando…') + '</td>' +
-              '<td><button class="btn" type="button" data-vopen="' + r.k + '">Abrir</button></td></tr>';
+              '<td class="n">' + (r.res ? (ok ? '<span class="ok">' + pct(r.res.eff) + '</span>' : T('<span class="ko">no válida</span><br><span style="font-size:12px">') + esc(r.res.why || '') + '</span>') : T('probando…')) + '</td>' +
+              '<td><button class="btn" type="button" data-vopen="' + r.k + T('">Abrir</button></td></tr>');
           }).join('') + '</tbody></table></div>';
       }
       $('verBody').innerHTML = h;
@@ -1942,7 +2243,7 @@
           var r = rows.filter(function (x) { return String(x.k) === b.getAttribute('data-vopen'); })[0];
           if (!r || !r.design) return;
           closeModal('verifyModal'); pushUndo(); S.libId = null; S.libName = r.participante + ' · ' + r.nombre; setDesign(r.design);
-          toast('Abierta la máquina de ' + r.participante + '.', 'Deshacer', doUndo);
+          toast(T('Abierta la máquina de ') + r.participante + '.', T('Deshacer'), doUndo);
         };
       });
     }
@@ -1950,7 +2251,7 @@
       var next = rows.filter(function (r) { return !r.res && !r.running; })[0];
       if (!next) { render(''); return; }
       next.running = true;
-      render('Probando la máquina de ' + next.participante + '…');
+      render(T('Probando la máquina de ') + next.participante + '…');
       verifyEntry(next.design, function (f) { var bar = $('verBar'); if (bar) bar.style.width = Math.round(f * 100) + '%'; }, function (res) { next.res = res; next.running = false; runQueue(); });
     }
     $('verifyFiles').onchange = function () {
@@ -1962,7 +2263,7 @@
           var o = null;
           try { o = JSON.parse(String(r.result || '')); } catch (e) { o = null; }
           var d = o && sanitize(o.design || o);
-          if (d) rows.push({ k: rows.length + '-' + i, participante: (o.participante || 'Sin nombre').slice(0, 40), nombre: (o.nombre || f.name).slice(0, 60), declarada: +o.eficienciaDeclarada, fecha: o.fecha || '', design: d });
+          if (d) rows.push({ k: rows.length + '-' + i, participante: (o.participante || T('Sin nombre')).slice(0, 40), nombre: (o.nombre || f.name).slice(0, 60), declarada: +o.eficienciaDeclarada, fecha: o.fecha || '', design: d });
           if (--left === 0) runQueue();
         };
         r.readAsText(f);
@@ -1984,8 +2285,8 @@
     r = r.slice(0, 20);
     store(KEYS.records, r);
     var isBest = r[0] && r[0].date === r.reduce(function (m, x) { return Math.max(m, x.date || 0); }, 0);
-    if (isBest && contest()) toast('¡Tu mejor eficiencia: ' + pct(ef.eff) + '! Puedes enviarla al concurso.', 'Concurso', function () { openExamples('contest'); });
-    else if (isBest && r.length > 1) toast('¡Nuevo récord personal de eficiencia: ' + pct(ef.eff) + '!', 'Ver récords', function () { openExamples('records'); });
+    if (isBest && contest()) toast(T('¡Tu mejor eficiencia: ') + pct(ef.eff) + T('! Puedes enviarla al concurso.'), T('Concurso'), function () { openExamples('contest'); });
+    else if (isBest && r.length > 1) toast(T('¡Nuevo récord personal de eficiencia: ') + pct(ef.eff) + '!', T('Ver récords'), function () { openExamples('records'); });
     if (ef.eff >= 0.5) completeGoal('eficiencia');
   }
 
@@ -2006,14 +2307,14 @@
 
   // ---------- ejemplos y retos ----------
   var GOALS = [
-    { id: 'giro', title: 'Que no se pare', desc: 'Haz una prueba en la que tu máquina siga moviéndose a los 20 segundos, sin batería ni empujones.' },
-    { id: 'equilibrio', title: 'Equilibrio perfecto', desc: 'Construye una rueda con 6 pesas o más que no se mueva nada al probarla.' },
-    { id: 'fabrica', title: 'Fábrica de brazos', desc: 'Usa «Clonar» para repetir un brazo con pesa 8 veces alrededor de una rueda.' },
-    { id: 'bombilla', title: 'Enciende la bombilla', desc: 'Consigue que un generador produzca 10 julios en una sola prueba.' },
-    { id: 'ideal', title: 'Mundo sin rozamiento', desc: 'Con «Mundo ideal» activado, mantén algo moviéndose durante un minuto.' },
-    { id: 'iman', title: 'Atrapada', desc: 'Haz que un imán atrape una bola de acero y la deje pegada.' },
-    { id: 'eficiencia', title: 'Medio camino', desc: 'Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.' },
-    { id: 'perpetuo', title: 'El movimiento perpetuo', desc: 'Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.', impossible: true }
+    { id: 'giro', title: T('Que no se pare'), desc: T('Haz una prueba en la que tu máquina siga moviéndose a los 20 segundos, sin batería ni empujones.') },
+    { id: 'equilibrio', title: T('Equilibrio perfecto'), desc: T('Construye una rueda con 6 pesas o más que no se mueva nada al probarla.') },
+    { id: 'fabrica', title: T('Fábrica de brazos'), desc: T('Usa «Clonar» para repetir un brazo con pesa 8 veces alrededor de una rueda.') },
+    { id: 'bombilla', title: T('Enciende la bombilla'), desc: T('Consigue que un generador produzca 10 julios en una sola prueba.') },
+    { id: 'ideal', title: T('Mundo sin rozamiento'), desc: T('Con «Mundo ideal» activado, mantén algo moviéndose durante un minuto.') },
+    { id: 'iman', title: T('Atrapada'), desc: T('Haz que un imán atrape una bola de acero y la deje pegada.') },
+    { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
+    { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
   var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro' };
   function goalsDone() { return load(KEYS.goals, {}); }
@@ -2022,7 +2323,7 @@
     if (g[id]) return;
     g[id] = Date.now(); store(KEYS.goals, g);
     var def = GOALS.filter(function (x) { return x.id === id; })[0];
-    if (def) { buzz(40); toast('Reto conseguido: ' + def.title, 'Ver retos', function () { openExamples('retos'); }); }
+    if (def) { buzz(40); toast(T('Reto conseguido: ') + def.title, T('Ver retos'), function () { openExamples('retos'); }); }
   }
   function steelCaught(w) {
     for (var i = 0; i < w.steel.length; i++) {
@@ -2057,7 +2358,7 @@
       $('exTabSh').hidden = !shop();
       var h = '';
       if (which === 'ejemplos') {
-        h = '<p class="note">Máquinas que se han propuesto durante siglos. Ábrelas, pruébalas y lee en las cuentas por qué se paran.</p><div class="cards">' +
+        h = T('<p class="note">Máquinas que se han propuesto durante siglos. Ábrelas, pruébalas y lee en las cuentas por qué se paran.</p><div class="cards">') +
           Object.keys(P.EXAMPLES).map(function (k) {
             var st = STORIES[k];
             return '<button class="cardbtn" type="button" data-ex="' + k + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC[EX_ICONS[k] || 'wheel'] + '</svg><b>' + esc(st.title) + '</b><span class="era">' + esc(st.era) + '</span><span>' + esc(st.what.split('. ')[0]) + '.</span></button>';
@@ -2065,31 +2366,31 @@
       } else if (which === 'contest') {
         h = contestHtml();
       } else if (which === 'shop') {
-        h = shopHtml() || '<p class="note">Ahora mismo no hay maquetas a la venta.</p>';
+        h = shopHtml() || T('<p class="note">Ahora mismo no hay maquetas a la venta.</p>');
       } else if (which === 'records') {
-        var rs = records(), df = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' });
-        h = '<p class="note">La eficiencia es la electricidad útil que saca tu máquina dividida entre toda la energía que gasta (su reserva, tus empujones, la pila y la red). Nunca puede pasar del 100 %. Tus mejores pruebas se guardan en este móvil.</p><div class="lib">' +
+        var rs = records(), df = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
+        h = T('<p class="note">La eficiencia es la electricidad útil que saca tu máquina dividida entre toda la energía que gasta (su reserva, tus empujones, la pila y la red). Nunca puede pasar del 100 %. Tus mejores pruebas se guardan en este móvil.</p><div class="lib">') +
           (rs.length ? rs.map(function (r, i) {
-            return '<div class="rank"><span class="pos">' + (i + 1) + '</span><div class="meta"><b>' + esc(r.name) + '</b><span>' + fmtJ(r.useful) + ' útiles de ' + fmtJ(r.spent) + ' · ' + esc(df.format(new Date(r.date))) + '</span></div><span class="eff">' + pct(r.eff) + '</span><span></span><span></span><button class="btn" type="button" data-rec="' + r.id + '">Abrir</button></div>';
-          }).join('') : '<p class="note">Aún no hay récords. Pon un generador en una máquina, pruébala hasta que se pare y aquí verás su eficiencia.</p>') + '</div>';
+            return '<div class="rank"><span class="pos">' + (i + 1) + '</span><div class="meta"><b>' + esc(r.name) + '</b><span>' + fmtJ(r.useful) + T(' útiles de ') + fmtJ(r.spent) + ' · ' + esc(df.format(new Date(r.date))) + '</span></div><span class="eff">' + pct(r.eff) + '</span><span></span><span></span><button class="btn" type="button" data-rec="' + r.id + T('">Abrir</button></div>');
+          }).join('') : T('<p class="note">Aún no hay récords. Pon un generador en una máquina, pruébala hasta que se pare y aquí verás su eficiencia.</p>')) + '</div>';
       } else {
         var done = goalsDone(), n = GOALS.filter(function (g) { return !g.impossible && done[g.id]; }).length;
-        h = '<p class="progress">Llevas ' + n + ' de ' + (GOALS.length - 1) + ' retos.</p><div class="cards">' + GOALS.map(function (g) {
+        h = T('<p class="progress">Llevas ') + n + T(' de ') + (GOALS.length - 1) + T(' retos.</p><div class="cards">') + GOALS.map(function (g) {
           var ok = !!done[g.id];
           return '<div class="cardbtn' + (ok ? ' done' : '') + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + (ok ? '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="var(--good)" stroke-width="2"/>' : (g.impossible ? '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 12c1.5-2.5 2.5-2.5 4 0s2.5 2.5 4 0" fill="none" stroke="currentColor" stroke-width="1.6"/>' : '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>')) +
-            '</svg><b>' + esc(g.title) + '</b><span>' + esc(g.desc) + '</span><span class="badge">' + (ok ? 'Conseguido' : (g.impossible ? 'Nadie lo ha conseguido' : 'Pendiente')) + '</span></div>';
-        }).join('') + '</div><p class="note">El último reto es el movimiento perpetuo. Si alguna vez el banco viera energía salida de la nada, sería un error de cálculo, y te lo diría en las cuentas.</p>';
+            '</svg><b>' + esc(g.title) + '</b><span>' + esc(g.desc) + '</span><span class="badge">' + (ok ? T('Conseguido') : (g.impossible ? T('Nadie lo ha conseguido') : T('Pendiente'))) + '</span></div>';
+        }).join('') + T('</div><p class="note">El último reto es el movimiento perpetuo. Si alguna vez el banco viera energía salida de la nada, sería un error de cálculo, y te lo diría en las cuentas.</p>');
       }
       $('exBody').innerHTML = h;
       bindContest();
       var sp = $('shopPhoto');
-      if (sp) sp.onclick = function () { closeModal('examplesModal'); setTimeout(function () { $('photoFile').click(); }, 80); };
+      if (sp) sp.onclick = function () { closeModal('examplesModal'); setTimeout(openScanFile, 80); };
       $('exBody').querySelectorAll('[data-rec]').forEach(function (bt) {
         bt.addEventListener('click', function () {
           var r = records().filter(function (x) { return x.id === bt.getAttribute('data-rec'); })[0], d = r && sanitize(r.design);
           if (!d) return;
           closeModal('examplesModal'); pushUndo(); S.libId = null; S.libName = r.name; setDesign(d);
-          toast('Abierta: ' + r.name + ' (' + pct(r.eff) + ').', 'Deshacer', doUndo);
+          toast(T('Abierta: ') + r.name + ' (' + pct(r.eff) + ').', T('Deshacer'), doUndo);
         });
       });
       $('exBody').querySelectorAll('[data-ex]').forEach(function (bt) {
@@ -2098,7 +2399,7 @@
           closeModal('examplesModal');
           pushUndo(); S.libId = null; S.libName = '';
           setDesign(P.EXAMPLES[k].make()); setTab('ayuda');
-          toast('Ejemplo cargado: ' + STORIES[k].title + '.', 'Deshacer', doUndo);
+          toast(T('Ejemplo cargado: ') + STORIES[k].title + '.', T('Deshacer'), doUndo);
         });
       });
     }
@@ -2113,11 +2414,11 @@
 
   // ---------- mis diseños ----------
   function library() { var l = load(KEYS.lib, []); return Array.isArray(l) ? l : []; }
-  function saveLibrary(l) { if (!store(KEYS.lib, l)) toast('No se ha podido guardar: el almacenamiento está lleno o bloqueado.'); }
+  function saveLibrary(l) { if (!store(KEYS.lib, l)) toast(T('No se ha podido guardar: el almacenamiento está lleno o bloqueado.')); }
   function suggestName() {
     if (S.libName) return S.libName;
-    if (S.design.example && STORIES[S.design.example]) return STORIES[S.design.example].title + ' (mi versión)';
-    return 'Mi máquina ' + (library().length + 1);
+    if (S.design.example && STORIES[S.design.example]) return STORIES[S.design.example].title + T(' (mi versión)');
+    return T('Mi máquina ') + (library().length + 1);
   }
   function saveToLibrary(asNew) {
     var name = ($('libName') && $('libName').value.trim()) || suggestName();
@@ -2128,22 +2429,22 @@
     entry.photoData = S.design.photo ? photoData(S.design.photo.id) : null;
     saveLibrary(l);
     S.libId = entry.id; S.libName = entry.name; save();
-    buzz(10); toast('Guardado en «Mis diseños».');
+    buzz(10); toast(T('Guardado en «Mis diseños».'));
     renderLibrary();
   }
   function renderLibrary() {
     var l = library().sort(function (a, b) { return (b.updated || 0) - (a.updated || 0); });
-    var df = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    var h = '<p class="note">Tus máquinas se guardan en este dispositivo. Para pasarlas a otro, expórtalas a un archivo.</p>' +
-      '<label class="sr" for="libName">Nombre del diseño</label><div class="saverow"><input id="libName" maxlength="60" value="' + esc(suggestName()) + '" placeholder="Nombre de tu máquina">' +
-      '<button class="btn primary" id="libSave" type="button">' + (S.libId ? 'Guardar cambios' : 'Guardar') + '</button></div>' +
-      (S.libId ? '<div class="row" style="margin:6px 0 0"><button class="btn" id="libSaveNew" type="button">Guardar como diseño nuevo</button></div>' : '');
+    var df = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    var h = T('<p class="note">Tus máquinas se guardan en este dispositivo. Para pasarlas a otro, expórtalas a un archivo.</p>') +
+      T('<label class="sr" for="libName">Nombre del diseño</label><div class="saverow"><input id="libName" maxlength="60" value="') + esc(suggestName()) + '" placeholder="' + T('Nombre de tu máquina') + '">' +
+      '<button class="btn primary" id="libSave" type="button">' + (S.libId ? T('Guardar cambios') : T('Guardar')) + '</button></div>' +
+      (S.libId ? T('<div class="row" style="margin:6px 0 0"><button class="btn" id="libSaveNew" type="button">Guardar como diseño nuevo</button></div>') : '');
     h += '<div class="lib">' + (l.length ? l.map(function (e) {
       var n = (e.design && e.design.parts ? e.design.parts.length : 0);
-      return '<div class="libitem' + (e.id === S.libId ? ' current' : '') + '"><div class="meta"><b>' + esc(e.name || 'Sin nombre') + '</b><span>' + n + ' piezas · ' + esc(df.format(new Date(e.updated || e.created || Date.now()))) + (e.id === S.libId ? ' · abierto' : '') + '</span></div>' +
-        '<div class="acts"><button class="btn" type="button" data-open="' + e.id + '">Abrir</button><button class="btn danger" type="button" data-del="' + e.id + '" aria-label="Borrar ' + esc(e.name || '') + '">Borrar</button></div></div>';
-    }).join('') : '<p class="note">Todavía no has guardado ningún diseño.</p>') + '</div>';
-    h += '<div class="row" style="margin-top:12px"><button class="btn" id="libExport" type="button">Exportar a un archivo</button><button class="btn" id="libImport" type="button">Abrir un archivo</button></div>';
+      return '<div class="libitem' + (e.id === S.libId ? ' current' : '') + '"><div class="meta"><b>' + esc(e.name || T('Sin nombre')) + '</b><span>' + n + T(' piezas · ') + esc(df.format(new Date(e.updated || e.created || Date.now()))) + (e.id === S.libId ? T(' · abierto') : '') + '</span></div>' +
+        '<div class="acts"><button class="btn" type="button" data-open="' + e.id + T('">Abrir</button><button class="btn danger" type="button" data-del="') + e.id + T('" aria-label="Borrar ') + esc(e.name || '') + T('">Borrar</button></div></div>');
+    }).join('') : T('<p class="note">Todavía no has guardado ningún diseño.</p>')) + '</div>';
+    h += T('<div class="row" style="margin-top:12px"><button class="btn" id="libExport" type="button">Exportar a un archivo</button><button class="btn" id="libImport" type="button">Abrir un archivo</button></div>');
     $('libBody').innerHTML = h;
     $('libSave').onclick = function () { saveToLibrary(false); };
     if ($('libSaveNew')) $('libSaveNew').onclick = function () { saveToLibrary(true); };
@@ -2153,15 +2454,15 @@
       bt.onclick = function () {
         var e = library().filter(function (x) { return x.id === bt.getAttribute('data-open'); })[0];
         var d = e && sanitize(e.design);
-        if (!d) { toast('Ese diseño está dañado y no se puede abrir.'); return; }
+        if (!d) { toast(T('Ese diseño está dañado y no se puede abrir.')); return; }
         if (d.photo && e.photoData && !photoData(d.photo.id)) savePhotoData(d.photo.id, e.photoData);
         pushUndo(); S.libId = e.id; S.libName = e.name; setDesign(d); closeModal('libraryModal');
-        toast('Abierto: ' + e.name + '.');
+        toast(T('Abierto: ') + e.name + '.');
       };
     });
     $('libBody').querySelectorAll('[data-del]').forEach(function (bt) {
       bt.onclick = function () {
-        if (bt.getAttribute('data-sure') !== '1') { bt.setAttribute('data-sure', '1'); bt.textContent = '¿Seguro?'; return; }
+        if (bt.getAttribute('data-sure') !== '1') { bt.setAttribute('data-sure', '1'); bt.textContent = T('¿Seguro?'); return; }
         var id = bt.getAttribute('data-del');
         saveLibrary(library().filter(function (x) { return x.id !== id; }));
         if (S.libId === id) { S.libId = null; S.libName = ''; save(); }
@@ -2173,20 +2474,20 @@
 
   // ---------- archivos e imagen ----------
   function fileName(ext) {
-    var base = (S.libName || (S.design.example && STORIES[S.design.example] ? STORIES[S.design.example].title : 'mi-maquina'));
-    base = base.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'mi-maquina';
+    var base = (S.libName || (S.design.example && STORIES[S.design.example] ? STORIES[S.design.example].title : T('mi-maquina')));
+    base = base.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || T('mi-maquina');
     return base + ext;
   }
   function download(blob, name) {
     // dentro de una vista previa incrustada el navegador bloquea las descargas: mejor decirlo que fingir
-    if (!STANDALONE) { toast('Aquí no se pueden descargar archivos. En la app instalada, sí.'); return; }
+    if (!STANDALONE) { toast(T('Aquí no se pueden descargar archivos. En la app instalada, sí.')); return; }
     try {
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob); a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-      toast('Guardado en tus descargas: ' + name);
-    } catch (e) { toast('Este navegador no deja guardar archivos desde aquí.'); }
+      toast(T('Guardado en tus descargas: ') + name);
+    } catch (e) { toast(T('Este navegador no deja guardar archivos desde aquí.')); }
   }
   function exportFile() {
     var data = JSON.stringify({ app: 'taller-perpetuum', version: 1, name: S.libName || suggestName(), design: JSON.parse(snapshot()), photoData: S.design.photo ? photoData(S.design.photo.id) : null }, null, 1);
@@ -2194,7 +2495,7 @@
     var file;
     try { file = new File([blob], fileName('.perpetuum.json'), { type: 'application/json' }); } catch (e) { file = null; }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: 'Taller Perpetuum' }).catch(function () { download(blob, fileName('.perpetuum.json')); });
+      navigator.share({ files: [file], title: T('Taller Perpetuum') }).catch(function () { download(blob, fileName('.perpetuum.json')); });
     } else download(blob, fileName('.perpetuum.json'));
   }
   function importText(txt) {
@@ -2202,15 +2503,15 @@
     var pd = null;
     try { var o = JSON.parse(txt); if (o && o.design) { name = o.name || ''; pd = o.photoData || null; o = o.design; } d = sanitize(o); } catch (e) { d = null; }
     if (d && d.photo && pd && typeof pd === 'string' && pd.indexOf('data:image/') === 0) savePhotoData(d.photo.id, pd);
-    if (!d) { toast('Ese archivo no es un diseño del taller.'); return; }
+    if (!d) { toast(T('Ese archivo no es un diseño del taller.')); return; }
     pushUndo(); S.libId = null; S.libName = name; setDesign(d);
     closeModal('libraryModal'); closeModal('menuModal');
-    toast('Diseño abierto' + (name ? ': ' + name : '') + '.', 'Deshacer', doUndo);
+    toast(T('Diseño abierto') + (name ? ': ' + name : '') + '.', T('Deshacer'), doUndo);
   }
   function machineTitle() {
     if (S.libName) return S.libName;
     if (S.design.example && STORIES[S.design.example]) return STORIES[S.design.example].title;
-    return 'Mi máquina';
+    return T('Mi máquina');
   }
   function shareImage() {
     var src;
@@ -2229,15 +2530,15 @@
     g.fillStyle = C.ink; g.font = '700 64px ' + F.display; g.textBaseline = 'top';
     g.fillText(machineTitle().slice(0, 30), 56, 1080);
     g.fillStyle = C['ink-2']; g.font = '500 38px ' + F.body;
-    g.fillText((S.mode === 'design' ? 'Diseñada en el Taller Perpetuum' : v.title).slice(0, 48), 56, 1160);
+    g.fillText((S.mode === 'design' ? T('Diseñada en el Taller Perpetuum') : v.title).slice(0, 48), 56, 1160);
     g.fillStyle = C['ink-3']; g.font = '600 30px ' + F.display;
-    g.fillText('TALLER PERPETUUM · construye tu máquina y ponla a prueba', 56, 1260);
+    g.fillText(T('TALLER PERPETUUM · construye tu máquina y ponla a prueba'), 56, 1260);
     c.toBlob(function (blob) {
-      if (!blob) { toast('No se ha podido crear la imagen.'); return; }
+      if (!blob) { toast(T('No se ha podido crear la imagen.')); return; }
       var name = fileName('.png'), file = null;
       try { file = new File([blob], name, { type: 'image/png' }); } catch (e) { file = null; }
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: machineTitle(), text: 'Mira mi máquina en el Taller Perpetuum.' }).catch(function () { /* cancelado */ });
+        navigator.share({ files: [file], title: machineTitle(), text: T('Mira mi máquina en el Taller Perpetuum.') }).catch(function () { /* cancelado */ });
       } else download(blob, name);
     }, 'image/png');
   }
@@ -2253,21 +2554,22 @@
     var st = S.settings, m = IC;
     var item = function (id, icon, label, sub) { return '<button type="button" id="' + id + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + icon + '</svg><span>' + esc(label) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>'; };
     var h = '<div class="menu">' +
-      item('mNew', m.add, 'Diseño nuevo', 'Empieza con el banco vacío') +
-      item('mImg', '<rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4 18l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="1.4"/>', 'Compartir una imagen', 'Una foto de tu máquina con su resultado') +
-      item('mText', IC.clone, 'Compartir el diseño', 'Como texto, para que otra persona lo abra') +
-      item('mExport', '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.6"/>', 'Exportar a un archivo', 'Copia de seguridad o para otro móvil') +
-      item('mImport', '<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.6"/>', 'Abrir un archivo', 'Un diseño exportado antes') +
-      '<h4>Ajustes</h4><div class="fields">' +
-      (STANDALONE ? segField('Tema', 'set_theme', [['system', 'Del sistema'], ['light', 'Claro'], ['dark', 'Oscuro']], st.theme, true) : '') +
-      segField('Calidad del 3D', 'set_quality', [['auto', 'Automática'], ['high', 'Alta'], ['low', 'Ahorro de batería']], st.quality, true) +
-      toggleField('Vibración', 'set_haptics', st.haptics, 'Una vibración corta al poner y quitar piezas.') +
+      item('mNew', m.add, T('Diseño nuevo'), T('Empieza con el banco vacío')) +
+      item('mImg', '<rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4 18l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="1.4"/>', T('Compartir una imagen'), T('Una foto de tu máquina con su resultado')) +
+      item('mText', IC.clone, T('Compartir el diseño'), T('Como texto, para que otra persona lo abra')) +
+      item('mExport', '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.6"/>', T('Exportar a un archivo'), T('Copia de seguridad o para otro móvil')) +
+      item('mImport', '<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.6"/>', T('Abrir un archivo'), T('Un diseño exportado antes')) +
+      T('<h4>Ajustes</h4><div class="fields">') +
+      (STANDALONE ? segField(T('Tema'), 'set_theme', [['system', T('Del sistema')], ['light', T('Claro')], ['dark', T('Oscuro')]], st.theme, true) : '') +
+      segField('Idioma · Language', 'set_lang', [['auto', T('Automático')], ['es', 'Español'], ['en', 'English']], st.lang || 'auto', true) +
+      segField(T('Calidad del 3D'), 'set_quality', [['auto', T('Automática')], ['high', T('Alta')], ['low', T('Ahorro de batería')]], st.quality, true) +
+      toggleField(T('Vibración'), 'set_haptics', st.haptics, T('Una vibración corta al poner y quitar piezas.')) +
       '</div>' +
-      item('mIntro', '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>', 'Ver la introducción', '') +
-      item('mVerify', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6"/>', 'Verificar participaciones', 'Para quien organiza el concurso') +
-      '</div><p class="about-app">Taller Perpetuum ' + APP_VERSION + '. Física calculada en tu móvil, sin conexión y sin recoger ningún dato.' +
-      (STANDALONE ? ' <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.' : '') +
-      ' Usa three.js (licencia MIT) y las fuentes Barlow e IBM Plex Mono (licencia OFL).</p>';
+      item('mIntro', '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>', T('Ver la introducción'), '') +
+      item('mVerify', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6"/>', T('Verificar participaciones'), T('Para quien organiza el concurso')) +
+      T('</div><p class="about-app">Taller Perpetuum ') + APP_VERSION + T('. Física calculada en tu móvil, sin conexión y sin recoger ningún dato.') +
+      (STANDALONE ? T(' <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.') : '') +
+      T(' Usa three.js (licencia MIT) y las fuentes Barlow e IBM Plex Mono (licencia OFL).</p>');
     $('menuBody').innerHTML = h;
     $('mNew').onclick = function () { closeModal('menuModal'); newDesign(); };
     $('mImg').onclick = function () { closeModal('menuModal'); setTimeout(shareImage, 80); };
@@ -2278,8 +2580,15 @@
     $('mVerify').onclick = function () { closeModal('menuModal'); setTimeout(openVerifier, 80); };
     $('menuBody').querySelectorAll('[data-seg]').forEach(function (b) {
       b.addEventListener('click', function () {
-        var k = b.getAttribute('data-seg') === 'set_theme' ? 'theme' : 'quality';
-        S.settings[k] = b.getAttribute('data-val'); saveSettings(); openMenu();
+        var seg = b.getAttribute('data-seg'), val = b.getAttribute('data-val');
+        if (seg === 'set_lang') {
+          // el idioma se aplica al arrancar: se guarda todo y se vuelve a abrir la app
+          if ((S.settings.lang || 'auto') === val) return;
+          S.settings.lang = val; saveSettings(); save();
+          try { location.reload(); } catch (e) { toast(T('El idioma cambiará la próxima vez que abras la app.')); }
+          return;
+        }
+        S.settings[seg === 'set_theme' ? 'theme' : 'quality'] = val; saveSettings(); openMenu();
       });
     });
     $('set_haptics').addEventListener('change', function () { S.settings.haptics = $('set_haptics').checked; saveSettings(); buzz(10); });
@@ -2288,7 +2597,7 @@
   function newDesign() {
     pushUndo(); S.libId = null; S.libName = ''; setDesign(P.emptyDesign(), true);
     S.tool = 'add'; S.addKind = 'wheel'; updateTools(); updateHint();
-    toast('Banco vacío. Toca para poner una rueda.', 'Deshacer', doUndo);
+    toast(T('Banco vacío. Toca para poner una rueda.'), T('Deshacer'), doUndo);
   }
   function openWelcome() { showModal('welcomeModal', function () { store(KEYS.welcome, Date.now()); }); }
 
@@ -2343,7 +2652,7 @@
     } else if (tool === 'erase') {
       var he = pickAt(pos);
       if (he && he.p) { var bf = snapshot(); removePart(he.p.id); commit(bf); }
-      else toast('Toca justo encima de una pieza para quitarla.');
+      else toast(T('Toca justo encima de una pieza para quitarla.'));
     } else if (tool === 'measure') {
       var wm = worldAt(pos);
       S.measure = { a: snapPoint(wm.x, wm.y, true), b: null }; S.drag = { kind: 'measure', startPx: pos };
@@ -2438,6 +2747,7 @@
 
   // ---------- arranque ----------
   function start(data) {
+    I18N.dom(document.body);
     ctx = $('cv').getContext('2d');
     readColors();
     if (GL && !GL.init($('gl'))) GL = null;
@@ -2453,9 +2763,17 @@
     $('welExample').addEventListener('click', function () {
       closeModal('welcomeModal'); S.libId = null; S.libName = '';
       setDesign(P.EXAMPLES.mazos.make()); setTab('ayuda');
-      toast('Pulsa «Probar» para ver si esta rueda de 1235 gira para siempre.');
+      toast(T('Pulsa «Probar» para ver si esta rueda de 1235 gira para siempre.'));
     });
     $('welEmpty').addEventListener('click', function () { closeModal('welcomeModal'); newDesign(); });
+    $('welScan').addEventListener('click', function () { closeModal('welcomeModal'); setTimeout(openScanFile, 80); });
+    $('scanFile').addEventListener('change', function () {
+      var f = $('scanFile').files && $('scanFile').files[0];
+      if (f) readPhoto(f, function (data, img) { startScan(data, img); });
+      $('scanFile').value = '';
+    });
+    $('scanCv').addEventListener('click', scanTap);
+    window.addEventListener('resize', function () { if (SC) drawScan(); });
     $('photoFile').addEventListener('change', function () {
       var f = $('photoFile').files && $('photoFile').files[0];
       if (f) loadPhotoFile(f);
@@ -2466,27 +2784,27 @@
       if (!f) return;
       var r = new FileReader();
       r.onload = function () { importText(String(r.result || '')); $('importFile').value = ''; };
-      r.onerror = function () { toast('No se ha podido leer ese archivo.'); };
+      r.onerror = function () { toast(T('No se ha podido leer ese archivo.')); };
       r.readAsText(f);
     });
     $('copyBtn').addEventListener('click', function () {
       var ta = $('shareOut');
-      try { navigator.clipboard.writeText(ta.value).then(function () { toast('Diseño copiado.'); }, function () { ta.focus(); ta.select(); toast('Selecciona el texto y cópialo.'); }); }
-      catch (err) { ta.focus(); ta.select(); toast('Selecciona el texto y cópialo.'); }
+      try { navigator.clipboard.writeText(ta.value).then(function () { toast(T('Diseño copiado.')); }, function () { ta.focus(); ta.select(); toast(T('Selecciona el texto y cópialo.')); }); }
+      catch (err) { ta.focus(); ta.select(); toast(T('Selecciona el texto y cópialo.')); }
     });
     $('loadBtn').addEventListener('click', function () { closeModal('shareModal'); importText($('shareIn').value); });
     // cerrar ventanas: botón «Cerrar», tocar fuera o el botón «atrás»
-    ['palette', 'cloneModal', 'shareModal', 'examplesModal', 'libraryModal', 'menuModal', 'welcomeModal', 'verifyModal'].forEach(function (id) {
+    ['palette', 'cloneModal', 'shareModal', 'examplesModal', 'libraryModal', 'menuModal', 'welcomeModal', 'verifyModal', 'scanModal'].forEach(function (id) {
       var m = $(id);
       m.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { if (id === 'cloneModal') closeClone(); else closeModal(id); }); });
-      m.addEventListener('click', function (e) { if (e.target === m && id !== 'welcomeModal') { if (id === 'cloneModal') closeClone(); else closeModal(id); } });
+      m.addEventListener('click', function (e) { if (e.target === m && id !== 'welcomeModal' && id !== 'scanModal') { if (id === 'cloneModal') closeClone(); else closeModal(id); } });
     });
     $('playBtn').addEventListener('click', play);
     $('resetBtn').addEventListener('click', backToDesign);
     var speeds = [1, 4, 0.25], names = ['×1', '×4', '×¼'];
     $('speedBtn').addEventListener('click', function () {
       var i = (speeds.indexOf(S.speed) + 1) % speeds.length;
-      S.speed = speeds[i]; $('speedBtn').innerHTML = '<span class="wide">Velocidad </span>' + names[i]; $('speedBtn').setAttribute('aria-label', 'Velocidad ' + names[i]);
+      S.speed = speeds[i]; $('speedBtn').innerHTML = T('<span class="wide">Velocidad </span>') + names[i]; $('speedBtn').setAttribute('aria-label', T('Velocidad ') + names[i]);
     });
     $('zoomIn').addEventListener('click', function () { zoomBy(1.25); });
     $('zoomOut').addEventListener('click', function () { zoomBy(0.8); });
@@ -2525,6 +2843,7 @@
     S.libId = cur.libId || null; S.libName = cur.libName || '';
     if (S.libId && !library().some(function (e) { return e.id === S.libId; })) { S.libId = null; S.libName = ''; }
 
+    if (I18N.lang === 'en') { var h1 = document.querySelector('.brand h1'); if (h1) h1.innerHTML = 'Perpetuum<span class="t1"> Workshop</span>'; }
     renderTools();
     if (window.ResizeObserver) new ResizeObserver(resize).observe($('stage'));
     window.addEventListener('resize', resize);

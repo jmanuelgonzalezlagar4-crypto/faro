@@ -404,6 +404,22 @@ button, .tab, .tool { touch-action: manipulation; }
 .welcome .row .btn { flex: 1 1 200px; min-height: 46px; }
 .welcome h3 { font-family: var(--f-display); font-size: 28px; margin: 0; line-height: 1.05; }
 
+/* asistente: de la foto de la maqueta a las piezas */
+.modal .box.scan { width: min(760px, 100%); }
+.scan-steps { display: flex; gap: 6px; list-style: none; padding: 0; margin: 4px 0 0; }
+.scan-steps li { flex: 1; font-size: 13px; color: var(--ink-3); padding: 4px 0 6px; border-bottom: 3px solid var(--rule); }
+.scan-steps li b { font-family: var(--f-mono); font-weight: 500; }
+.scan-steps li.done { border-color: var(--accent-soft); color: var(--ink-2); }
+.scan-steps li[aria-current="step"] { border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.scan-view { position: relative; margin: 10px 0 8px; border-radius: 10px; overflow: hidden; background: var(--paper-deep); }
+#scanCv { display: block; width: 100%; height: min(46vh, 440px); touch-action: manipulation; cursor: crosshair; }
+.scan-busy { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10, 16, 14, 0.35); }
+.scan-busy span { background: var(--panel); color: var(--ink); padding: 8px 14px; border-radius: 999px; font-weight: 600; box-shadow: var(--shadow); }
+.scan-say { margin: 0 0 8px; font-size: 15px; }
+.scan-sum { margin: 8px 0 0; font-weight: 600; }
+.scan-nav { justify-content: flex-end; }
+.scan-nav .btn { min-height: 44px; }
+
 @media (max-width: 979px) {
   .modal { align-items: flex-end; padding: 0; }
   .modal .box { width: 100%; max-height: 88vh; border-radius: 18px 18px 0 0; padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
@@ -556,17 +572,28 @@ html, body { margin: 0; }
     </div>
     <p class="rule">La regla del taller: aquí se cumple la física de verdad. Si tu máquina pudiera moverse sola para siempre, este banco lo demostraría con sus cuentas.</p>
     <div class="row"><button class="btn primary" id="welExample" type="button">Ver un ejemplo histórico</button><button class="btn" id="welEmpty" type="button">Empezar de cero</button></div>
+    <div class="row"><button class="btn" id="welScan" type="button">Tengo una maqueta: convertirla en piezas</button></div>
   </div>
 </div>
 
 <input type="file" id="importFile" accept=".json,application/json" hidden>
 <input type="file" id="photoFile" accept="image/*" hidden>
+<input type="file" id="scanFile" accept="image/*" hidden>
 <input type="file" id="verifyFiles" accept=".json,application/json" multiple hidden>
 
 <div class="modal" id="verifyModal" hidden>
   <div class="box" role="dialog" aria-modal="true" aria-labelledby="verTitle">
     <div class="insp-head"><h3 id="verTitle">Verificar participaciones</h3><button class="btn" data-close type="button">Cerrar</button></div>
     <div id="verBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="scanModal" hidden>
+  <div class="box scan" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+    <div class="insp-head"><h3 id="scanTitle">Tu maqueta, en piezas</h3><button class="btn" data-close type="button">Cancelar</button></div>
+    <ol class="scan-steps" id="scanSteps"></ol>
+    <div class="scan-view"><canvas id="scanCv" aria-label="Foto de tu maqueta. Toca para marcar la rueda y las pesas."></canvas><div class="scan-busy" id="scanBusy" hidden><span>Buscando la rueda y las pesas…</span></div></div>
+    <div id="scanCtl"></div>
   </div>
 </div>
 
@@ -599,10 +626,12 @@ html, body { margin: 0; }
 </div>
 
 <script src="lib/three.min.js"></script>
-<script src="js/engine.js?v=1.0.0"></script>
-<script src="js/build.js?v=1.0.0"></script>
-<script src="js/gl3d.js?v=1.0.0"></script>
-<script src="js/app.js?v=1.0.0"></script>
+<script src="js/i18n.js?v=1.1.0"></script>
+<script src="js/engine.js?v=1.1.0"></script>
+<script src="js/build.js?v=1.1.0"></script>
+<script src="js/gl3d.js?v=1.1.0"></script>
+<script src="js/vision.js?v=1.1.0"></script>
+<script src="js/app.js?v=1.1.0"></script>
 <script>
 if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { /* sin servicio, la app funciona igual */ }); }); }
 </script>

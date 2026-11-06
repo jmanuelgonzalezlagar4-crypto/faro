@@ -1,0 +1,43 @@
+{
+  "temporada": "t1",
+  "concurso": {
+    "activo": false,
+    "titulo": "Temporada 1: la máquina más eficiente",
+    "desde": "",
+    "hasta": "",
+    "premios": [
+      "1.º puesto: cuantía por anunciar",
+      "2.º puesto: cuantía por anunciar",
+      "3.º puesto: cuantía por anunciar"
+    ],
+    "reparto": "El 25 % de lo que aporten los patrocinadores de la temporada se reparte entre los tres primeros puestos.",
+    "correo": "jmanuelgonzalezlagar4@gmail.com",
+    "bases": "bases-concurso.html",
+    "titulo_en": "Season 1: the most efficient machine",
+    "premios_en": [
+      "1st place: amount to be announced",
+      "2nd place: amount to be announced",
+      "3rd place: amount to be announced"
+    ],
+    "reparto_en": "25 % of what the season's sponsors contribute is shared among the top three places."
+  },
+  "patrocinadores": [
+    {
+      "nombre": "Anúnciate en el Taller",
+      "texto": "Pon aquí tu marca. Una parte de lo que aportes irá a los premios del concurso.",
+      "enlace": "mailto:jmanuelgonzalezlagar4@gmail.com?subject=Patrocinio%20Taller%20Perpetuum",
+      "boton": "Escríbenos",
+      "imagen": "",
+      "nombre_en": "Advertise in the Workshop",
+      "texto_en": "Put your brand here. Part of what you contribute goes to the contest prizes.",
+      "boton_en": "Write to us"
+    }
+  ],
+  "tienda": {
+    "titulo": "Maquetas para probar en casa",
+    "aviso": "Publicidad. Son enlaces de afiliado: si compras, el Taller recibe una pequeña comisión que ayuda a pagar los premios del concurso. A ti no te cuesta más.",
+    "productos": [],
+    "titulo_en": "Models to test at home",
+    "aviso_en": "Advertising. These are affiliate links: if you buy, the Workshop gets a small commission that helps pay for the contest prizes. It doesn't cost you anything extra."
+  }
+}

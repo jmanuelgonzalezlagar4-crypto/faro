@@ -56,13 +56,15 @@ Ahora mismo ese archivo solo contiene PresuVolt. Añade una entrada para Perpetu
 
 1. **Crear aplicación** → nombre «Taller Perpetuum», idioma predeterminado Español (España), Aplicación, Gratis.
 2. **Ficha de Play Store:** copia los textos y sube las imágenes de `perpetuum/tienda/` (lo tienes todo en `FICHA-PLAY-STORE.md`).
-3. **Contenido de la aplicación:** política de privacidad, seguridad de los datos, clasificación, público objetivo y anuncios, con las respuestas de la ficha.
-4. **Pruebas:** sube el `.aab` a una prueba interna o cerrada. Si tu cuenta de desarrollador es personal, Google puede exigir una prueba cerrada con varios testers durante un tiempo antes de producción; Play Console te dice el requisito exacto de tu cuenta.
-5. Cuando se cumpla, **Producción → Crear versión** con el mismo `.aab`.
+3. **Ficha en inglés:** en la misma ficha, **Gestionar traducciones → Añadir traducciones → Inglés (Estados Unidos)**. Los textos están al final de `FICHA-PLAY-STORE.md` y las imágenes en `perpetuum/tienda/en/`. La app ya está traducida: se abre en inglés en los móviles que no están en español.
+4. **Contenido de la aplicación:** política de privacidad, seguridad de los datos, clasificación, público objetivo y anuncios, con las respuestas de la ficha.
+5. **Pruebas:** sube el `.aab` a una prueba interna o cerrada. Si tu cuenta de desarrollador es personal, Google puede exigir una prueba cerrada con varios testers durante un tiempo antes de producción; Play Console te dice el requisito exacto de tu cuenta.
+6. Cuando se cumpla, **Producción → Crear versión** con el mismo `.aab`.
 
 ## 5. Actualizar la app más adelante
 
-- **Cambios en la app** (piezas, textos, física): actualiza los archivos de `perpetuum/` y cambia el nombre de la caché en `sw.js` (la línea `const CACHE = …`). Los móviles reciben la nueva versión al abrir la app; no hace falta subir nada a Play.
+- **Cambios en la app** (piezas, textos, física): el código fuente está en `perpetuum-src/` (ver su `LEEME.md`). Se edita allí, se genera la carpeta `perpetuum/` con `python3 assemble.py pwa` y se sube. El nombre de la caché de `sw.js` cambia solo. Los móviles reciben la nueva versión al abrir la app; no hace falta subir nada a Play.
+- **Textos en inglés:** están en `perpetuum-src/i18n/`. Si cambias o añades una frase en español, al generar la app te avisa de las que no tienen traducción.
 - **Cambios en el paquete** (nombre, icono del lanzador, colores de la barra): genera un `.aab` nuevo en PWABuilder con la misma llave, sube el *Version code* en 1 y publícalo en Play Console.
 
 ## 6. Patrocinadores y concurso
@@ -70,6 +72,7 @@ Ahora mismo ese archivo solo contiene PresuVolt. Añade una entrada para Perpetu
 Todo se controla con el archivo **`temporada.json`**, sin publicar una versión nueva de la app: los móviles lo descargan al abrirla con conexión.
 
 - **Patrocinadores** (`patrocinadores`): cada uno con `nombre`, `texto`, `enlace` (una web `https://` o un `mailto:`), `boton` y, si quieres, `imagen` (un archivo `.png`/`.jpg` subido a esta carpeta o una dirección `https://`). Se muestra uno al día, en «Cuentas» y en la pestaña «Concurso». No hay redes publicitarias ni rastreo.
+- **Inglés:** cualquier texto de `temporada.json` puede llevar su versión en inglés con el mismo nombre terminado en `_en` (por ejemplo `nombre_en`, `texto_en`, `boton_en`, `titulo_en`, `premios_en`). Quien tenga la app en inglés verá esa; si no la pones, verá la española.
 - **Concurso** (`concurso`): pon `"activo": true`, las fechas `desde` y `hasta` (formato `AAAA-MM-DD`), los textos de los tres `premios`, el `correo` donde recibirás las participaciones y la página de `bases`.
 - **Bases:** `bases-concurso.html` es un **borrador**. Completa los datos marcados y revísalo con un gestor o un abogado antes de activar el concurso. Publica cuantías concretas antes de empezar cada temporada: «el 25 % de los anuncios» sin cifra es difícil de comprobar para los participantes.
 - **Participar:** cada persona prueba su máquina hasta que se para, va a «Ejemplos y retos → Concurso» y pulsa «Enviar al concurso». La app prepara un archivo y lo comparte; la persona lo envía a tu correo.
@@ -103,3 +106,14 @@ En `temporada.json`, dentro de `tienda.productos`, añade una entrada por maquet
 - `ejemplo` (opcional): si la maqueta se parece a un ejemplo de la app, pon su clave y también aparecerá en «Ayuda» al abrir ese ejemplo. Las claves son `mazos`, `bolas`, `wilkins`, `motor`, `pendulo`, `bucle` y `electro`.
 - **Marca siempre que es publicidad.** La app lo hace con el texto `aviso`, que la ley española (LSSI) exige para las comunicaciones comerciales.
 - **Cuida los textos.** Muchas maquetas se venden como «movimiento perpetuo». En el Taller no digas que lo son. Preséntalas como lo que son: maquetas para comprobar en casa por qué se paran, o dónde esconden la pila.
+
+## 8. Convertir una maqueta real en piezas
+
+No hay nada que configurar. En la app: **Añadir → Convertir tu maqueta en piezas** (también desde la bienvenida, la pestaña «Prueba» y la tienda de maquetas).
+
+1. Se hace una foto de frente, con toda la rueda dentro.
+2. La app busca en la foto la rueda (círculo verde) y las pesas (círculos amarillos). Todo se calcula en el móvil; la foto no sale de él.
+3. La persona corrige con el dedo lo que haga falta, escribe el diámetro real de la rueda y elige cómo van las pesas (brazos con topes, brazos libres, pegadas o sueltas dentro de la rueda) y lo que pesan.
+4. La app crea las piezas a tamaño real encima de la foto, lista para pulsar «Probar».
+
+Funciona con ruedas con pesas, que son la mayoría de maquetas. Para otras (rampas, motores de imanes) está «Foto de fondo para calcar», que pone la foto a escala para dibujar encima.
