@@ -11,7 +11,7 @@ Textos e imágenes listos para copiar en Play Console. Las imágenes están en e
 | Etiquetas | Física, Ciencia, Simulación |
 | Correo de contacto | jmanuelgonzalezlagar4@gmail.com |
 | Política de privacidad | https://jmanuelgonzalezlagar4-crypto.github.io/faro/perpetuum/privacidad.html |
-| Anuncios | No contiene anuncios |
+| Anuncios | **Sí** (recuadros de patrocinadores, sin redes publicitarias ni rastreo). En Play Console marca «Contiene anuncios». |
 | Compras en la aplicación | No |
 
 ## Descripción breve (máx. 80 caracteres, esta tiene 73)
@@ -61,7 +61,7 @@ Funciona sin conexión. No pide cuentas, no muestra anuncios y no recoge ningún
 
 ## Contenido de la aplicación (respuestas sugeridas)
 
-- **Seguridad de los datos:** la aplicación no recoge ni comparte ningún tipo de dato. Todo se guarda en el dispositivo y no se envía a ningún servidor.
+- **Seguridad de los datos:** la aplicación no recoge ni comparte ningún tipo de dato. Todo se guarda en el dispositivo. La única descarga es la lista de patrocinadores, sin enviar datos. La participación en el concurso la envía el propio usuario por correo, fuera de la app.
 - **Clasificación de contenido:** categoría «Referencia, noticias o educativa». Sin violencia, sin contenido sexual, sin lenguaje malsonante, sin apuestas, sin interacción entre usuarios ni compras. El resultado esperado es «Para todos» (PEGI 3).
 - **Público objetivo:** la app es apta para cualquier edad, pero elegir «13 años o más» evita los requisitos extra del programa de familias. Si incluyes menores de 13, no hay problema de datos, porque no se recoge ninguno.
 - **Aplicación de noticias / gubernamental / financiera / de salud:** no.

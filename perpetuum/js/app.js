@@ -37,10 +37,10 @@
     panelsAt: 0, lastPanelMode: null, tab: 'pieza', sheetOpen: false, glDirty: true,
     measure: null, pendingClone: false, clone: null, clonePreview: null, touch: false,
     redo: [], dirty: true, libId: null, libName: '', runChecked: 0,
-    settings: { theme: 'system', quality: 'auto', haptics: true }
+    settings: { theme: 'system', quality: 'auto', haptics: true, alias: '' }, season: null
   };
   var APP_VERSION = '1.0.0';
-  var KEYS = { settings: 'taller-perpetuum.ajustes', lib: 'taller-perpetuum.biblioteca', goals: 'taller-perpetuum.retos', welcome: 'taller-perpetuum.bienvenida', current: 'taller-perpetuum.actual', records: 'taller-perpetuum.records', photo: 'taller-perpetuum.foto.' };
+  var KEYS = { settings: 'taller-perpetuum.ajustes', lib: 'taller-perpetuum.biblioteca', goals: 'taller-perpetuum.retos', welcome: 'taller-perpetuum.bienvenida', current: 'taller-perpetuum.actual', season: 'taller-perpetuum.temporada', records: 'taller-perpetuum.records', photo: 'taller-perpetuum.foto.' };
   var STANDALONE = (function () { try { return window.self === window.top; } catch (e) { return false; } })();
   function load(key, fb) { try { var v = JSON.parse(localStorage.getItem(key) || 'null'); return v == null ? fb : v; } catch (e) { return fb; } }
   function store(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -1003,7 +1003,7 @@
   }
 
   // ---------- paneles ----------
-  function renderPanels() { if (!S.info) return; renderVerdict(); renderLedger(); renderChart(); renderBalance(); renderMeter(); renderBill(); }
+  function renderPanels() { if (!S.info) return; renderVerdict(); renderLedger(); renderChart(); renderBalance(); renderMeter(); renderBill(); if (S.lastSponsorMode !== S.mode) { S.lastSponsorMode = S.mode; renderSponsor(); } }
   function renderMeter() {
     var el = $('meter');
     if (S.mode === 'design' || !hasElectric()) { el.hidden = true; return; }
@@ -1795,6 +1795,156 @@
     ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
   }
 
+  // ---------- temporada: patrocinadores y concurso ----------
+  // Se lee de temporada.json, junto a la app, para poder cambiar patrocinadores y concurso sin publicar otra versión.
+  function loadSeason() {
+    S.season = load(KEYS.season, null);
+    if (!STANDALONE || !window.fetch) return;
+    fetch('temporada.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (j && typeof j === 'object') { S.season = j; store(KEYS.season, j); renderSponsor(); }
+    }).catch(function () { /* sin conexión: se usa la copia guardada */ });
+  }
+  function contest() {
+    var c = S.season && S.season.concurso;
+    if (!c || !c.activo) return null;
+    var now = new Date().toISOString().slice(0, 10);
+    if ((c.desde && now < c.desde) || (c.hasta && now > c.hasta)) return null;
+    return c;
+  }
+  function safeLink(u) { u = String(u || ''); return /^(https:\/\/|mailto:)/i.test(u) ? u : ''; }
+  function safeImg(u) { u = String(u || ''); return /^(https:\/\/|[a-z0-9_\-\/]+\.(png|jpe?g|webp|svg)$)/i.test(u) ? u : ''; }
+  function sponsorHtml() {
+    var list = (S.season && Array.isArray(S.season.patrocinadores)) ? S.season.patrocinadores.filter(function (p) { return p && p.nombre; }) : [];
+    if (!list.length) return '';
+    var p = list[Math.floor(Date.now() / 86400000) % list.length], link = safeLink(p.enlace), img = safeImg(p.imagen);
+    return '<div class="sponsor"><span class="tag">Patrocinado</span>' + (img ? '<img src="' + esc(img) + '" alt="">' : '') +
+      '<div' + (img ? '' : ' style="grid-column:1/-1"') + '><b>' + esc(p.nombre) + '</b><span>' + esc(p.texto || '') + '</span></div>' +
+      (link ? '<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener sponsored">' + esc(p.boton || 'Ver') + '</a>' : '') + '</div>';
+  }
+  function renderSponsor() {
+    var el = $('sponsorCard'), h = sponsorHtml();
+    el.hidden = !h; el.innerHTML = h;
+  }
+  function contestHtml() {
+    var c = contest(), best = records()[0];
+    var df = function (d) { try { return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d + 'T12:00:00')); } catch (e) { return d; } };
+    var h = '<div class="contest">';
+    if (!c) {
+      h += '<h3>Concurso de eficiencia</h3><p class="note">Próximamente habrá premios para las tres máquinas más eficientes de cada temporada, pagados con lo que aportan los patrocinadores. Cuando empiece, aquí verás las fechas, los premios y cómo participar.</p>' +
+        '<p class="note">Mientras tanto, entrena: tus mejores pruebas se guardan en «Récords».</p>';
+    } else {
+      h += '<h3>' + esc(c.titulo || 'Concurso de eficiencia') + '</h3>' +
+        '<p class="dates">' + (c.desde ? 'Del ' + esc(df(c.desde)) + ' ' : '') + (c.hasta ? 'al ' + esc(df(c.hasta)) : '') + '</p>' +
+        (Array.isArray(c.premios) && c.premios.length ? '<ul style="list-style:none;padding-left:0">' + c.premios.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>' : '') +
+        (c.reparto ? '<p class="note">' + esc(c.reparto) + '</p>' : '') +
+        '<p class="note">Gana la máquina con más eficiencia: la electricidad útil que saca dividida entre toda la energía que gasta. La eficiencia oficial es la que calcula el verificador del organizador, que vuelve a probar tu máquina sin empujones y durante 10 minutos como máximo. Ninguna máquina puede pasar del 100 %.</p>' +
+        (safeLink(c.bases) || /^[a-z0-9_\-]+\.html$/i.test(c.bases || '') ? '<p class="note"><a href="' + esc(c.bases) + '" target="_blank" rel="noopener">Leer las bases del concurso</a></p>' : '');
+      h += '<label class="sr" for="aliasIn">Tu nombre o apodo</label><div class="saverow"><input id="aliasIn" maxlength="40" placeholder="Tu nombre o apodo para la clasificación" value="' + esc(S.settings.alias || '') + '"></div>';
+      if (best) {
+        h += '<p class="note">Tu mejor récord: <b>' + esc(best.name) + '</b>, con ' + pct(best.eff) + '.</p>' +
+          '<div class="row"><button class="btn primary" id="sendEntry" type="button">Enviar al concurso</button></div>' +
+          '<p class="note">Se prepara un archivo con tu máquina. Envíalo por correo a <span class="mail">' + esc(c.correo || '') + '</span></p>';
+      } else {
+        h += '<p class="note">Aún no tienes récords. Pon un generador en tu máquina y pruébala hasta que se pare: su eficiencia aparecerá en «Récords» y podrás enviarla.</p>';
+      }
+    }
+    return h + '</div>' + (sponsorHtml() ? '<div style="margin-top:12px">' + sponsorHtml() + '</div>' : '');
+  }
+  function bindContest() {
+    var a = $('aliasIn');
+    if (a) a.addEventListener('change', function () { S.settings.alias = a.value.trim().slice(0, 40); store(KEYS.settings, S.settings); });
+    var b = $('sendEntry');
+    if (b) b.onclick = function () {
+      var c = contest(), best = records()[0];
+      if (!c || !best) return;
+      var alias = ($('aliasIn') && $('aliasIn').value.trim()) || S.settings.alias || '';
+      if (!alias) { toast('Escribe tu nombre o apodo para la clasificación.'); $('aliasIn').focus(); return; }
+      S.settings.alias = alias; store(KEYS.settings, S.settings);
+      var entry = { app: 'taller-perpetuum', tipo: 'participacion', version: 1, appVersion: APP_VERSION, temporada: (S.season && S.season.temporada) || '',
+        participante: alias, nombre: best.name, eficienciaDeclarada: best.eff, util: best.useful, gastada: best.spent, fecha: new Date().toISOString(), design: best.design };
+      var blob = new Blob([JSON.stringify(entry)], { type: 'application/json' }), name = 'concurso-' + fileName('.perpetuum.json');
+      var file = null;
+      try { file = new File([blob], name, { type: 'application/json' }); } catch (e) { file = null; }
+      var text = 'Participación en «' + (c.titulo || 'el concurso') + '»: ' + alias + ', «' + best.name + '», ' + pct(best.eff) + '. Enviar a ' + (c.correo || '') + '.';
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'Participación en el concurso', text: text }).catch(function () { /* cancelado */ });
+      } else download(blob, name);
+    };
+  }
+
+  // ---------- verificador oficial (para el organizador) ----------
+  // Vuelve a probar cada máquina desde su diseño, sin empujones, hasta que se pare o 10 minutos.
+  function verifyEntry(d, onProgress, onDone) {
+    var info;
+    try { info = P.build(d); } catch (e) { onDone({ valid: false, why: 'diseño dañado' }); return; }
+    var w = info.world, powered = d.parts.some(function (p) { return (p.motor && p.msrc !== 'bus') || (p.kind === 'magnet' && p.shape === 'electro'); });
+    function finish(why) { var b = w.balance(), ef = efficiency(b); onDone({ eff: ef.eff, useful: ef.useful, spent: ef.spent, t: w.t, valid: !why && ef.valid, why: why || (ef.valid ? '' : 'error de cálculo') }); }
+    function slice() {
+      var t0 = performance.now();
+      while (performance.now() - t0 < 30) {
+        for (var k = 0; k < 48; k++) w.step();
+        if (broken(w)) { finish('cálculo descontrolado'); return; }
+        if ((w.isStopped() && !powered) || w.t >= 600) { finish(''); return; }
+      }
+      onProgress(w.t / 600);
+      setTimeout(slice, 0);
+    }
+    slice();
+  }
+  function openVerifier() {
+    var rows = [];
+    function render(progressText) {
+      var sorted = rows.slice().sort(function (a, b) { return (b.res && b.res.valid ? 1 : 0) - (a.res && a.res.valid ? 1 : 0) || ((b.res && b.res.eff) || 0) - ((a.res && a.res.eff) || 0) || String(a.fecha).localeCompare(String(b.fecha)); });
+      var pos = 0;
+      var h = '<p class="note">Para el organizador del concurso. Abre los archivos que te han enviado: cada máquina se vuelve a probar aquí, sin empujones y durante 10 minutos como máximo. La eficiencia que cuenta es la verificada, no la declarada. En caso de empate, gana quien envió antes.</p>' +
+        '<div class="row"><button class="btn primary" id="verPick" type="button">Abrir archivos de participación</button></div>' + (progressText ? '<p class="note">' + esc(progressText) + '</p><div class="vbar"><i id="verBar"></i></div>' : '');
+      if (rows.length) {
+        h += '<div style="overflow-x:auto"><table class="vtable"><thead><tr><th>Puesto</th><th>Participante</th><th>Declarada</th><th>Verificada</th><th></th></tr></thead><tbody>' +
+          sorted.map(function (r) {
+            var ok = r.res && r.res.valid, place = ok ? ++pos : '—';
+            return '<tr><td>' + (ok && place <= 3 ? '<b>' + place + '.º</b>' : place) + '</td><td>' + esc(r.participante) + '<br><span class="note" style="font-size:12px">' + esc(r.nombre) + '</span></td>' +
+              '<td class="n">' + (isFinite(r.declarada) ? pct(r.declarada) : '—') + '</td>' +
+              '<td class="n">' + (r.res ? (ok ? '<span class="ok">' + pct(r.res.eff) + '</span>' : '<span class="ko">no válida</span><br><span style="font-size:12px">' + esc(r.res.why || '') + '</span>') : 'probando…') + '</td>' +
+              '<td><button class="btn" type="button" data-vopen="' + r.k + '">Abrir</button></td></tr>';
+          }).join('') + '</tbody></table></div>';
+      }
+      $('verBody').innerHTML = h;
+      $('verPick').onclick = function () { $('verifyFiles').click(); };
+      $('verBody').querySelectorAll('[data-vopen]').forEach(function (b) {
+        b.onclick = function () {
+          var r = rows.filter(function (x) { return String(x.k) === b.getAttribute('data-vopen'); })[0];
+          if (!r || !r.design) return;
+          closeModal('verifyModal'); pushUndo(); S.libId = null; S.libName = r.participante + ' · ' + r.nombre; setDesign(r.design);
+          toast('Abierta la máquina de ' + r.participante + '.', 'Deshacer', doUndo);
+        };
+      });
+    }
+    function runQueue() {
+      var next = rows.filter(function (r) { return !r.res && !r.running; })[0];
+      if (!next) { render(''); return; }
+      next.running = true;
+      render('Probando la máquina de ' + next.participante + '…');
+      verifyEntry(next.design, function (f) { var bar = $('verBar'); if (bar) bar.style.width = Math.round(f * 100) + '%'; }, function (res) { next.res = res; next.running = false; runQueue(); });
+    }
+    $('verifyFiles').onchange = function () {
+      var files = Array.prototype.slice.call($('verifyFiles').files || []), left = files.length;
+      $('verifyFiles').value = '';
+      files.forEach(function (f, i) {
+        var r = new FileReader();
+        r.onload = function () {
+          var o = null;
+          try { o = JSON.parse(String(r.result || '')); } catch (e) { o = null; }
+          var d = o && sanitize(o.design || o);
+          if (d) rows.push({ k: rows.length + '-' + i, participante: (o.participante || 'Sin nombre').slice(0, 40), nombre: (o.nombre || f.name).slice(0, 60), declarada: +o.eficienciaDeclarada, fecha: o.fecha || '', design: d });
+          if (--left === 0) runQueue();
+        };
+        r.readAsText(f);
+      });
+    };
+    render('');
+    showModal('verifyModal');
+  }
+
   // ---------- récords de eficiencia (en este dispositivo) ----------
   function records() { var r = load(KEYS.records, []); return Array.isArray(r) ? r : []; }
   function saveRecord() {
@@ -1806,7 +1956,9 @@
     r.sort(function (a, b2) { return b2.eff - a.eff || b2.useful - a.useful; });
     r = r.slice(0, 20);
     store(KEYS.records, r);
-    if (r[0] && r[0].date === r.filter(function (x) { return x.date; }).reduce(function (m, x) { return Math.max(m, x.date); }, 0) && r.length > 1) toast('¡Nuevo récord personal de eficiencia: ' + pct(ef.eff) + '!', 'Ver récords', function () { openExamples('records'); });
+    var isBest = r[0] && r[0].date === r.reduce(function (m, x) { return Math.max(m, x.date || 0); }, 0);
+    if (isBest && contest()) toast('¡Tu mejor eficiencia: ' + pct(ef.eff) + '! Puedes enviarla al concurso.', 'Concurso', function () { openExamples('contest'); });
+    else if (isBest && r.length > 1) toast('¡Nuevo récord personal de eficiencia: ' + pct(ef.eff) + '!', 'Ver récords', function () { openExamples('records'); });
     if (ef.eff >= 0.5) completeGoal('eficiencia');
   }
 
@@ -1873,6 +2025,7 @@
       $('exTabEx').setAttribute('aria-selected', String(which === 'ejemplos'));
       $('exTabRe').setAttribute('aria-selected', String(which === 'retos'));
       $('exTabRc').setAttribute('aria-selected', String(which === 'records'));
+      $('exTabCo').setAttribute('aria-selected', String(which === 'contest'));
       var h = '';
       if (which === 'ejemplos') {
         h = '<p class="note">Máquinas que se han propuesto durante siglos. Ábrelas, pruébalas y lee en las cuentas por qué se paran.</p><div class="cards">' +
@@ -1880,6 +2033,8 @@
             var st = STORIES[k];
             return '<button class="cardbtn" type="button" data-ex="' + k + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC[EX_ICONS[k] || 'wheel'] + '</svg><b>' + esc(st.title) + '</b><span class="era">' + esc(st.era) + '</span><span>' + esc(st.what.split('. ')[0]) + '.</span></button>';
           }).join('') + '</div>';
+      } else if (which === 'contest') {
+        h = contestHtml();
       } else if (which === 'records') {
         var rs = records(), df = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' });
         h = '<p class="note">La eficiencia es la electricidad útil que saca tu máquina dividida entre toda la energía que gasta (su reserva, tus empujones, la pila y la red). Nunca puede pasar del 100 %. Tus mejores pruebas se guardan en este móvil.</p><div class="lib">' +
@@ -1895,6 +2050,7 @@
         }).join('') + '</div><p class="note">El último reto es el movimiento perpetuo. Si alguna vez el banco viera energía salida de la nada, sería un error de cálculo, y te lo diría en las cuentas.</p>';
       }
       $('exBody').innerHTML = h;
+      bindContest();
       $('exBody').querySelectorAll('[data-rec]').forEach(function (bt) {
         bt.addEventListener('click', function () {
           var r = records().filter(function (x) { return x.id === bt.getAttribute('data-rec'); })[0], d = r && sanitize(r.design);
@@ -1916,6 +2072,7 @@
     $('exTabEx').onclick = function () { which = 'ejemplos'; render(); };
     $('exTabRe').onclick = function () { which = 'retos'; render(); };
     $('exTabRc').onclick = function () { which = 'records'; render(); };
+    $('exTabCo').onclick = function () { which = 'contest'; render(); };
     render();
     if ($('examplesModal').hidden) showModal('examplesModal');
   }
@@ -2073,6 +2230,7 @@
       toggleField('Vibración', 'set_haptics', st.haptics, 'Una vibración corta al poner y quitar piezas.') +
       '</div>' +
       item('mIntro', '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>', 'Ver la introducción', '') +
+      item('mVerify', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6"/>', 'Verificar participaciones', 'Para quien organiza el concurso') +
       '</div><p class="about-app">Taller Perpetuum ' + APP_VERSION + '. Física calculada en tu móvil, sin conexión y sin recoger ningún dato.' +
       (STANDALONE ? ' <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.' : '') +
       ' Usa three.js (licencia MIT) y las fuentes Barlow e IBM Plex Mono (licencia OFL).</p>';
@@ -2083,6 +2241,7 @@
     $('mExport').onclick = function () { exportFile(); };
     $('mImport').onclick = function () { $('importFile').click(); };
     $('mIntro').onclick = function () { closeModal('menuModal'); setTimeout(openWelcome, 80); };
+    $('mVerify').onclick = function () { closeModal('menuModal'); setTimeout(openVerifier, 80); };
     $('menuBody').querySelectorAll('[data-seg]').forEach(function (b) {
       b.addEventListener('click', function () {
         var k = b.getAttribute('data-seg') === 'set_theme' ? 'theme' : 'quality';
@@ -2283,7 +2442,7 @@
     });
     $('loadBtn').addEventListener('click', function () { closeModal('shareModal'); importText($('shareIn').value); });
     // cerrar ventanas: botón «Cerrar», tocar fuera o el botón «atrás»
-    ['palette', 'cloneModal', 'shareModal', 'examplesModal', 'libraryModal', 'menuModal', 'welcomeModal'].forEach(function (id) {
+    ['palette', 'cloneModal', 'shareModal', 'examplesModal', 'libraryModal', 'menuModal', 'welcomeModal', 'verifyModal'].forEach(function (id) {
       var m = $(id);
       m.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { if (id === 'cloneModal') closeClone(); else closeModal(id); }); });
       m.addEventListener('click', function (e) { if (e.target === m && id !== 'welcomeModal') { if (id === 'cloneModal') closeClone(); else closeModal(id); } });
@@ -2349,6 +2508,7 @@
     setTab(mqMobile.matches ? 'ayuda' : 'cuentas');
     renderInspector(); renderAbout(); renderConditions();
     applySettings();
+    loadSeason();
     var accion = '';
     try { accion = new URLSearchParams(location.search).get('accion') || ''; } catch (e) { accion = ''; }
     if (accion) { store(KEYS.welcome, Date.now()); try { history.replaceState(null, '', location.pathname); } catch (e) { /* nada */ } }

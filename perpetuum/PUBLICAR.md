@@ -64,3 +64,15 @@ Ahora mismo ese archivo solo contiene PresuVolt. Añade una entrada para Perpetu
 
 - **Cambios en la app** (piezas, textos, física): actualiza los archivos de `perpetuum/` y cambia el nombre de la caché en `sw.js` (la línea `const CACHE = …`). Los móviles reciben la nueva versión al abrir la app; no hace falta subir nada a Play.
 - **Cambios en el paquete** (nombre, icono del lanzador, colores de la barra): genera un `.aab` nuevo en PWABuilder con la misma llave, sube el *Version code* en 1 y publícalo en Play Console.
+
+## 6. Patrocinadores y concurso
+
+Todo se controla con el archivo **`temporada.json`**, sin publicar una versión nueva de la app: los móviles lo descargan al abrirla con conexión.
+
+- **Patrocinadores** (`patrocinadores`): cada uno con `nombre`, `texto`, `enlace` (una web `https://` o un `mailto:`), `boton` y, si quieres, `imagen` (un archivo `.png`/`.jpg` subido a esta carpeta o una dirección `https://`). Se muestra uno al día, en «Cuentas» y en la pestaña «Concurso». No hay redes publicitarias ni rastreo.
+- **Concurso** (`concurso`): pon `"activo": true`, las fechas `desde` y `hasta` (formato `AAAA-MM-DD`), los textos de los tres `premios`, el `correo` donde recibirás las participaciones y la página de `bases`.
+- **Bases:** `bases-concurso.html` es un **borrador**. Completa los datos marcados y revísalo con un gestor o un abogado antes de activar el concurso. Publica cuantías concretas antes de empezar cada temporada: «el 25 % de los anuncios» sin cifra es difícil de comprobar para los participantes.
+- **Participar:** cada persona prueba su máquina hasta que se para, va a «Ejemplos y retos → Concurso» y pulsa «Enviar al concurso». La app prepara un archivo y lo comparte; la persona lo envía a tu correo.
+- **Elegir ganadores:** en la app, «Más → Verificar participaciones», abre todos los archivos recibidos. Cada máquina se vuelve a probar desde su diseño, sin empujones y durante 10 minutos como máximo. La clasificación usa la eficiencia verificada, nunca la declarada, y descarta las pruebas con error de cálculo. En caso de empate, gana quien envió antes.
+- **Impuestos:** en España, los premios de más de 300 € llevan retención de IRPF que practica el organizador. Confírmalo con tu gestor.
+- **Play Console:** con patrocinadores, marca «Contiene anuncios» en *Contenido de la aplicación*.

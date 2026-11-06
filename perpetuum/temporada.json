@@ -1,0 +1,26 @@
+{
+  "temporada": "t1",
+  "concurso": {
+    "activo": false,
+    "titulo": "Temporada 1: la máquina más eficiente",
+    "desde": "",
+    "hasta": "",
+    "premios": [
+      "1.º puesto: cuantía por anunciar",
+      "2.º puesto: cuantía por anunciar",
+      "3.º puesto: cuantía por anunciar"
+    ],
+    "reparto": "El 25 % de lo que aporten los patrocinadores de la temporada se reparte entre los tres primeros puestos.",
+    "correo": "jmanuelgonzalezlagar4@gmail.com",
+    "bases": "bases-concurso.html"
+  },
+  "patrocinadores": [
+    {
+      "nombre": "Anúnciate en el Taller",
+      "texto": "Pon aquí tu marca. Una parte de lo que aportes irá a los premios del concurso.",
+      "enlace": "mailto:jmanuelgonzalezlagar4@gmail.com?subject=Patrocinio%20Taller%20Perpetuum",
+      "boton": "Escríbenos",
+      "imagen": ""
+    }
+  ]
+}

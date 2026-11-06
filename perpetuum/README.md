@@ -17,6 +17,8 @@ Funciona sin conexión y se instala como app (PWA). Para publicarla en Google Pl
 | `sw.js` | Service worker: guarda la app para que funcione sin conexión |
 | `manifest.webmanifest` | Nombre, iconos y colores de la app instalada |
 | `privacidad.html` | Política de privacidad |
+| `temporada.json` | Patrocinadores y concurso de la temporada (se edita sin publicar otra versión) |
+| `bases-concurso.html` | Borrador de las bases del concurso |
 | `tienda/` | Icono, gráfico destacado, capturas y textos para Play Store |
 
 ## Cambiar la app

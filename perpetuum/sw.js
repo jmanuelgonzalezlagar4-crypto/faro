@@ -1,6 +1,6 @@
 // Taller Perpetuum — service worker: la app funciona sin conexión.
 // El nombre de la caché cambia con cada versión publicada y se borra la anterior.
-const CACHE = 'perpetuum-1.0.0-f410a1df';
+const CACHE = 'perpetuum-1.0.0-1fa187a3';
 const ASSETS = [
   './',
   './index.html',
@@ -46,6 +46,16 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
+  // la temporada (patrocinadores y concurso) se pide primero a la red, para que los cambios lleguen enseguida
+  if (url.pathname.endsWith('/temporada.json')) {
+    e.respondWith(
+      fetch(e.request).then((res) => {
+        if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then((hit) => {
       const fresh = fetch(e.request)

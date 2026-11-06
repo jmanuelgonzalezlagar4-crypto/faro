@@ -325,6 +325,25 @@ select.btn { padding-right: 6px; max-width: 220px; min-width: 0; }
 .rank .eff { font-family: var(--f-mono); font-size: 17px; text-align: right; }
 .rank .btn { grid-column: 3; min-height: 32px; padding: 0 10px; font-size: 13px; }
 
+/* patrocinio y concurso */
+.sponsor { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; border: 1px dashed var(--rule); border-radius: 12px; padding: 10px 12px; background: var(--panel-2); }
+.sponsor .tag { grid-column: 1 / -1; font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.sponsor img { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: var(--panel); }
+.sponsor b { display: block; font-size: 15px; }
+.sponsor span { font-size: 13.5px; color: var(--ink-2); }
+.sponsor a.btn { grid-column: 1 / -1; justify-self: start; text-decoration: none; color: var(--ink); min-height: 34px; }
+.contest h3 { font-family: var(--f-display); font-size: 24px; margin: 0; line-height: 1.1; }
+.contest .dates { font-size: 13.5px; color: var(--ink-3); margin: 4px 0 8px; }
+.contest ol { margin: 6px 0 10px; padding-left: 22px; }
+.contest .mail { font-family: var(--f-mono); font-size: 14px; -webkit-user-select: all; user-select: all; background: var(--panel-2); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 8px; display: inline-block; }
+.vtable { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+.vtable th { text-align: left; font-family: var(--f-display); font-weight: 600; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding: 6px 4px; }
+.vtable td { border-top: 1px solid var(--rule); padding: 7px 4px; vertical-align: top; }
+.vtable td.n { font-family: var(--f-mono); text-align: right; white-space: nowrap; }
+.vtable .ok { color: var(--good); } .vtable .ko { color: var(--bad); }
+.vbar { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; margin-top: 8px; }
+.vbar i { display: block; height: 100%; background: var(--accent); width: 0; }
+
 /* comportamiento de app instalada */
 html, body { overscroll-behavior: none; overflow: hidden; }
 .app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -468,6 +487,7 @@ html, body { margin: 0; }
             <h2>Contador de la luz <small id="billPrice"></small></h2>
             <div id="billBody"></div>
           </section>
+          <section class="card" id="sponsorCard" hidden></section>
           <section class="card" id="chartCard">
             <h2>Energía durante la prueba <small>julios</small></h2>
             <div class="chartbox" id="chartbox"><canvas id="chart"></canvas><div class="tip" id="tip" hidden></div></div>
@@ -494,6 +514,7 @@ html, body { margin: 0; }
       <button class="tab" role="tab" id="exTabEx" aria-selected="true" type="button">Ejemplos</button>
       <button class="tab" role="tab" id="exTabRe" aria-selected="false" type="button">Retos</button>
       <button class="tab" role="tab" id="exTabRc" aria-selected="false" type="button">Récords</button>
+      <button class="tab" role="tab" id="exTabCo" aria-selected="false" type="button">Concurso</button>
     </div>
     <div id="exBody"></div>
   </div>
@@ -529,6 +550,14 @@ html, body { margin: 0; }
 
 <input type="file" id="importFile" accept=".json,application/json" hidden>
 <input type="file" id="photoFile" accept="image/*" hidden>
+<input type="file" id="verifyFiles" accept=".json,application/json" multiple hidden>
+
+<div class="modal" id="verifyModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="verTitle">
+    <div class="insp-head"><h3 id="verTitle">Verificar participaciones</h3><button class="btn" data-close type="button">Cerrar</button></div>
+    <div id="verBody"></div>
+  </div>
+</div>
 
 <div class="modal" id="palette" hidden>
   <div class="box" role="dialog" aria-modal="true" aria-labelledby="palTitle">
