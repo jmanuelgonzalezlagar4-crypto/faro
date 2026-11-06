@@ -18,6 +18,12 @@
   function fmtJ(x) { var a = Math.abs(x); return fmt(x, a >= 100 ? 0 : (a >= 10 ? 1 : 2)) + ' J'; }
   function fmtCm(m) { return fmt(m * 100, Math.abs(m * 100) >= 100 ? 0 : 1) + ' cm'; }
   function pct(x) { return fmt(x * 100, 0) + ' %'; }
+  // números muy pequeños (kWh, céntimos) con dos cifras significativas
+  function fmtSmall(x) {
+    if (!x) return '0';
+    var d = Math.max(0, Math.min(12, Math.ceil(-Math.log10(Math.abs(x))) + 1));
+    return fmt(x, d);
+  }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function r1(x) { return Math.round(x * 10) / 10; }
 
@@ -34,7 +40,7 @@
     settings: { theme: 'system', quality: 'auto', haptics: true }
   };
   var APP_VERSION = '1.0.0';
-  var KEYS = { settings: 'taller-perpetuum.ajustes', lib: 'taller-perpetuum.biblioteca', goals: 'taller-perpetuum.retos', welcome: 'taller-perpetuum.bienvenida', current: 'taller-perpetuum.actual' };
+  var KEYS = { settings: 'taller-perpetuum.ajustes', lib: 'taller-perpetuum.biblioteca', goals: 'taller-perpetuum.retos', welcome: 'taller-perpetuum.bienvenida', current: 'taller-perpetuum.actual', records: 'taller-perpetuum.records', photo: 'taller-perpetuum.foto.' };
   var STANDALONE = (function () { try { return window.self === window.top; } catch (e) { return false; } })();
   function load(key, fb) { try { var v = JSON.parse(localStorage.getItem(key) || 'null'); return v == null ? fb : v; } catch (e) { return fb; } }
   function store(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -64,7 +70,8 @@
     'mag-halbach': '<g stroke="currentColor" stroke-width="1"><rect x="2" y="9" width="4" height="6" fill="var(--north)"/><rect x="6" y="9" width="4" height="6" fill="var(--panel-2)"/><rect x="10" y="9" width="4" height="6" fill="var(--south)"/><rect x="14" y="9" width="4" height="6" fill="var(--panel-2)"/><rect x="18" y="9" width="4" height="6" fill="var(--north)"/></g><path d="M3 7h2M8 6v2M11 7h2M16 8V6M19 7h2" stroke="currentColor" stroke-width="1.2"/>',
     'mag-electro': '<rect x="3" y="10.5" width="18" height="3" fill="var(--steel)" stroke="currentColor" stroke-width="1"/><rect x="6" y="7" width="12" height="10" rx="2" fill="#b5652b" stroke="currentColor" stroke-width="1.2"/><path d="M8 7v10M10.5 7v10M13 7v10M15.5 7v10" stroke="#7a3f14" stroke-width="1"/>',
     motor: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 15.5V8.5l4 4 4-4v7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
-    gen: '<circle cx="12" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 16h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 6l-2 4h4l-2 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>'
+    gen: '<circle cx="12" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 16h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 6l-2 4h4l-2 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
+    photo: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>'
   };
 
   var DOCK = [
@@ -92,6 +99,9 @@
     { group: 'Energía', items: [
       { id: 'motor', name: 'Motor', desc: 'Toca un eje o una bisagra.' },
       { id: 'gen', name: 'Generador', desc: 'Toca un eje o una bisagra para sacar energía.' }
+    ] },
+    { group: 'Tu maqueta', items: [
+      { id: 'photo', name: 'Foto de tu maqueta', desc: 'Ponla de fondo y calca encima sus piezas con sus medidas.' }
     ] }
   ];
   var PAL_BY_ID = {};
@@ -197,6 +207,8 @@
     var out = P.emptyDesign();
     out.gravity = P.GRAVITY[d.gravity] ? d.gravity : 'tierra';
     out.ideal = !!d.ideal; out.air = d.air !== false; out.example = STORIES[d.example] ? d.example : null;
+    if (isFinite(d.price)) out.price = d.price;
+    if (d.photo && typeof d.photo.id === 'string' && ['x', 'y', 'w'].every(function (k) { return isFinite(d.photo[k]); })) out.photo = { id: d.photo.id, x: d.photo.x, y: d.photo.y, w: d.photo.w, rot: isFinite(d.photo.rot) ? d.photo.rot : 0, op: isFinite(d.photo.op) ? d.photo.op : 0.6 };
     var maxId = 0;
     d.parts.forEach(function (p) {
       if (!p || !KINDS[p.kind] || typeof p.id !== 'string') return;
@@ -540,7 +552,7 @@
     return bl.error < -Math.max(0.05, 0.05 * scale);
   }
   function backToDesign() { rebuild(); setMode('design'); }
-  function stopTest(reason) { S.endReason = reason; setMode('stopped'); setTab('cuentas', true); buzz(25); checkGoals(true); }
+  function stopTest(reason) { S.endReason = reason; setMode('stopped'); setTab('cuentas', true); buzz(25); checkGoals(true); if (reason !== 'numeric') saveRecord(); }
 
   // ---------- historial ----------
   function recordHist(force) {
@@ -575,7 +587,7 @@
     }
     if (S.mode === 'run' || S.dirty || S.drag || S.glDirty) {
       if (is3d()) {
-        if (S.glDirty) { GL.rebuild(S.info, S.design); S.glDirty = false; }
+        if (S.glDirty) { GL.rebuild(S.info, S.design, { photo: S.design.photo, img: photoImg() }); S.glDirty = false; }
         GL.update(S.info, { sel: S.mode === 'design' ? S.sel : null, measure: S.measure });
         GL.render();
       } else draw();
@@ -605,6 +617,8 @@
     var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
     function add(x, y, r) { r = r || 0; minx = Math.min(minx, x - r); maxx = Math.max(maxx, x + r); miny = Math.min(miny, y - r); maxy = Math.max(maxy, y + r); }
     parts().forEach(function (p) { if ('x1' in p) { add(p.x1, p.y1); add(p.x2, p.y2); } else add(p.x, p.y, p.r || 0.05); });
+    var ph = S.design.photo, img = ph && photoImg();
+    if (ph && img) { var hh = ph.w * img.height / img.width; add(ph.x - ph.w / 2, ph.y - hh / 2); add(ph.x + ph.w / 2, ph.y + hh / 2); }
     if (!isFinite(minx)) return null;
     return { minx: minx, miny: miny, maxx: maxx, maxy: maxy };
   }
@@ -644,6 +658,7 @@
     w.bodies.forEach(function (b) { b._c = Math.cos(bodyAngle(b)); b._s = Math.sin(bodyAngle(b)); });
     ctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
     ctx.fillStyle = C.paper; ctx.fillRect(0, 0, S.vw, S.vh);
+    drawPhoto();
     drawGrid();
     var fns = { ramp: drawRamp, wheel: drawWheel, spring: drawSpring, bar: drawBar, ball: drawBall, magnet: drawMagnet, pin: drawPin };
     ['ramp', 'wheel', 'spring', 'bar', 'ball', 'magnet', 'pin'].forEach(function (k) {
@@ -918,7 +933,7 @@
   function drawScale() {
     var s = S.cam.s, options = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5], len = options[0];
     for (var i = 0; i < options.length; i++) { len = options[i]; if (options[i] * s >= 60) break; }
-    var px = len * s, x = 12, y = 50;
+    var px = len * s, x = 12, y = $('meter').hidden ? 50 : 50 + $('meter').offsetHeight + 8;
     ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + px, y); ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4); ctx.moveTo(x + px, y - 4); ctx.lineTo(x + px, y + 4); ctx.stroke();
     ctx.fillStyle = C['ink-2']; ctx.font = '500 11.5px ' + F.mono; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
@@ -988,7 +1003,47 @@
   }
 
   // ---------- paneles ----------
-  function renderPanels() { if (!S.info) return; renderVerdict(); renderLedger(); renderChart(); renderBalance(); }
+  function renderPanels() { if (!S.info) return; renderVerdict(); renderLedger(); renderChart(); renderBalance(); renderMeter(); renderBill(); }
+  function renderMeter() {
+    var el = $('meter');
+    if (S.mode === 'design' || !hasElectric()) { el.hidden = true; return; }
+    var w = S.info.world, b = w.balance(), m = w.meter || {};
+    var pin = (m.gridIn || 0) + (m.battery || 0), pout = (m.gridOut || 0) + (m.store || 0);
+    var ein = b.gridIn + b.battery, eout = b.gen;
+    var src = b.gridIn > 0 && b.battery > 0 ? 'red y pila' : (usesGrid() && !(b.battery > 0) ? 'red' : 'pila');
+    function W(x) { return fmt(x, x < 10 ? 2 : 1) + ' W'; }
+    el.innerHTML = '<span class="lab in">↓ Entra · ' + src + '</span><b>' + W(pin) + '</b><span class="j">' + fmtJ(ein) + '</span>' +
+      '<span class="lab out">↑ Produce</span><b>' + W(pout) + '</b><span class="j">' + fmtJ(eout) + '</span>' +
+      '<span class="lab tot">Saldo</span><b class="tot"></b><span class="j tot">' + fmtJ(eout - ein) + '</span>';
+    el.hidden = false;
+  }
+  function renderBill() {
+    var card = $('billCard');
+    if (!usesGrid() || S.mode === 'design') { card.hidden = true; return; }
+    card.hidden = false;
+    var b = S.info.world.balance(), price = (S.design.price != null ? S.design.price : 15) / 100;
+    var kin = b.gridIn / 3.6e6, kout = b.gridOut / 3.6e6, t = Math.max(S.info.world.t, 0.1);
+    $('billPrice').textContent = 'a ' + fmt(price * 100, 1) + ' céntimos el kWh';
+    var h = '<div class="bill">' +
+      '<div class="r"><span>Consumido de la red</span><b>' + fmtSmall(kin) + ' kWh · ' + fmtSmall(kin * price) + ' €</b></div>' +
+      '<div class="r"><span>Vertido a la red</span><b>' + fmtSmall(kout) + ' kWh · ' + fmtSmall(kout * price) + ' €</b></div>' +
+      '<div class="r"><span>Saldo de la factura</span><b>' + fmtSmall((kout - kin) * price) + ' €</b></div></div>';
+    var rate = (b.gridOut - b.gridIn) / t;
+    if (rate > 1e-6) {
+      var secs = 0.01 / price * 3.6e6 / rate;
+      h += '<p class="note">A este ritmo, ganar 1 céntimo le llevaría ' + humanTime(secs) + '.</p>';
+    } else if (b.gridIn > 0.01) {
+      h += '<p class="note">Consume más de lo que vierte: cada hora así costaría ' + fmtSmall(-rate * 3600 / 3.6e6 * price) + ' €. Ninguna máquina devuelve a la red más de lo que toma de ella y de su propia reserva.</p>';
+    }
+    $('billBody').innerHTML = h;
+  }
+  function humanTime(s) {
+    if (s < 120) return fmt(s, 0) + ' segundos';
+    if (s < 7200) return fmt(s / 60, 0) + ' minutos';
+    if (s < 172800) return fmt(s / 3600, 0) + ' horas';
+    if (s < 63072000) return fmt(s / 86400, 0) + ' días';
+    return fmt(s / 31557600, 0) + ' años';
+  }
   function categories(b) {
     return [
       { k: 'axle', name: 'Rozamiento en ejes y bisagras', v: b.axle, c: 's1' },
@@ -997,18 +1052,25 @@
       { k: 'air', name: 'Resistencia del aire', v: b.air, c: 's4' },
       { k: 'springs', name: 'Muelles (amortiguación)', v: b.springs, c: 's5' },
       { k: 'heat', name: 'Calor en motores, generadores y bobinas', v: b.heat, c: 's6' },
-      { k: 'bus', name: 'Electricidad útil guardada', v: b.bus, c: 's7' }
+      { k: 'bus', name: 'Electricidad útil (guardada o vertida a la red)', v: b.bus + (b.gridOut || 0), c: 's7' }
     ];
   }
   function hasGen() { return parts().some(function (p) { return p.gen > 0; }); }
+  function usesGrid() { return parts().some(function (p) { return (p.motor && p.msrc === 'grid') || (p.gen > 0 && p.gdest === 'grid') || (p.kind === 'magnet' && p.shape === 'electro' && p.esrc === 'grid'); }); }
+  function efficiency(b) {
+    var useful = b.bus + b.gridOut, spent = Math.max(0, b.reserve) + b.hand + b.battery + b.gridIn;
+    var scale = Math.max(Math.abs(b.inflow), b.outflow, 0.01);
+    return { eff: spent > 0.01 ? useful / spent : 0, useful: useful, spent: spent, valid: Math.abs(b.error) <= Math.max(0.02, 0.02 * scale) };
+  }
   function hasElectric() { return parts().some(function (p) { return p.gen > 0 || p.motor || (p.kind === 'magnet' && p.shape === 'electro'); }); }
   function joinEs(arr) { return arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1]; }
-  var LOSS_NAMES = { axle: 'el rozamiento de los ejes', hits: 'los golpes', rub: 'el roce entre piezas', air: 'el aire', springs: 'los muelles', heat: 'el calor de motores y bobinas' };
+  var LOSS_NAMES = { axle: 'el rozamiento de los ejes', hits: 'los golpes', rub: 'el roce entre piezas', air: 'el aire', springs: 'los muelles', heat: 'el calor de motores, generadores y bobinas' };
 
   function verdictData() {
     var w = S.info.world, b = w.balance();
     var tone = 'design', state = 'Diseño', title = '', text = '', warn = '';
-    var losses = b.axle + b.hits + b.rub + b.air + b.springs + b.heat, inflow = b.reserve + b.hand + b.battery;
+    var losses = b.axle + b.hits + b.rub + b.air + b.springs + b.heat, inflow = b.reserve + b.hand + b.battery + b.gridIn;
+    var usefulOut = b.bus + b.gridOut;
     if (S.mode === 'design') {
       if (!parts().length) { title = 'El banco está vacío'; text = 'Pulsa «Añadir» para elegir una pieza, o carga uno de los ejemplos.'; }
       else { title = 'Lista para probar'; text = 'Pulsa «Probar». El banco simula la física real y apunta cada julio que entra y sale de tu máquina.'; }
@@ -1034,19 +1096,22 @@
         title = 'Se ha parado a los ' + fmt(w.t, 1) + ' s';
         var cats = categories(b).filter(function (c) { return c.k !== 'bus' && c.v > 0.0005; }).sort(function (x, y) { return y.v - x.v; });
         var tot = cats.reduce(function (s, c) { return s + c.v; }, 0) || 1;
-        var ps = cats.slice(0, 3).map(function (c) { return LOSS_NAMES[c.k] + ' (' + pct(c.v / tot) + ')'; });
+        var ps = cats.filter(function (c) { return c.v / tot >= 0.01; }).slice(0, 3).map(function (c) { return LOSS_NAMES[c.k] + ' (' + pct(c.v / tot) + ')'; });
         text = 'Tenía ' + fmtJ(inflow) + ' para gastar' + (b.hand > 0.001 ? ', contando tus empujones' : '') + '. ';
         if (ps.length) text += 'Se fue en ' + joinEs(ps) + '. ';
         if (b.gen > 0.0005) text += 'Antes de pararse sus generadores produjeron ' + fmtJ(b.gen) + ': una bombilla LED de 1 W lucería ' + fmt(b.gen, b.gen < 10 ? 1 : 0) + ' s. ';
-        if (b.bus <= inflow + 0.01) text += 'No ha sacado ni un julio que no tuviera al empezar.';
+        var ef = efficiency(b);
+        if (ef.useful > 0.005 && ef.valid) text += 'Eficiencia: ' + pct(ef.eff) + ' (de cada 100 julios que gastó, ' + fmt(ef.eff * 100, 0) + ' salieron como electricidad útil). ';
+        if (usefulOut <= inflow + 0.01) text += 'No ha sacado ni un julio que no tuviera al empezar.';
       }
     } else {
       tone = S.mode === 'run' ? 'run' : 'design';
       state = S.mode === 'run' ? 'Probando' : 'En pausa';
       if (w.t < 0.6) { title = 'Arrancando…'; text = 'Mira cómo se mueve. Las cuentas se actualizan mientras tanto.'; }
-      else if (b.battery > 0.05) {
-        title = 'Funciona con batería';
-        text = 'La batería lleva puestos ' + fmtJ(b.battery) + '. De eso, ' + fmtJ(b.heat) + ' se han ido en calor' + (b.bus > 0.01 ? ' y ' + fmtJ(b.bus) + ' han vuelto como electricidad útil' : '') + '. Sin batería se pararía.';
+      else if (b.battery + b.gridIn > 0.05) {
+        var grid = b.gridIn >= b.battery;
+        title = grid ? 'Enchufada a la red' : 'Funciona con batería';
+        text = (grid ? 'Ha tomado de la red ' : 'La batería lleva puestos ') + fmtJ(b.battery + b.gridIn) + '. De eso, ' + fmtJ(b.heat) + ' se han ido en calor' + (usefulOut > 0.01 ? ' y ' + fmtJ(usefulOut) + ' han vuelto como electricidad útil' : '') + '. ' + (grid ? 'Desenchufada se pararía.' : 'Sin batería se pararía.');
       } else if (S.maxK < 2e-4 && b.hand < 1e-3) { title = 'Quieta por ahora'; text = 'Si no arranca sola es que está equilibrada. Puedes empujarla con el dedo.'; }
       else if (genW > 0.0005) {
         title = 'Produce ' + fmt(genW, genW < 1 ? 2 : 1) + ' W';
@@ -1076,12 +1141,13 @@
     var w = S.info.world, b = w.balance(), design = S.mode === 'design';
     var elec = hasElectric(), springs = parts().some(function (p) { return p.kind === 'spring'; });
     var rows = categories(b).filter(function (c) { return (c.k !== 'springs' || springs) && ((c.k !== 'heat' && c.k !== 'bus') || elec); });
-    var inflow = b.reserve + b.hand + b.battery;
+    var inflow = b.reserve + b.hand + b.battery + b.gridIn;
     function val(x) { return design ? '—' : fmtJ(x); }
     var h = '<tr><th colspan="2">Entradas · de dónde sale</th></tr>';
     h += '<tr><td>Gastada de su reserva<span class="sub">altura de las piezas, muelles, imanes y giro inicial' + (b.reserve < -0.0005 && !design ? '; en negativo, la ha acumulado' : '') + '</span></td><td class="v">' + val(b.reserve) + '</td></tr>';
     h += '<tr' + (b.hand > 0.0005 ? '' : ' class="dim"') + '><td>Tus empujones<span class="sub">con el dedo durante la prueba</span></td><td class="v">' + val(b.hand) + '</td></tr>';
     if (elec) h += '<tr' + (b.battery > 0.0005 ? '' : ' class="dim"') + '><td>Batería<span class="sub">motores y electroimanes conectados a la pila</span></td><td class="v">' + val(b.battery) + '</td></tr>';
+    if (usesGrid()) h += '<tr' + (b.gridIn > 0.0005 ? '' : ' class="dim"') + '><td>Red eléctrica<span class="sub">lo que marca el contador de entrada</span></td><td class="v">' + val(b.gridIn) + '</td></tr>';
     h += '<tr class="total"><td>Total que entra</td><td class="v">' + val(inflow) + '</td></tr>';
     h += '<tr><th colspan="2">Salidas · a dónde va</th></tr>';
     rows.forEach(function (c) { h += '<tr' + (c.v > 0.0005 || design ? '' : ' class="dim"') + '><td><span class="sw" style="background:var(--' + c.c + ')"></span>' + esc(c.name) + '</td><td class="v">' + val(c.v) + '</td></tr>'; });
@@ -1263,6 +1329,7 @@
       if (p.shape === 'electro') {
         h += numField('Largo de la bobina', 'n_size', model.size * 100, 'cm', 0.5);
         h += field('Fuerza al encenderlo', 'f_mu', 0.5, 40, 0.5, p.mu, 'A·m²', 'Consume ' + fmt(P.electroPower(p.mu), 1) + ' W de la batería mientras está encendido.', 1);
+        h += segField('Se alimenta de', 'f_esrc', [['battery', 'Una batería'], ['grid', 'La red eléctrica']], p.esrc === 'grid' ? 'grid' : 'battery', true);
         h += segField('Se enciende', 'f_emode', [['always', 'Siempre'], ['window', 'Según el giro de una rueda']], p.emode || 'always', true);
         if (p.emode === 'window') {
           var wheels = parts().filter(function (q) { return q.kind === 'wheel' && q.axle === 'fixed'; });
@@ -1287,11 +1354,12 @@
   }
   function deviceFields(p) {
     var h = field('Generador', 'f_gen', 0, 1, 0.01, p.gen || 0, 'N·m·s', 'Saca electricidad del giro. 0 = desconectado.');
+    h += segField('Lo que produce el generador', 'f_gdest', [['bus', 'Se guarda'], ['grid', 'Se vierte a la red']], p.gdest === 'grid' ? 'grid' : 'bus', true);
     h += toggleField('Motor', 'f_motor', !!p.motor, 'Empuja el giro con electricidad.');
     if (p.motor) {
       h += field('Velocidad del motor', 'f_mrpm', -200, 200, 1, p.mrpm || 0, 'rpm', 'Positivo: sentido de las agujas del reloj.', 0);
       h += field('Fuerza máxima del motor', 'f_mtorque', 0.05, 5, 0.05, p.mtorque || 0.5, 'N·m');
-      h += segField('Se alimenta de', 'f_msrc', [['battery', 'Una batería'], ['bus', 'Sus generadores']], p.msrc || 'battery', true);
+      h += segField('El motor se alimenta de', 'f_msrc', [['battery', 'Una batería'], ['grid', 'La red eléctrica'], ['bus', 'Sus generadores']], p.msrc || 'battery', true);
     }
     return h;
   }
@@ -1332,6 +1400,8 @@
     seg('f_style', function (v) { p.style = v; });
     seg('f_axle', function (v) { p.axle = v; });
     seg('f_msrc', function (v) { p.msrc = v; });
+    seg('f_gdest', function (v) { p.gdest = v; });
+    seg('f_esrc', function (v) { p.esrc = v; });
     seg('f_emode', function (v) { p.emode = v; });
     seg('f_mode', function (v) { p.mode = v; if (v === 'limits' && !p.lo && !p.hi) { p.lo = -45; p.hi = 45; } });
     var mt = $('f_motor');
@@ -1388,13 +1458,77 @@
       toggleField('Aire', 'c_air', dz.air && !dz.ideal, 'Frena lo que se mueve deprisa.', !design || dz.ideal) +
       toggleField('Ajustar a la cuadrícula', 'c_snap', S.snap, 'Coloca las piezas en centímetros exactos y engancha bordes y centros.') +
       toggleField('Ver lo que tira de cada lado', 'c_forces', S.forces, 'En la vista plana, dibuja la distancia de cada pesa al eje de la rueda.') +
-      '</div>' + (design ? '' : '<p class="note">Para cambiar las condiciones, pulsa «Diseñar».</p>');
+      numField('Precio de la luz', 'c_price', dz.price != null ? dz.price : 15, 'cént./kWh', 1, true) +
+      '</div>' + (design ? '' : '<p class="note">Para cambiar las condiciones, pulsa «Diseñar».</p>') + photoSection();
     el.querySelectorAll('[data-seg="c_grav"]').forEach(function (b) { b.disabled = !design; b.addEventListener('click', function () { var s0 = snapshot(); S.design.gravity = b.getAttribute('data-val'); commit(s0); }); });
     function chk(id, fn) { var c = $(id); if (c) c.addEventListener('change', function () { fn(c.checked); renderConditions(); }); }
     chk('c_ideal', function (v) { var b = snapshot(); S.design.ideal = v; commit(b); });
     chk('c_air', function (v) { var b = snapshot(); S.design.air = v; commit(b); });
     chk('c_snap', function (v) { S.snap = v; });
     chk('c_forces', function (v) { S.forces = v; });
+    bindNumSimple(el, 'c_price', function (v) { var b = snapshot(); S.design.price = Math.max(0, Math.min(200, v)); commit(b); });
+    bindPhotoSection(el);
+  }
+  function bindNumSimple(root, id, fn) {
+    var inp = $(id); if (!inp) return;
+    inp.addEventListener('change', function () { var v = parseFloat(String(inp.value).replace(',', '.')); if (isFinite(v)) fn(v); });
+    root.querySelectorAll('[data-num="' + id + '"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { var v = parseFloat(inp.value) + (parseFloat(inp.step) || 1) * parseFloat(btn.getAttribute('data-dir')); if (isFinite(v)) fn(r1(v)); });
+    });
+  }
+  function photoSection() {
+    var ph = S.design.photo, design = S.mode === 'design';
+    var h = '<h2 style="margin-top:16px">Foto de tu maqueta</h2>';
+    if (!ph) {
+      return h + '<p class="note">Si ya tienes una maqueta hecha que no funciona, hazle una foto de frente. La pones de fondo, la ajustas a su tamaño real y calcas encima sus piezas para probarla aquí. La app no reconoce sola las piezas de la foto: tú las dibujas encima, con sus medidas.</p>' +
+        '<div class="row"><button class="btn primary" id="ph_add" type="button"' + (design ? '' : ' disabled') + '>Subir una foto de tu maqueta</button></div>';
+    }
+    var data = photoData(ph.id);
+    h += (data ? '<img class="photo-thumb" alt="Foto de tu maqueta" src="' + data + '">' : '<p class="note">La imagen de esta foto no está en este dispositivo.</p>');
+    h += '<div class="fields">' + numField('Ancho de la foto', 'ph_w', ph.w * 100, 'cm', 1) + numField('Giro', 'ph_rot', ph.rot || 0, '°', 1) +
+      numField('Centro X', 'ph_x', ph.x * 100, 'cm', 1) + numField('Centro Y', 'ph_y', ph.y * 100, 'cm', 1) +
+      field('Transparencia', 'ph_op', 0.1, 1, 0.05, ph.op, '', null, 2) + '</div>' +
+      '<p class="note"><b>Para ponerla a escala:</b> con <b>Medir</b>, marca en la foto algo cuya medida real conozcas (por ejemplo el diámetro de la rueda) y escribe aquí cuánto mide de verdad.</p>' +
+      '<div class="fields">' + numField('La medida marcada mide de verdad', 'ph_cal', S.lastCal || 50, 'cm', 1, true) + '</div>' +
+      '<div class="row"><button class="btn primary" id="ph_scale" type="button">Ajustar la escala</button><button class="btn" id="ph_change" type="button">Cambiar la foto</button><button class="btn danger" id="ph_del" type="button">Quitar la foto</button></div>';
+    return h;
+  }
+  function bindPhotoSection(el) {
+    var add = $('ph_add'); if (add) add.onclick = function () { $('photoFile').click(); };
+    var ph = S.design.photo;
+    if (!ph) return;
+    if (S.mode !== 'design') { el.querySelectorAll('#ph_scale,#ph_change,#ph_del,[data-num^="ph_"],input[id^="ph_"]').forEach(function (c) { c.disabled = true; }); return; }
+    function upd(fn) { return function (v) { var b = snapshot(); fn(v); commit(b); }; }
+    bindNumSimple(el, 'ph_w', upd(function (v) { ph.w = Math.max(0.02, v / 100); }));
+    bindNumSimple(el, 'ph_rot', upd(function (v) { ph.rot = v; }));
+    bindNumSimple(el, 'ph_x', upd(function (v) { ph.x = v / 100; }));
+    bindNumSimple(el, 'ph_y', upd(function (v) { ph.y = v / 100; }));
+    bindNumSimple(el, 'ph_cal', function (v) { S.lastCal = Math.max(0.1, v); });
+    var op = $('ph_op');
+    op.addEventListener('input', function () { ph.op = parseFloat(op.value); $('ph_op_o').textContent = fmt(ph.op, 2); S.glDirty = true; markDirty(); });
+    op.addEventListener('change', function () { save(); });
+    $('ph_scale').onclick = function () {
+      var m = S.measure, real = (parseFloat(String($('ph_cal').value).replace(',', '.')) || 0) / 100;
+      if (!m || !m.b) { toast('Primero marca una medida en la foto con la herramienta «Medir».'); return; }
+      var len = Math.hypot(m.b.x - m.a.x, m.b.y - m.a.y);
+      if (len < 0.005 || real <= 0) { toast('La medida marcada es demasiado corta.'); return; }
+      var k = real / len, b = snapshot();
+      ph.x = m.a.x + (ph.x - m.a.x) * k; ph.y = m.a.y + (ph.y - m.a.y) * k; ph.w *= k;
+      S.lastCal = real * 100;
+      S.measure = { a: m.a, b: { x: m.a.x + (m.b.x - m.a.x) * k, y: m.a.y + (m.b.y - m.a.y) * k } };
+      commit(b); fitPhoto();
+      toast('Escala ajustada: la medida marcada ahora mide ' + fmtCm(real) + '.');
+    };
+    $('ph_change').onclick = function () { $('photoFile').click(); };
+    $('ph_del').onclick = removePhoto;
+  }
+  function fitPhoto() {
+    var ph = S.design.photo, img = photoImg();
+    if (!ph || !img) return;
+    var h = ph.w * img.height / img.width;
+    S.cam.x = ph.x; S.cam.y = ph.y;
+    S.cam.s = Math.max(40, Math.min(1200, Math.min(S.vw / (ph.w * 1.15), (S.vh - 90) / (h * 1.2))));
+    markDirty();
   }
 
   function renderAbout() {
@@ -1536,6 +1670,7 @@
     }).join('');
     $('palBody').querySelectorAll('[data-kind]').forEach(function (b) {
       b.addEventListener('click', function () {
+        if (b.dataset.kind === 'photo') { closeModal('palette'); setTimeout(function () { $('photoFile').click(); }, 60); return; }
         S.tool = 'add'; S.addKind = b.dataset.kind; S.pendingClone = false; S.measure = null;
         closeModal('palette'); updateTools(); updateHint();
       });
@@ -1600,6 +1735,81 @@
     });
   }
 
+  // ---------- foto de la maqueta ----------
+  // La app no reconoce las piezas de una foto: la pone de plantilla, a escala, para calcarlas encima.
+  var PHOTO = { id: null, img: null, ok: false };
+  function photoData(id) { try { return localStorage.getItem(KEYS.photo + id); } catch (e) { return null; } }
+  function savePhotoData(id, data) { try { localStorage.setItem(KEYS.photo + id, data); return true; } catch (e) { return false; } }
+  function photoImg() {
+    var ph = S.design && S.design.photo;
+    if (!ph) return null;
+    if (PHOTO.id !== ph.id) {
+      PHOTO.id = ph.id; PHOTO.ok = false; PHOTO.img = new Image();
+      var data = photoData(ph.id);
+      if (data) {
+        PHOTO.img.onload = function () { PHOTO.ok = true; S.glDirty = true; markDirty(); };
+        PHOTO.img.src = data;
+      }
+    }
+    return PHOTO.ok ? PHOTO.img : null;
+  }
+  function loadPhotoFile(file) {
+    var r = new FileReader();
+    r.onerror = function () { toast('No se ha podido leer esa foto.'); };
+    r.onload = function () {
+      var img = new Image();
+      img.onerror = function () { toast('Ese archivo no es una imagen que se pueda abrir.'); };
+      img.onload = function () {
+        var max = 1400, k = Math.min(1, max / Math.max(img.width, img.height));
+        var c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        var data = c.toDataURL('image/jpeg', 0.78), id = 'f' + Date.now().toString(36);
+        if (!savePhotoData(id, data)) { toast('No queda sitio para guardar la foto en este dispositivo. Borra algún diseño o usa una foto más pequeña.'); return; }
+        var before = snapshot();
+        if (S.design.photo) { try { localStorage.removeItem(KEYS.photo + S.design.photo.id); } catch (e) { /* nada */ } }
+        var w = is3d() ? 1.2 : Math.max(0.3, S.vw / S.cam.s * 0.8);
+        var cx = is3d() ? GL.cam.tx : S.cam.x, cy = is3d() ? GL.cam.ty : S.cam.y;
+        S.design.photo = { id: id, x: cx, y: cy, w: Math.round(w * 100) / 100, rot: 0, op: 0.6 };
+        if (S.mode !== 'design') backToDesign();
+        setView('2d');
+        commit(before);
+        setTab('prueba', true);
+        toast('Foto puesta. Ajusta su escala con la regla y calca encima las piezas.');
+      };
+      img.src = String(r.result || '');
+    };
+    r.readAsDataURL(file);
+  }
+  function removePhoto() {
+    if (!S.design.photo) return;
+    var before = snapshot();
+    S.design.photo = null;
+    commit(before);
+    toast('Foto quitada.', 'Deshacer', doUndo);
+  }
+  function drawPhoto() {
+    var ph = S.design.photo, img = photoImg();
+    if (!ph || !img) return;
+    var c = W2S(ph.x, ph.y), w = ph.w * S.cam.s, h = w * img.height / img.width;
+    ctx.save(); ctx.globalAlpha = Math.max(0.1, Math.min(1, ph.op)); ctx.translate(c.x, c.y); ctx.rotate(-(ph.rot || 0) * DEG);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
+  }
+
+  // ---------- récords de eficiencia (en este dispositivo) ----------
+  function records() { var r = load(KEYS.records, []); return Array.isArray(r) ? r : []; }
+  function saveRecord() {
+    var b = S.info.world.balance(), ef = efficiency(b);
+    if (!(ef.useful > 0.005 && ef.valid)) return;
+    var d = JSON.parse(snapshot()); delete d.photo;
+    var r = records();
+    r.push({ id: 'r' + Date.now().toString(36), name: machineTitle(), eff: ef.eff, useful: ef.useful, spent: ef.spent, t: S.info.world.t, date: Date.now(), design: d });
+    r.sort(function (a, b2) { return b2.eff - a.eff || b2.useful - a.useful; });
+    r = r.slice(0, 20);
+    store(KEYS.records, r);
+    if (r[0] && r[0].date === r.filter(function (x) { return x.date; }).reduce(function (m, x) { return Math.max(m, x.date); }, 0) && r.length > 1) toast('¡Nuevo récord personal de eficiencia: ' + pct(ef.eff) + '!', 'Ver récords', function () { openExamples('records'); });
+    if (ef.eff >= 0.5) completeGoal('eficiencia');
+  }
+
   // ---------- ajustes ----------
   function applySettings() {
     var st = S.settings, root = document.documentElement;
@@ -1623,6 +1833,7 @@
     { id: 'bombilla', title: 'Enciende la bombilla', desc: 'Consigue que un generador produzca 10 julios en una sola prueba.' },
     { id: 'ideal', title: 'Mundo sin rozamiento', desc: 'Con «Mundo ideal» activado, mantén algo moviéndose durante un minuto.' },
     { id: 'iman', title: 'Atrapada', desc: 'Haz que un imán atrape una bola de acero y la deje pegada.' },
+    { id: 'eficiencia', title: 'Medio camino', desc: 'Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.' },
     { id: 'perpetuo', title: 'El movimiento perpetuo', desc: 'Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.', impossible: true }
   ];
   var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro' };
@@ -1661,6 +1872,7 @@
     function render() {
       $('exTabEx').setAttribute('aria-selected', String(which === 'ejemplos'));
       $('exTabRe').setAttribute('aria-selected', String(which === 'retos'));
+      $('exTabRc').setAttribute('aria-selected', String(which === 'records'));
       var h = '';
       if (which === 'ejemplos') {
         h = '<p class="note">Máquinas que se han propuesto durante siglos. Ábrelas, pruébalas y lee en las cuentas por qué se paran.</p><div class="cards">' +
@@ -1668,6 +1880,12 @@
             var st = STORIES[k];
             return '<button class="cardbtn" type="button" data-ex="' + k + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC[EX_ICONS[k] || 'wheel'] + '</svg><b>' + esc(st.title) + '</b><span class="era">' + esc(st.era) + '</span><span>' + esc(st.what.split('. ')[0]) + '.</span></button>';
           }).join('') + '</div>';
+      } else if (which === 'records') {
+        var rs = records(), df = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' });
+        h = '<p class="note">La eficiencia es la electricidad útil que saca tu máquina dividida entre toda la energía que gasta (su reserva, tus empujones, la pila y la red). Nunca puede pasar del 100 %. Tus mejores pruebas se guardan en este móvil.</p><div class="lib">' +
+          (rs.length ? rs.map(function (r, i) {
+            return '<div class="rank"><span class="pos">' + (i + 1) + '</span><div class="meta"><b>' + esc(r.name) + '</b><span>' + fmtJ(r.useful) + ' útiles de ' + fmtJ(r.spent) + ' · ' + esc(df.format(new Date(r.date))) + '</span></div><span class="eff">' + pct(r.eff) + '</span><span></span><span></span><button class="btn" type="button" data-rec="' + r.id + '">Abrir</button></div>';
+          }).join('') : '<p class="note">Aún no hay récords. Pon un generador en una máquina, pruébala hasta que se pare y aquí verás su eficiencia.</p>') + '</div>';
       } else {
         var done = goalsDone(), n = GOALS.filter(function (g) { return !g.impossible && done[g.id]; }).length;
         h = '<p class="progress">Llevas ' + n + ' de ' + (GOALS.length - 1) + ' retos.</p><div class="cards">' + GOALS.map(function (g) {
@@ -1677,6 +1895,14 @@
         }).join('') + '</div><p class="note">El último reto es el movimiento perpetuo. Si alguna vez el banco viera energía salida de la nada, sería un error de cálculo, y te lo diría en las cuentas.</p>';
       }
       $('exBody').innerHTML = h;
+      $('exBody').querySelectorAll('[data-rec]').forEach(function (bt) {
+        bt.addEventListener('click', function () {
+          var r = records().filter(function (x) { return x.id === bt.getAttribute('data-rec'); })[0], d = r && sanitize(r.design);
+          if (!d) return;
+          closeModal('examplesModal'); pushUndo(); S.libId = null; S.libName = r.name; setDesign(d);
+          toast('Abierta: ' + r.name + ' (' + pct(r.eff) + ').', 'Deshacer', doUndo);
+        });
+      });
       $('exBody').querySelectorAll('[data-ex]').forEach(function (bt) {
         bt.addEventListener('click', function () {
           var k = bt.getAttribute('data-ex');
@@ -1689,6 +1915,7 @@
     }
     $('exTabEx').onclick = function () { which = 'ejemplos'; render(); };
     $('exTabRe').onclick = function () { which = 'retos'; render(); };
+    $('exTabRc').onclick = function () { which = 'records'; render(); };
     render();
     if ($('examplesModal').hidden) showModal('examplesModal');
   }
@@ -1707,6 +1934,7 @@
     if (S.libId && !asNew) entry = l.filter(function (e) { return e.id === S.libId; })[0];
     if (!entry) { entry = { id: 'd' + now.toString(36), created: now }; l.unshift(entry); }
     entry.name = name.slice(0, 60); entry.updated = now; entry.design = JSON.parse(snapshot());
+    entry.photoData = S.design.photo ? photoData(S.design.photo.id) : null;
     saveLibrary(l);
     S.libId = entry.id; S.libName = entry.name; save();
     buzz(10); toast('Guardado en «Mis diseños».');
@@ -1735,6 +1963,7 @@
         var e = library().filter(function (x) { return x.id === bt.getAttribute('data-open'); })[0];
         var d = e && sanitize(e.design);
         if (!d) { toast('Ese diseño está dañado y no se puede abrir.'); return; }
+        if (d.photo && e.photoData && !photoData(d.photo.id)) savePhotoData(d.photo.id, e.photoData);
         pushUndo(); S.libId = e.id; S.libName = e.name; setDesign(d); closeModal('libraryModal');
         toast('Abierto: ' + e.name + '.');
       };
@@ -1769,7 +1998,7 @@
     } catch (e) { toast('Este navegador no deja guardar archivos desde aquí.'); }
   }
   function exportFile() {
-    var data = JSON.stringify({ app: 'taller-perpetuum', version: 1, name: S.libName || suggestName(), design: JSON.parse(snapshot()) }, null, 1);
+    var data = JSON.stringify({ app: 'taller-perpetuum', version: 1, name: S.libName || suggestName(), design: JSON.parse(snapshot()), photoData: S.design.photo ? photoData(S.design.photo.id) : null }, null, 1);
     var blob = new Blob([data], { type: 'application/json' });
     var file;
     try { file = new File([blob], fileName('.perpetuum.json'), { type: 'application/json' }); } catch (e) { file = null; }
@@ -1779,7 +2008,9 @@
   }
   function importText(txt) {
     var d = null, name = '';
-    try { var o = JSON.parse(txt); if (o && o.design) { name = o.name || ''; o = o.design; } d = sanitize(o); } catch (e) { d = null; }
+    var pd = null;
+    try { var o = JSON.parse(txt); if (o && o.design) { name = o.name || ''; pd = o.photoData || null; o = o.design; } d = sanitize(o); } catch (e) { d = null; }
+    if (d && d.photo && pd && typeof pd === 'string' && pd.indexOf('data:image/') === 0) savePhotoData(d.photo.id, pd);
     if (!d) { toast('Ese archivo no es un diseño del taller.'); return; }
     pushUndo(); S.libId = null; S.libName = name; setDesign(d);
     closeModal('libraryModal'); closeModal('menuModal');
@@ -2032,6 +2263,11 @@
       toast('Pulsa «Probar» para ver si esta rueda de 1235 gira para siempre.');
     });
     $('welEmpty').addEventListener('click', function () { closeModal('welcomeModal'); newDesign(); });
+    $('photoFile').addEventListener('change', function () {
+      var f = $('photoFile').files && $('photoFile').files[0];
+      if (f) loadPhotoFile(f);
+      $('photoFile').value = '';
+    });
     $('importFile').addEventListener('change', function () {
       var f = $('importFile').files && $('importFile').files[0];
       if (!f) return;

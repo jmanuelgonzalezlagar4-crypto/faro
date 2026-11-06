@@ -169,7 +169,7 @@
     plomo: ['lead', 0.55, 0.35], acero: ['steel', 0.22, 0.9], madera: ['wood', 0.8, 0], goma: ['rubber', 0.9, 0]
   };
 
-  function rebuild(info, design) {
+  function rebuild(info, design, extra) {
     if (!ok) return;
     clearMachine();
     if (!wallTex) wallTex = gridTexture();
@@ -292,6 +292,15 @@
         springObjs.push(sObj);
       }
     });
+    // foto de la maqueta, pegada a la pared como una plantilla
+    var ph = extra && extra.photo, img = extra && extra.img;
+    if (ph && img) {
+      var tex = new THREE.Texture(img); tex.encoding = THREE.sRGBEncoding; tex.needsUpdate = true;
+      var hgt = ph.w * img.height / img.width;
+      var pm = new THREE.Mesh(new THREE.PlaneGeometry(ph.w, hgt), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: Math.max(0.1, Math.min(1, ph.op)), depthWrite: false }));
+      pm.position.set(ph.x, ph.y, WALL_Z + 0.003); pm.rotation.z = (ph.rot || 0) * DEG;
+      machine.add(pm);
+    }
     // el sol apunta a la máquina
     fitShadow();
   }

@@ -239,7 +239,7 @@
       var b = bodyFor(p.id);
       if (b.isStatic) return;
       var br = BEARINGS[ideal ? 'ideal' : p.bearing] || BEARINGS.bronce;
-      var j = w.addJoint(w.ground, b, p.x, p.y, { fc: br.axle[0], ft0: br.axle[1], gen: p.gen || 0, motor: motorOf(p, 1), tag: p.id });
+      var j = w.addJoint(w.ground, b, p.x, p.y, { fc: br.axle[0], ft0: br.axle[1], gen: p.gen || 0, genDest: p.gdest, motor: motorOf(p, 1), tag: p.id });
       info.wheelJoint[p.id] = j;
     });
 
@@ -252,7 +252,7 @@
       if (A.isStatic && B.isStatic) return;
       var br = BEARINGS[ideal ? 'ideal' : p.bearing] || BEARINGS.bronce;
       var flip = bodyFor(p.a) !== A ? -1 : 1;
-      var opt = { fc: br.pin[0], ft0: br.pin[1], gen: p.gen || 0, motor: motorOf(p, flip), tag: p.id };
+      var opt = { fc: br.pin[0], ft0: br.pin[1], gen: p.gen || 0, genDest: p.gdest, motor: motorOf(p, flip), tag: p.id };
       if (p.mode === 'limits') {
         opt.limit = true;
         var lo = Math.min(p.lo, 0), hi = Math.max(p.hi, 0);
@@ -269,7 +269,7 @@
       var wb = p.emode === 'window' && p.ewheel ? info.bodyOf[p.ewheel] : null;
       info.electroOf[p.id] = w.addElectro(info.magnetOf[p.id], {
         mode: wb ? 'window' : 'always', body: wb, from: p.efrom || 0, to: p.eto || 0, every: p.eevery || 360,
-        power: ideal ? 0 : electroPower(p.mu || 8), tag: p.id
+        power: ideal ? 0 : electroPower(p.mu || 8), tag: p.id, src: p.esrc
       });
     });
 
@@ -323,7 +323,7 @@
   // motor: gira hacia la velocidad pedida (positivo = horario) con un par máximo
   function motorOf(p, flip) {
     if (!p.motor) return null;
-    return { w: -flip * (p.mrpm || 0) * 2 * Math.PI / 60, tmax: Math.max(0, p.mtorque || 0), src: p.msrc === 'bus' ? 'bus' : 'battery' };
+    return { w: -flip * (p.mrpm || 0) * 2 * Math.PI / 60, tmax: Math.max(0, p.mtorque || 0), src: p.msrc === 'bus' ? 'bus' : (p.msrc === 'grid' ? 'grid' : 'battery') };
   }
 
   function partMass(p) {

@@ -20,7 +20,7 @@ Textos e imágenes listos para copiar en Play Console. Las imágenes están en e
 Diseña máquinas de movimiento perpetuo y pruébalas con física real en 3D.
 ```
 
-## Descripción completa (máx. 4000 caracteres, esta tiene 2176)
+## Descripción completa (máx. 4000 caracteres, esta tiene 2581)
 
 ```
 ¿Funcionaría tu máquina de movimiento perpetuo? En el Taller Perpetuum puedes construirla en la pantalla y ponerla a prueba con física real antes de gastar un euro en fabricarla.
@@ -28,7 +28,9 @@ Diseña máquinas de movimiento perpetuo y pruébalas con física real en 3D.
 CONSTRUYE TU IDEA
 • Ruedas con eje, ruedas de compartimentos, brazos, pesas de plomo, acero, madera o goma, rampas y muelles.
 • Imanes de barra, de disco y de herradura, matrices de Halbach y electroimanes que se encienden según el giro de la rueda.
-• Motores y generadores en cualquier eje o bisagra, alimentados con batería o con lo que produzcan los generadores.
+• Motores y generadores en cualquier eje o bisagra, alimentados con batería, con la red eléctrica o con lo que produzcan los generadores.
+• Conéctala a la red eléctrica: un contador marca lo que entra y lo que produce, y el «contador de la luz» te dice cuánto costaría o cuánto ganarías.
+• ¿Tienes una maqueta que no funciona? Hazle una foto, ponla de fondo a su tamaño real y calca encima sus piezas para probarla.
 • Medidas exactas en centímetros y grados, regla para medir y clonado: repite un brazo con su pesa 8 veces alrededor de la rueda con un solo toque.
 
 PRUÉBALA CON FÍSICA DE VERDAD
@@ -40,7 +42,7 @@ LEE LAS CUENTAS
 El banco lleva un libro de cuentas de la energía: de dónde sale cada julio (la altura de las piezas, los muelles, los imanes, el empujón inicial o la batería) y a dónde va (rozamiento, golpes, aire, calor). La balanza de pares te enseña por qué una rueda con pesas se equilibra aunque un lado parezca pesar más.
 
 EJEMPLOS HISTÓRICOS Y RETOS
-Prueba la rueda de mazos que dibujó Villard de Honnecourt hacia 1235, la rueda de bolas, la rampa magnética de John Wilkins, el motor de imanes de internet o el motor que se alimenta solo. Supera retos como encender una bombilla con un generador o equilibrar una rueda con seis pesas.
+Prueba la rueda de mazos que dibujó Villard de Honnecourt hacia 1235, la rueda de bolas, la rampa magnética de John Wilkins, el motor de imanes de internet o el motor que se alimenta solo. Supera retos como encender una bombilla con un generador o equilibrar una rueda con seis pesas, y bate tus récords de eficiencia: cuánta de la energía que gasta tu máquina sale como electricidad útil.
 
 HONESTO DE PRINCIPIO A FIN
 Aquí se cumple la física de verdad. Si tu máquina pudiera moverse sola para siempre, el banco lo demostraría con sus cuentas. Y si alguna vez su cálculo se descontrolara, la prueba se detiene y te lo dice, en vez de enseñarte energía que no existe.

@@ -307,6 +307,24 @@ select.btn { padding-right: 6px; max-width: 220px; min-width: 0; }
   .side { grid-column: 2; grid-row: 1 / span 2; max-height: none; }
   .sheet-close { display: none; }
 }
+/* contador eléctrico sobre el banco */
+.meter { position: absolute; left: 10px; top: 44px; pointer-events: none; background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 6px 9px; font-family: var(--f-mono); font-size: 12px; font-variant-numeric: tabular-nums; display: grid; grid-template-columns: auto auto auto; gap: 2px 10px; align-items: baseline; box-shadow: var(--shadow); }
+.meter .lab { font-family: var(--f-display); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11.5px; color: var(--ink-2); }
+.meter b { font-weight: 500; text-align: right; }
+.meter span.j { text-align: right; color: var(--ink-2); }
+.meter .in { color: var(--s6); } .meter .out { color: var(--s7); }
+.meter .tot { border-top: 1px solid var(--rule); padding-top: 2px; }
+.bill { display: grid; gap: 6px; font-size: 14px; }
+.bill .r { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--rule); padding-top: 5px; }
+.bill .r b { font-family: var(--f-mono); font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.photo-thumb { width: 100%; max-height: 160px; object-fit: contain; border-radius: 10px; border: 1px solid var(--rule); background: var(--panel-2); }
+.rank { display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 10px; align-items: center; border: 1px solid var(--rule); background: var(--panel-2); border-radius: 12px; padding: 8px 10px; }
+.rank .pos { font-family: var(--f-display); font-weight: 700; font-size: 22px; text-align: center; color: var(--ink-2); }
+.rank .meta b { display: block; font-weight: 600; font-size: 15px; }
+.rank .meta span { font-size: 12.5px; color: var(--ink-3); }
+.rank .eff { font-family: var(--f-mono); font-size: 17px; text-align: right; }
+.rank .btn { grid-column: 3; min-height: 32px; padding: 0 10px; font-size: 13px; }
+
 /* comportamiento de app instalada */
 html, body { overscroll-behavior: none; overflow: hidden; }
 .app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -399,6 +417,7 @@ html, body { margin: 0; }
         <canvas id="cv" aria-label="Banco de pruebas, vista plana"></canvas>
         <canvas id="gl" aria-label="Banco de pruebas, vista en perspectiva" hidden></canvas>
         <div class="hud"><span class="chip" id="chip">Diseño</span><span class="clock" id="clock" hidden>0,0 s</span></div>
+        <div class="meter" id="meter" hidden aria-live="off"></div>
         <div class="viewctl">
           <div class="seg2" role="group" aria-label="Vista">
             <button type="button" id="view2d" aria-pressed="false">Plano</button>
@@ -445,6 +464,10 @@ html, body { margin: 0; }
             <table class="ledger" id="ledger"></table>
             <p class="law">La energía que sale siempre es igual a la que entra. Es la primera ley de la termodinámica, y este banco la comprueba en cada paso.</p>
           </section>
+          <section class="card" id="billCard" hidden>
+            <h2>Contador de la luz <small id="billPrice"></small></h2>
+            <div id="billBody"></div>
+          </section>
           <section class="card" id="chartCard">
             <h2>Energía durante la prueba <small>julios</small></h2>
             <div class="chartbox" id="chartbox"><canvas id="chart"></canvas><div class="tip" id="tip" hidden></div></div>
@@ -470,6 +493,7 @@ html, body { margin: 0; }
     <div class="mtabs" role="tablist">
       <button class="tab" role="tab" id="exTabEx" aria-selected="true" type="button">Ejemplos</button>
       <button class="tab" role="tab" id="exTabRe" aria-selected="false" type="button">Retos</button>
+      <button class="tab" role="tab" id="exTabRc" aria-selected="false" type="button">Récords</button>
     </div>
     <div id="exBody"></div>
   </div>
@@ -504,6 +528,7 @@ html, body { margin: 0; }
 </div>
 
 <input type="file" id="importFile" accept=".json,application/json" hidden>
+<input type="file" id="photoFile" accept="image/*" hidden>
 
 <div class="modal" id="palette" hidden>
   <div class="box" role="dialog" aria-modal="true" aria-labelledby="palTitle">

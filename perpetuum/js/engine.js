@@ -216,9 +216,13 @@
       battery: 0,   // energía que ponen las baterías (motores y electroimanes)
       heat: 0,      // calor en motores, generadores y bobinas
       bus: 0,       // energía eléctrica guardada (lo que producen los generadores y no se gasta)
-      busUsed: 0    // energía de los generadores que han gastado los motores
+      busUsed: 0,   // energía de los generadores que han gastado los motores
+      gridIn: 0,    // energía tomada de la red eléctrica
+      gridOut: 0    // energía vertida a la red eléctrica
     };
     this.genPower = 0;
+    // contadores instantáneos (vatios)
+    this.meter = { gridIn: 0, battery: 0, gridOut: 0, store: 0 };
     this.electros = [];
     this.GEN_EFF = 0.85;
     this.MOTOR_EFF = 0.8;
@@ -243,6 +247,7 @@
       fc: opt.fc || 0, ft0: opt.ft0 || 0,        // rozamiento: par = fc·|carga| + ft0
       gen: opt.gen || 0,                          // generador: par = −gen·ω
       motor: opt.motor || null,                   // motor: {w, tmax, src}
+      genDest: opt.genDest === 'grid' ? 'grid' : 'bus', // a dónde va lo que produce el generador
       px: 0, py: 0, pAx: 0, pAy: 0, pBx: 0, pBy: 0, jl: 0, jf: 0, lowA: false, upA: false, wr0: 0,
       rax: 0, ray: 0, rbx: 0, rby: 0, k11: 0, k12: 0, k22: 0,
       load: 0, power: 0, tag: opt.tag || null
@@ -285,7 +290,7 @@
   // cambia la energía magnética de golpe: esa diferencia la paga (o la recibe) la batería.
   World.prototype.addElectro = function (mags, opt) {
     var e = { mags: mags, mode: opt.mode || 'always', body: opt.body || null, from: opt.from || 0, to: opt.to || 0,
-      every: opt.every || 360, power: opt.power || 0, on: true, tag: opt.tag || null };
+      every: opt.every || 360, power: opt.power || 0, on: true, tag: opt.tag || null, src: opt.src === 'grid' ? 'grid' : 'battery' };
     this.electros.push(e);
     return e;
   };
@@ -300,6 +305,7 @@
   };
   World.prototype._switchElectros = function (dt) {
     var L = this.ledger, changed = false, i, e;
+    this._ePow = { grid: 0, battery: 0 };
     for (i = 0; i < this.electros.length; i++) {
       e = this.electros[i];
       var want = this._electroWanted(e);
@@ -309,10 +315,14 @@
         e.on = want;
         e.mags.forEach(function (m) { m.on = want; m.mu = want ? m.mu0 : 0; });
         var U1 = this.magnetEnergy();
-        L.battery += U1 - U0;
+        if (e.src === 'grid') L.gridIn += U1 - U0; else L.battery += U1 - U0;
         changed = true;
       }
-      if (e.on && e.power > 0) { L.battery += e.power * dt; L.heat += e.power * dt; }
+      if (e.on && e.power > 0) {
+        if (e.src === 'grid') L.gridIn += e.power * dt; else L.battery += e.power * dt;
+        L.heat += e.power * dt;
+        this._ePow[e.src] += e.power;
+      }
     }
     if (changed) { this.updateMagnetPoses(); this.computeMagnetForces(); }
   };
@@ -610,7 +620,8 @@
       var ld = (vb.x - va.x) * cu.ux + (vb.y - va.y) * cu.uy;
       L.springs += s.c * ld * ld * h;
     }
-    var pw = 0;
+    var pw = 0, mt = { gridIn: 0, battery: 0, gridOut: 0, store: 0 };
+    if (this._ePow) { mt.gridIn += this._ePow.grid; mt.battery += this._ePow.battery; }
     for (i = 0; i < J.length; i++) {
       var j = J[i], wr = j.b.w - j.a.w;
       j.power = 0; j.mpower = 0;
@@ -618,18 +629,21 @@
         var pabs = -j._gt * wr;                        // potencia mecánica que absorbe el generador
         var pel = pabs * this.GEN_EFF;
         j.power = pel; pw += pel;
-        L.gen += pel * h; L.bus += pel * h; L.heat += (pabs - pel) * h;
+        L.gen += pel * h; L.heat += (pabs - pel) * h;
+        if (j.genDest === 'grid') { L.gridOut += pel * h; mt.gridOut += pel; } else { L.bus += pel * h; mt.store += pel; }
       }
       if (j._mt) {
         // energía que entra al motor (de la batería o de lo producido) = trabajo mecánico + calor
         var pm = j._mt * wr, pin = pm > 0 ? pm / this.MOTOR_EFF : 0, ein;
         j.mpower = pin;
         if (j.motor.src === 'bus') { ein = Math.min(pin * h, Math.max(0, L.bus)); L.bus -= ein; L.busUsed += ein; }
-        else { ein = pin * h; L.battery += ein; }
+        else if (j.motor.src === 'grid') { ein = pin * h; L.gridIn += ein; mt.gridIn += pin; }
+        else { ein = pin * h; L.battery += ein; mt.battery += pin; }
         L.heat += pm > 0 ? ein - pm * h : -pm * h;
       }
     }
     this.genPower = pw;
+    this.meter = mt;
     var H = this.hand;
     if (H && H.body && !H.body.isStatic && H.fx != null) {
       var hv = H.body.pointVel(H.px, H.py);
@@ -963,10 +977,10 @@
   World.prototype.balance = function () {
     var e = this.energy(), L = this.ledger;
     var reserve = L.E0 - e.E;              // lo que la máquina ha gastado de lo que tenía
-    var inflow = reserve + L.hand + L.battery;          // entradas
-    var out = L.axle + L.rub + L.hits + L.air + L.springs + L.heat + L.bus;
+    var inflow = reserve + L.hand + L.battery + L.gridIn;          // entradas
+    var out = L.axle + L.rub + L.hits + L.air + L.springs + L.heat + L.bus + L.gridOut;
     return {
-      e: e, reserve: reserve, hand: L.hand, battery: L.battery,
+      e: e, reserve: reserve, hand: L.hand, battery: L.battery, gridIn: L.gridIn, gridOut: L.gridOut,
       axle: L.axle, rub: L.rub, hits: L.hits, air: L.air, springs: L.springs,
       heat: L.heat, bus: L.bus, gen: L.gen, busUsed: L.busUsed,
       inflow: inflow, outflow: out, error: inflow - out
