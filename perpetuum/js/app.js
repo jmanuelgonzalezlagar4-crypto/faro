@@ -1758,6 +1758,8 @@
     return base + ext;
   }
   function download(blob, name) {
+    // dentro de una vista previa incrustada el navegador bloquea las descargas: mejor decirlo que fingir
+    if (!STANDALONE) { toast('Aquí no se pueden descargar archivos. En la app instalada, sí.'); return; }
     try {
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob); a.download = name;
