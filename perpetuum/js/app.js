@@ -2025,6 +2025,7 @@
       h += '<p class="scan-say">' + (n ? T(n === 1 ? 'He encontrado <b>1 pieza redonda</b> (círculo amarillo): una pesa o un imán. Toca uno para quitarlo, o toca donde haya otro para añadirlo.' : 'He encontrado <b>{n} piezas redondas</b> (círculos amarillos): pesas o imanes. Toca una para quitarla, o toca donde haya otra para añadirla.', { n: n }) :
         T('No he encontrado pesas ni imanes. Toca cada uno en la foto para marcarlo.')) + '</p>' +
         T('<p class="note">Márcalos todos, también los que tape un brazo o se salgan un poco de la foto, y los imanes fijos que estén fuera de la rueda. Con pesas, su número decide cuántas bisagras hay.</p>') +
+        T('<p class="scan-warn">Si algún círculo amarillo no es una pesa ni un imán (un botón o un icono de la pantalla, un tornillo, un dibujo de la ropa…), tócalo para quitarlo: la app lo convertiría en una pieza.</p>') +
         T('<div class="row scan-nav"><button class="btn" id="sc_back" type="button">Atrás</button><button class="btn primary" id="sc_next" type="button">Siguiente</button></div>');
     } else {
       scanDefaults();
@@ -2179,7 +2180,7 @@
       });
     } else if (SC.mount === 'sueltas' && n) {
       w.style = 'ring'; w.cells = Math.max(2, Math.min(24, n)); w.tilt = 35;
-      P.ringSlots(w, rs).forEach(function (q) { ball(q.x, q.y); });
+      P.ringSlots(w, rs).slice(0, n).forEach(function (q) { ball(q.x, q.y); });
     } else if (n) {
       var fit = scanFit();
       // con topes: ángulo de cada brazo respecto de «hacia fuera»; los topes dejan abrirse 100° hacia el lado en que estén
