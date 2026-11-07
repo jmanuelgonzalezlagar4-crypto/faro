@@ -20,7 +20,7 @@ Textos e imágenes listos para copiar en Play Console. Las imágenes están en e
 Diseña máquinas de movimiento perpetuo y pruébalas con física real en 3D.
 ```
 
-## Descripción completa (máx. 4000 caracteres, esta tiene 2860)
+## Descripción completa (máx. 4000 caracteres, esta tiene 2905)
 
 ```
 ¿Funcionaría tu máquina de movimiento perpetuo? En el Taller Perpetuum puedes construirla en la pantalla y ponerla a prueba con física real antes de gastar un euro en fabricarla.
@@ -29,7 +29,7 @@ CONVIERTE TU MAQUETA EN PIEZAS
 ¿Tienes en casa una maqueta que no acaba de funcionar? Hazle una foto de frente: la app encuentra la rueda y sus pesas o imanes, tú lo confirmas con el dedo, escribes el diámetro y lo que pesa cada pieza, y aparece en el banco a su tamaño real, encima de su foto, lista para probar. La foto se analiza en tu propio móvil y no se envía a ningún sitio.
 
 CONSTRUYE TU IDEA
-• Ruedas con eje, ruedas de compartimentos, brazos, pesas de plomo, acero, madera o goma, rampas, muelles y levas con su brazo seguidor.
+• Ruedas con eje, ruedas de compartimentos, brazos, pesas de plomo, acero, madera o goma, rampas, muelles, aros o poleas y levas con su brazo seguidor.
 • Imanes de barra, de disco y de herradura, matrices de Halbach y electroimanes que se encienden según el giro de la rueda.
 • Motores y generadores en cualquier eje o bisagra, alimentados con batería, con la red eléctrica o con lo que produzcan los generadores.
 • Conéctala a la red eléctrica: un contador marca lo que entra y lo que produce, y el «contador de la luz» te dice cuánto costaría o cuánto ganarías.
@@ -44,7 +44,7 @@ LEE LAS CUENTAS
 El banco lleva un libro de cuentas de la energía: de dónde sale cada julio (la altura de las piezas, los muelles, los imanes, el empujón inicial, la batería o la red) y a dónde va (rozamiento, golpes, aire, calor). La balanza de pares te enseña por qué una rueda con pesas se equilibra aunque un lado parezca pesar más.
 
 EJEMPLOS HISTÓRICOS, RETOS Y RÉCORDS
-Prueba la rueda de mazos que dibujó Villard de Honnecourt hacia 1235, la rueda de bolas, la rampa magnética de John Wilkins, el motor de imanes de internet, el motor de imanes con leva o el motor que se alimenta solo. Supera retos y bate tus récords de eficiencia: cuánta de la energía que gasta tu máquina sale como electricidad útil.
+Prueba la rueda de mazos que dibujó Villard de Honnecourt hacia 1235, la rueda de bolas, la rampa magnética de John Wilkins, el motor de imanes de internet, el motor de imanes con leva, la rueda de hámster con imán o el motor que se alimenta solo. Supera retos y bate tus récords de eficiencia: cuánta de la energía que gasta tu máquina sale como electricidad útil.
 
 HONESTO DE PRINCIPIO A FIN
 Aquí se cumple la física de verdad. Si tu máquina pudiera moverse sola para siempre, el banco lo demostraría con sus cuentas. Y si alguna vez su cálculo se descontrolara, la prueba se detiene y te lo dice, en vez de enseñarte energía que no existe.
@@ -85,7 +85,7 @@ En Play Console: **Presencia en Google Play → Ficha de Play Store principal �
 Design perpetual motion machines and test them with real 3D physics.
 ```
 
-## Full description (2755 caracteres)
+## Full description (2805 caracteres)
 
 ```
 Would your perpetual motion machine work? In the Perpetuum Workshop you can build it on screen and test it with real physics before spending a penny on making it.
@@ -94,7 +94,7 @@ TURN YOUR MODEL INTO PARTS
 Have a model at home that doesn't quite work? Take a photo of it from the front: the app finds the wheel and its weights or magnets, you confirm them with your finger, enter the diameter and what each part weighs, and it appears on the bench at its real size, on top of its photo, ready to test. The photo is analysed on your own phone and isn't sent anywhere.
 
 BUILD YOUR IDEA
-• Wheels with axles, compartment wheels, arms, lead, steel, wood or rubber weights, ramps, springs and cams with their follower arm.
+• Wheels with axles, compartment wheels, arms, lead, steel, wood or rubber weights, ramps, springs, rims or pulleys and cams with their follower arm.
 • Bar, disc and horseshoe magnets, Halbach arrays and electromagnets that switch on depending on the wheel's rotation.
 • Motors and generators on any axle or hinge, powered by a battery, the electrical grid or whatever the generators produce.
 • Plug it into the grid: a meter shows what goes in and what it produces, and the electricity bill tells you how much it would cost or earn.
@@ -109,7 +109,7 @@ READ THE LEDGER
 The bench keeps an energy ledger: where every joule comes from (the height of the parts, springs, magnets, the initial push, the battery or the grid) and where it goes (friction, impacts, air, heat). The torque balance shows you why a wheel with weights settles into balance even when one side seems heavier.
 
 HISTORICAL EXAMPLES, CHALLENGES AND RECORDS
-Try the mallet wheel drawn by Villard de Honnecourt around 1235, the ball wheel, John Wilkins' magnetic ramp, the internet magnet motor, the magnet motor with a cam or the self-powered motor. Complete challenges and beat your efficiency records: how much of the energy your machine uses comes out as useful electricity.
+Try the mallet wheel drawn by Villard de Honnecourt around 1235, the ball wheel, John Wilkins' magnetic ramp, the internet magnet motor, the magnet motor with a cam, the hamster wheel with a magnet or the self-powered motor. Complete challenges and beat your efficiency records: how much of the energy your machine uses comes out as useful electricity.
 
 HONEST FROM START TO FINISH
 Real physics applies here. If your machine could move by itself forever, the bench would prove it with its ledger. And if its calculation ever went out of control, the test stops and tells you, instead of showing you energy that doesn't exist.
