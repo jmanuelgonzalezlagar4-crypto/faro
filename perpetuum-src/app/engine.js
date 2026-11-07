@@ -42,9 +42,18 @@
     var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
     for (var i = 0; i < this.shapes.length; i++) {
       var sh = this.shapes[i], w = this.ws[i];
-      if (!w) { w = this.ws[i] = { t: sh.t, r: sh.r, x: 0, y: 0, ax: 0, ay: 0, bx: 0, by: 0,
+      if (!w) { w = this.ws[i] = { t: sh.t, r: sh.r, x: 0, y: 0, ax: 0, ay: 0, bx: 0, by: 0, R: sh.R, lift: sh.lift, lob: sh.lobes, ph: sh.ph, ang: 0,
           mu: sh.mu != null ? sh.mu : this.mu, e: sh.e != null ? sh.e : this.e, crr: sh.crr != null ? sh.crr : this.crr, solid: sh.solid !== false, pl: sh.plane || 0 }; }
-      if (sh.t === 'c') {
+      if (sh.t === 'k') {
+        // leva: curva lisa ρ(θ) alrededor de su centro, que gira con el cuerpo
+        w.x = this.x + c * sh.x - s * sh.y;
+        w.y = this.y + s * sh.x + c * sh.y;
+        w.ang = this.a;
+        var ext = sh.R + sh.r;
+        w.x0 = w.x - ext; w.x1 = w.x + ext; w.y0 = w.y - ext; w.y1 = w.y + ext;
+        minx = Math.min(minx, w.x0); maxx = Math.max(maxx, w.x1);
+        miny = Math.min(miny, w.y0); maxy = Math.max(maxy, w.y1);
+      } else if (sh.t === 'c') {
         w.x = this.x + c * sh.x - s * sh.y;
         w.y = this.y + s * sh.x + c * sh.y;
         w.x0 = w.x - sh.r; w.x1 = w.x + sh.r; w.y0 = w.y - sh.r; w.y1 = w.y + sh.r;
@@ -79,7 +88,10 @@
     pad = pad || 0;
     for (var i = 0; i < this.ws.length; i++) {
       var w = this.ws[i];
-      if (w.t === 'c') {
+      if (w.t === 'k') {
+        var kx = px - w.x, ky = py - w.y, kr = camRho(w, Math.atan2(ky, kx)) + w.r + pad;
+        if (kx * kx + ky * ky <= kr * kr) return true;
+      } else if (w.t === 'c') {
         var dx = px - w.x, dy = py - w.y;
         if (dx * dx + dy * dy <= (w.r + pad) * (w.r + pad)) return true;
       } else {
@@ -108,8 +120,61 @@
     out.push({ nx: nx, ny: ny, px: pax + nx * (ra + sep * 0.5), py: pay + ny * (ra + sep * 0.5), sep: sep, rc: 0 });
   }
 
+  // --- Leva lisa: ρ(θ) = R − lift + lift·(1 + cos(L·(θ − fase)))/2, con θ medido desde el cuerpo ---
+  function camRho(w, th) { var L = w.lob || 1; return w.R - w.lift + w.lift * (1 + Math.cos(L * (th - w.ang - w.ph))) / 2; }
+  // punto de la curva más cercano a (px, py), por Newton desde el ángulo del punto
+  function camClosest(w, px, py) {
+    var L = w.lob || 1, th = Math.atan2(py - w.y, px - w.x), Cx = 0, Cy = 0, Tx = 0, Ty = 0;
+    for (var it = 0; it < 8; it++) {
+      var u = L * (th - w.ang - w.ph), co = Math.cos(th), si = Math.sin(th);
+      var rho = w.R - w.lift + w.lift * (1 + Math.cos(u)) / 2, d1 = -w.lift * L * Math.sin(u) / 2, d2 = -w.lift * L * L * Math.cos(u) / 2;
+      Cx = w.x + rho * co; Cy = w.y + rho * si;
+      Tx = d1 * co - rho * si; Ty = d1 * si + rho * co;
+      var T2x = d2 * co - 2 * d1 * si - rho * co, T2y = d2 * si + 2 * d1 * co - rho * si;
+      var Dx = Cx - px, Dy = Cy - py, g = Dx * Tx + Dy * Ty, gp = Tx * Tx + Ty * Ty + Dx * T2x + Dy * T2y;
+      if (gp <= 1e-12) break;
+      var step = g / gp;
+      if (step > 0.3) step = 0.3; else if (step < -0.3) step = -0.3;
+      th -= step;
+      if (Math.abs(step) < 1e-10) break;
+    }
+    var u2 = L * (th - w.ang - w.ph), c2 = Math.cos(th), s2 = Math.sin(th);
+    var rho2 = w.R - w.lift + w.lift * (1 + Math.cos(u2)) / 2, e1 = -w.lift * L * Math.sin(u2) / 2;
+    Cx = w.x + rho2 * c2; Cy = w.y + rho2 * s2; Tx = e1 * c2 - rho2 * s2; Ty = e1 * s2 + rho2 * c2;
+    var tl = Math.sqrt(Tx * Tx + Ty * Ty) || 1;
+    return { x: Cx, y: Cy, nx: Ty / tl, ny: -Tx / tl };   // normal hacia fuera
+  }
+  // contacto entre la leva K y un círculo de centro (px, py) y radio pr; flip: la leva es B y no A
+  function camVsCircle(K, px, py, pr, flip, out) {
+    var q = camClosest(K, px, py), sd = (px - q.x) * q.nx + (py - q.y) * q.ny, sep = sd - K.r - pr;
+    if (sep > curMargin) return;
+    var nx = flip ? -q.nx : q.nx, ny = flip ? -q.ny : q.ny, mx = q.x + q.nx * (K.r + sep * 0.5), my = q.y + q.ny * (K.r + sep * 0.5);
+    out.push({ nx: nx, ny: ny, px: mx, py: my, sep: sep, rc: pr });
+  }
+
   function collideShapes(A, B, out) {
     var start = out.length;
+    if (A.t === 'k' || B.t === 'k') {
+      if (A.t === 'k' && B.t === 'k') return;
+      var K = A.t === 'k' ? A : B, O = A.t === 'k' ? B : A, flip = B.t === 'k';
+      if (O.t === 'c') { camVsCircle(K, O.x, O.y, O.r, flip, out); return; }
+      // cápsula: el punto del segmento que más se mete en la leva (muestreo y luego búsqueda fina)
+      var sdAt = function (t) {
+        var px = O.ax + (O.bx - O.ax) * t, py = O.ay + (O.by - O.ay) * t, q = camClosest(K, px, py);
+        return (px - q.x) * q.nx + (py - q.y) * q.ny;
+      };
+      var best = 0, bv = Infinity, N = 12;
+      for (var si = 0; si <= N; si++) { var v = sdAt(si / N); if (v < bv) { bv = v; best = si / N; } }
+      var lo = Math.max(0, best - 1 / N), hi = Math.min(1, best + 1 / N);
+      for (var ti = 0; ti < 18; ti++) {
+        var m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+        if (sdAt(m1) < sdAt(m2)) hi = m2; else lo = m1;
+      }
+      var tb = (lo + hi) / 2;
+      camVsCircle(K, O.ax + (O.bx - O.ax) * tb, O.ay + (O.by - O.ay) * tb, O.r, flip, out);
+      if (out.length > start) out[start].rc = 0;
+      return;
+    }
     if (A.t === 'c' && B.t === 'c') {
       pushPoint(out, A.x, A.y, B.x, B.y, A.r, B.r, 0, 1);
       if (out.length > start) out[start].rc = Math.min(A.r, B.r);

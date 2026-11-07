@@ -365,12 +365,10 @@
     if (p.kind === 'wheel') {
       var mu = 0.45, e = 0.3;
       if (p.style === 'cam') {
-        var pr = camProfile(p, 72), pl = p.plane == null ? 1 : p.plane;
-        for (var ci = 0; ci < pr.length; ci++) {
-          var c0 = pr[ci], c1 = pr[(ci + 1) % pr.length];
-          body.shapes.push({ t: 's', ax: p.x + c0[0] - ox, ay: p.y + c0[1] - oy, bx: p.x + c1[0] - ox, by: p.y + c1[1] - oy, r: CAM_R, mu: 0.3, e: 0.1, crr: 0.002, part: p.id, plane: pl });
-        }
-        body.shapes.push({ t: 'c', x: p.x - ox, y: p.y - oy, r: Math.max(0.005, (p.r - (p.lift || 0)) * 0.6), mu: 0.3, e: 0.1, part: p.id, plane: pl });
+        // la leva es una curva lisa (en el motor, forma 'k'), para que lo que se apoya en ella ruede sin tropezar
+        var pl = p.plane == null ? 1 : p.plane, liftK = Math.max(0, Math.min(p.r * 0.6, p.lift || 0));
+        body.shapes.push({ t: 'k', x: p.x - ox, y: p.y - oy, r: CAM_R, R: p.r, lift: liftK, lobes: Math.max(1, Math.round(p.lobes || 1)), ph: (p.phase || 0) * DEG, mu: 0.3, e: 0.1, crr: 0.002, part: p.id, plane: pl });
+        body.shapes.push({ t: 'c', x: p.x - ox, y: p.y - oy, r: Math.max(0.005, (p.r - liftK) * 0.6), mu: 0.3, e: 0.1, part: p.id, plane: pl });
       } else if (p.style === 'rim') {
         // aro o polea: solo el aro choca; el buje y los radios van detrás, donde no llega lo de dentro
         ringGeometry(p).rim.forEach(function (s) { body.shapes.push({ t: 's', ax: p.x + s[0] - ox, ay: p.y + s[1] - oy, bx: p.x + s[2] - ox, by: p.y + s[3] - oy, r: RIM_R, mu: 0.4, e: 0.2, crr: 0.002, part: p.id }); });
@@ -599,13 +597,15 @@
     for (var k = 0; k < n; k++) {
       var th = ((opts.start != null ? opts.start : 245) - k * 360 / n) * DEG, rk = R - 0.004 + k * 0.0015;
       var mg = makeMagnet(d, +(cx + rk * Math.cos(th)).toFixed(4), +(cy + rk * Math.sin(th)).toFixed(4), wh.id, 'disc');
-      mg.size = 0.012; mg.ang = Math.round(th / DEG); mg.grade = 'n52'; mg.mu = magnetModel(mg).mu;
+      mg.size = opts.rotSize || 0.02; mg.ang = Math.round(th / DEG); mg.grade = 'n52'; mg.mu = magnetModel(mg).mu;
       d.parts.push(mg);
     }
     // la leva, en el lateral del cilindro (delante, en el mismo eje): en forma de huevo, con la punta
     // hacia abajo al empezar. Llega arriba cuando la espiral está en su punto muerto.
-    var cam = makeCam(d, cx, cy, 0.117);
-    cam.lift = 0.035; cam.lobes = 1; cam.phase = opts.phase != null ? opts.phase : 270; cam.m = 0.05; cam.bearing = 'bolas';
+    // radio de la base fijo (ahí descansa el rodillo); la punta sube «lift» por encima
+    var lift = opts.lift != null ? opts.lift : 0.002;   // lo mínimo: cuanto más sube, más gasta
+    var cam = makeCam(d, cx, cy, 0.082 + lift);
+    cam.lift = lift; cam.lobes = 1; cam.phase = opts.phase != null ? opts.phase : 270; cam.m = 0.05; cam.bearing = 'bolas';
     if (!opts.noCam) { d.parts.push(cam); var cw = makePin(d, cx, cy, wh.id, cam.id); cw.mode = 'rigid'; d.parts.push(cw); }
     // la barra de arriba, con la bisagra a la derecha (en el agarre). De ella baja un vástago con un rodillo
     // que va siempre apoyado en la leva (como el seguidor de una leva) y cuelga el imán, encima del cilindro.
@@ -622,11 +622,11 @@
       var sp = makeSpring(d, -0.05, yl, -0.05, cy - 0.04, lever.id, null); sp.k = opts.spring; sp.rest = (yl - cy + 0.04) - 0.01; sp.damp = 0.05;
       d.parts.push(sp);
     }
-    var hy = cy + 0.085;
+    var hy = cy + (opts.hy || 0.094);
     var hanger = makeBar(d, 0, yl, 0, hy + 0.01); hanger.m = 0.01; d.parts.push(hanger);   // en el plano del cilindro: la leva no la toca
     var hw = makePin(d, 0, yl, lever.id, hanger.id); hw.mode = 'rigid'; d.parts.push(hw);
     var st = makeMagnet(d, cx, hy, hanger.id, 'bar');
-    st.size = opts.stSize || 0.015; st.ang = opts.stAng != null ? opts.stAng : 90; st.grade = 'n52'; st.mu = magnetModel(st).mu;
+    st.size = opts.stSize || 0.03; st.ang = opts.stAng != null ? opts.stAng : 90; st.grade = 'n52'; st.mu = magnetModel(st).mu;
     d.parts.push(st);
     return d;
   }
