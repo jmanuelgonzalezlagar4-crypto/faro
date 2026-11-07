@@ -183,6 +183,11 @@
       what: T('Una polea (solo el aro, que gira sobre su eje) con una bola de hierro suelta dentro. Al acercar un imán por fuera, la bola sube por el aro hacia el imán y el aro gira, como la rueda de un hámster.'),
       why: T('El imán tira de la bola hasta que su fuerza y el peso de la bola se igualan. La bola sube un poco, el aro gira un poco, y se paran: la energía que da el imán es la que tenía guardada al acercarlo, y se gasta en el roce. Para que el aro siguiera girando habría que ir moviendo el imán, y esa energía la pondría tu mano. Prueba: pulsa «Diseñar», arrastra el imán a otro sitio y vuelve a probar, o empuja la bola con el dedo durante la prueba y mira «Tus empujones» en el libro de cuentas.')
     },
+    eficiente: {
+      title: T('La más eficiente'), era: T('Diseñada por el taller a partir del cilindro de imanes.'),
+      what: T('Lo que queda del cilindro de imanes al quitar todo lo que gasta o no aporta: un cilindro de latón que gira en un rodamiento de bolas, con un generador en el eje. Sin leva, sin barra y sin imanes.'),
+      why: T('Paso a paso, con el mismo empujón: con la leva da 10 vueltas; sin la leva, 20; con los imanes en círculo, sin punto muerto, 30; y sin la barra ni ningún imán, también 30, porque los imanes no aportan nada. Con el generador, el 83 % del empujón sale como electricidad: es la mejor eficiencia que puede tener, porque el generador convierte en electricidad el 85 % de lo que frena y el resto se va en calor y en el roce del eje. Nunca llega al 100 %, y nunca saca más de lo que le das.')
+    },
     espiral: {
       title: T('Cilindro de imanes con palanca'), era: T('Otra maqueta de internet: un cilindro de latón con imanes en espiral.'),
       what: T('Un cilindro de latón con imanes en espiral, visto de frente al eje: cada imán queda un poco más cerca del imán de la barra de arriba que el anterior, así que ese imán tira siempre hacia el siguiente. La barra gira apoyada a la derecha y un rodillo suyo va siempre apoyado en una leva del lateral del cilindro. Donde la espiral termina está el punto muerto: ahí la leva sube la barra para apartar el imán, y después la deja bajar otra vez sobre los imanes.'),
@@ -2478,7 +2483,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();

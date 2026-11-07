@@ -631,6 +631,22 @@
     return d;
   }
 
+  // la más eficiente: lo que queda del cilindro de imanes al quitar todo lo que gasta o no aporta.
+  // Un volante en un rodamiento de bolas y un generador que convierte el giro en electricidad deprisa,
+  // antes de que el roce se lo coma.
+  function exampleEfficient(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'eficiente';
+    var cx = 0, cy = 0.17, R = 0.05;
+    var base = makeRamp(d, -0.15, 0.03, 0.17, 0.03); base.mat = 'madera'; d.parts.push(base);
+    var wh = makeWheel(d, cx, cy, R);
+    wh.m = 3; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -150;
+    wh.gen = opts.gen != null ? opts.gen : 0.02; wh.gdest = 'bus';
+    d.parts.push(wh);
+    return d;
+  }
+
   var EXAMPLES = {
     mazos: { title: T('Rueda de mazos'), make: exampleMallets },
     bolas: { title: T('Rueda de bolas'), make: exampleBalls },
@@ -641,7 +657,8 @@
     electro: { title: T('Rueda con electroimán'), make: exampleElectro },
     leva: { title: T('Motor de imanes con leva'), make: exampleCamMotor },
     hamster: { title: T('Rueda de hámster con imán'), make: exampleHamster },
-    espiral: { title: T('Cilindro de imanes con palanca'), make: exampleSpiral }
+    espiral: { title: T('Cilindro de imanes con palanca'), make: exampleSpiral },
+    eficiente: { title: T('La más eficiente'), make: exampleEfficient }
   };
 
   root.PerpetuumBuild = {
