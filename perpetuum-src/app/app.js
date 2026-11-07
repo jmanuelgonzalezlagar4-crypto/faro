@@ -185,8 +185,8 @@
     },
     espiral: {
       title: T('Cilindro de imanes con palanca'), era: T('Otra maqueta de internet: un cilindro de latón con imanes en espiral.'),
-      what: T('Un cilindro con imanes en espiral: cada uno queda un poco más cerca del imán de la palanca que el anterior, así que el imán de arriba tira siempre hacia el siguiente. Donde la espiral termina está el punto muerto: ahí un golpeador en el mismo eje levanta la palanca para que el cilindro lo pase, y la palanca vuelve a caer sobre los imanes.'),
-      why: T('Lo que la espiral ayuda al acercarse lo frena en el punto muerto, y para saltarlo el golpeador tiene que levantar la palanca contra la fuerza de los imanes y su peso. Esa energía sale del propio giro, y cada golpe y cada roce gasta otro poco. Compruébalo: borra el golpeador (la leva) y prueba otra vez. Sin él, el cilindro da muchas más vueltas antes de pararse en el punto muerto: el golpeador no ayuda, gasta.')
+      what: T('Un cilindro de latón con imanes en espiral, visto de frente al eje: cada imán queda un poco más cerca del imán de la barra de arriba que el anterior, así que ese imán tira siempre hacia el siguiente. La barra gira apoyada a la derecha. Donde la espiral termina está el punto muerto: ahí una paleta pegada al lateral del cilindro golpea la barra y la levanta para que el cilindro lo pase, y la barra vuelve a caer sobre los imanes.'),
+      why: T('Lo que la espiral ayuda al acercarse lo frena en el punto muerto, y para saltarlo la paleta tiene que levantar la barra contra la fuerza de los imanes y su peso. Esa energía sale del propio giro, y cada golpe gasta además otro poco. Compruébalo: borra la paleta (el brazo que sale del eje) y prueba otra vez. Sin ella, el cilindro da muchas más vueltas antes de pararse en el punto muerto: la paleta no ayuda, gasta.')
     },
     leva: {
       title: T('Motor de imanes con leva'), era: T('Una de las maquetas de imanes más vistas en internet.'),

@@ -581,19 +581,20 @@
     return d;
   }
 
-  // cilindro con imanes en espiral, palanca con un imán encima y un golpeador en el mismo eje que la
-  // levanta en el punto muerto (donde la espiral termina y vuelve a empezar)
+  // cilindro con imanes en espiral (dos bandas en la maqueta) y una barra arriba con un imán, que gira
+  // apoyada a la derecha. Una paleta pegada al lateral del cilindro golpea la barra y la levanta justo en el
+  // punto muerto (donde la espiral termina y vuelve a empezar). Visto de frente al eje.
   function exampleSpiral(opts) {
     opts = opts || {};
     var d = emptyDesign();
     d.example = 'espiral';
-    var cx = 0, cy = 0.14, R = 0.05;
-    var base = makeRamp(d, -0.15, 0.03, 0.15, 0.03); base.mat = 'madera'; d.parts.push(base);
+    var cx = 0, cy = 0.17, R = 0.05;
+    var base = makeRamp(d, -0.15, 0.03, 0.17, 0.03); base.mat = 'madera'; d.parts.push(base);
     var wh = makeWheel(d, cx, cy, R);
-    wh.m = 0.8; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -300;   // el empujón inicial, al revés que las agujas del reloj
+    wh.m = opts.m || 3; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -200;   // el empujón inicial, al revés que las agujas del reloj
     d.parts.push(wh);
-    // 12 imanes en espiral: cada uno un poco más fuera (más cerca del imán de la palanca) que el anterior.
-    // El último pasa bajo la palanca cuando la rueda ha girado unos 175°, justo cuando el golpeador la levanta.
+    // 12 imanes en espiral: cada uno un poco más fuera (más cerca del imán de la barra) que el anterior.
+    // El último pasa bajo el imán cuando el cilindro ha girado unos 175°, justo cuando la paleta levanta la barra.
     var n = 12;
     for (var k = 0; k < n; k++) {
       var th = ((opts.start != null ? opts.start : 245) - k * 360 / n) * DEG, rk = R - 0.004 + k * 0.0015;
@@ -601,19 +602,21 @@
       mg.size = 0.012; mg.ang = Math.round(th / DEG); mg.grade = 'n52'; mg.mu = magnetModel(mg).mu;
       d.parts.push(mg);
     }
-    // golpeador: leva de una punta en el mismo eje, delante del cilindro
-    var cam = makeCam(d, cx, cy, 0.1);
-    cam.lift = 0.045; cam.lobes = 1; cam.phase = opts.phase != null ? opts.phase : 270; cam.m = 0.03; cam.bearing = 'bolas';
-    d.parts.push(cam);
-    var weld = makePin(d, cx, cy, wh.id, cam.id); weld.mode = 'rigid'; d.parts.push(weld);
-    // palanca: bisagra en el poste de la izquierda; el imán, encima del cilindro, mirando hacia abajo
-    var yb = cy + 0.09;   // con la palanca abajo, la punta del golpeador la alcanza; el resto de la leva no
-    var lever = makeBar(d, -0.11, yb, 0.06, yb); lever.m = 0.05; lever.plane = 1; d.parts.push(lever);
-    var piv = makePin(d, -0.11, yb, null, lever.id); piv.mode = 'limits'; piv.lo = -2; piv.hi = 30; piv.bearing = 'bolas';
+    // la barra de arriba: bisagra a la derecha (en el agarre) e imán debajo, encima del cilindro
+    var yb = cy + (opts.yb || 0.1);
+    var lever = makeBar(d, 0.12, yb, -0.06, yb); lever.m = 0.05; lever.plane = 1; d.parts.push(lever);
+    var piv = makePin(d, 0.12, yb, null, lever.id); piv.mode = 'limits'; piv.lo = opts.lo != null ? opts.lo : -60; piv.hi = 2; piv.bearing = 'bolas';
     d.parts.push(piv);
-    var st = makeMagnet(d, cx, yb, lever.id, 'bar');
-    st.size = 0.02; st.ang = opts.stAng != null ? opts.stAng : 90; st.grade = 'n52'; st.mu = magnetModel(st).mu;
+    var st = makeMagnet(d, cx, yb - 0.013, lever.id, 'bar');
+    st.size = opts.stSize || 0.015; st.ang = opts.stAng != null ? opts.stAng : 90; st.grade = 'n52'; st.mu = magnetModel(st).mu;
     d.parts.push(st);
+    // la paleta: pegada al lateral del cilindro (delante), gira con él y golpea la barra cerca de la bisagra
+    if (!opts.noPaddle) {
+      var pa = (opts.paddle != null ? opts.paddle : 245) * DEG, L = opts.L || 0.105;
+      var paddle = makeBar(d, cx, cy, +(cx + L * Math.cos(pa)).toFixed(4), +(cy + L * Math.sin(pa)).toFixed(4)); paddle.m = 0.02; paddle.plane = 1;
+      d.parts.push(paddle);
+      var pw = makePin(d, cx, cy, wh.id, paddle.id); pw.mode = 'rigid'; d.parts.push(pw);
+    }
     return d;
   }
 
