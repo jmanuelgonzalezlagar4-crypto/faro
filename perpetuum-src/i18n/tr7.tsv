@@ -1,0 +1,32 @@
+159f7f6	Cam with arm
+e7bf24a	Goes on a wheel's axle and moves an arm.
+63a77df	Tap a wheel's axle: the cam goes on the same axle, with an arm that follows it. Then put a magnet on the arm.
+29c408f	Magnet motor with cam
+d5c93c7	One of the most watched magnet models on the internet.
+109d0bd	Four magnets on the rim of the wheel and a fixed magnet at the tip of an arm. A cam on the same axle raises and lowers the arm: it moves the fixed magnet away just as a wheel magnet would reach the “sticky point”, and brings it back once it has passed.
+8aa4d7c	To move the fixed magnet away you have to push it against the force pulling the magnets together, and that push comes from the cam, using the wheel's own energy. What's saved at the sticky point is paid for at the cam, and on top of that the roller, the axle and the hinge rub. In the ledger you'll see that the wheel only spends the energy it had at the start, and stops. Change the cam's lift or angle: no combination gets extra energy out.
+f5b9f95	Cam placed on the wheel's axle, with its arm on top. Put a magnet at the tip of the arm so the cam moves it.
+541372b	Cam placed with its own axle and its arm. To make it turn with a wheel, place it touching the wheel's axle.
+290921c	In front of the wheel
+2274de4	Like a cam's arm: it doesn't hit the wheel or anything behind, only what is also in front.
+cabd8dc	Cam
+0e0df04	Radius at the tip
+cad118b	Lift
+ac7046e	Lobes
+7fdfe31	How many times it pushes the arm on every turn.
+9fe8fde	Angle of the first lobe
+007c0fd	Cam mass
+7d76c23	It's welded to the wheel's axle and turns with it. It's in front of the wheel: only what is also in front touches it, like its arm's roller.
+775b572	It has its own axle. It's in front of the wheel: only what is also in front touches it.
+6fb8f98	 If the roller can't follow the dips, lower the lift or use fewer lobes.
+2e25013	They're magnets
+be7fd34	The circles on the wheel become magnets attached to it, and the ones outside become fixed magnets. Afterwards you can tap each magnet to change which way its north pole faces. If your model has a cam, add it afterwards with Add → Cam with arm, tapping the wheel's axle.
+557cb7e	Weights or magnets
+8077142	I found <b>1 round part</b> (yellow circle): a weight or a magnet. Tap one to remove it, or tap where there's another one to add it.
+8848e3b	I found <b>{n} round parts</b> (yellow circles): weights or magnets. Tap one to remove it, or tap where there's another one to add it.
+46a40b4	I couldn't find any weights or magnets. Tap each one in the photo to mark it.
+9268e74	<p class="note">Mark them all, including any hidden by an arm or slightly outside the photo, and any fixed magnets outside the wheel. With weights, their number decides how many hinges there are.</p>
+5f20514	What are they and how are they mounted?
+26b391c	Magnet material
+dfa9c2d	{d} cm wheel with {a} magnets on the wheel and {b} fixed ones.
+af570eb	{d} cm wheel with {a} magnets.

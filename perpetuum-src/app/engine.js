@@ -43,7 +43,7 @@
     for (var i = 0; i < this.shapes.length; i++) {
       var sh = this.shapes[i], w = this.ws[i];
       if (!w) { w = this.ws[i] = { t: sh.t, r: sh.r, x: 0, y: 0, ax: 0, ay: 0, bx: 0, by: 0,
-          mu: sh.mu != null ? sh.mu : this.mu, e: sh.e != null ? sh.e : this.e, crr: sh.crr != null ? sh.crr : this.crr, solid: sh.solid !== false }; }
+          mu: sh.mu != null ? sh.mu : this.mu, e: sh.e != null ? sh.e : this.e, crr: sh.crr != null ? sh.crr : this.crr, solid: sh.solid !== false, pl: sh.plane || 0 }; }
       if (sh.t === 'c') {
         w.x = this.x + c * sh.x - s * sh.y;
         w.y = this.y + s * sh.x + c * sh.y;
@@ -177,6 +177,8 @@
       for (var j = 0; j < B.ws.length; j++) {
         var sb = B.ws[j];
         if (!sb.solid) continue;
+        // piezas en planos distintos (por ejemplo una leva delante de la rueda) no chocan
+        if (sa.pl !== sb.pl) continue;
         if (sa.x1 + curMargin < sb.x0 || sb.x1 + curMargin < sa.x0 || sa.y1 + curMargin < sb.y0 || sb.y1 + curMargin < sa.y0) continue;
         var n0 = out.length;
         collideShapes(sa, sb, out);

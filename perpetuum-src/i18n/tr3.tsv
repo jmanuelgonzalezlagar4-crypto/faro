@@ -113,7 +113,6 @@ ac8e26d	Fixed to the wheel
 4e350f5	The weights don't move relative to the wheel: they're glued, screwed on or on rigid arms.
 12eb252	Balls that roll inside the wheel. The app puts in one compartment per ball.
 96ba582	The wheel
-281efad	The weights
 0747c14	Mounting
 7a09d81	<p class="note">Analysing the photo on your device. It isn't sent anywhere.</p>
 94f9e62	Now tap a point on the <b>edge</b> of the wheel.
@@ -124,10 +123,7 @@ cc84a68	I found the wheel: it's the green circle.
 ac91a1f	Real diameter of the wheel
 08fa511	<p class="note">Measure it from side to side with a tape measure: with that measurement, every part comes out at its real size.</p>
 ab1a21a	<div class="row scan-nav"><button class="btn" id="sc_trace" type="button">It's not a wheel: trace it by hand</button><button class="btn primary" id="sc_next" type="button">Next</button></div>
-3fdcf5d	I couldn't find any weights. Tap each weight in the photo to mark it.
-de878c9	<p class="note">Mark them all, including any hidden by an arm or slightly outside the photo: the number of weights decides how many hinges there are.</p>
 07a3e3d	<div class="row scan-nav"><button class="btn" id="sc_back" type="button">Back</button><button class="btn primary" id="sc_next" type="button">Next</button></div>
-c1e7cb6	How are the weights mounted?
 83cacd2	 The white lines are the arms: they go from each hinge to its weight.
 a5492f3	Rotate the hinges
 113fc40	If the hinges don't land where they are on your model, rotate them.

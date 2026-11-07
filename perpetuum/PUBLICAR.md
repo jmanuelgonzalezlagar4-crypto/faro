@@ -103,7 +103,7 @@ En `temporada.json`, dentro de `tienda.productos`, añade una entrada por maquet
 ```
 
 - `enlace`: tu enlace de afiliado. Lo consigues en el programa de afiliados de AliExpress (AliExpress Portals). Lee sus condiciones y comprueba que permiten usar los enlaces dentro de una app.
-- `ejemplo` (opcional): si la maqueta se parece a un ejemplo de la app, pon su clave y también aparecerá en «Ayuda» al abrir ese ejemplo. Las claves son `mazos`, `bolas`, `wilkins`, `motor`, `pendulo`, `bucle` y `electro`.
+- `ejemplo` (opcional): si la maqueta se parece a un ejemplo de la app, pon su clave y también aparecerá en «Ayuda» al abrir ese ejemplo. Las claves son `mazos`, `bolas`, `wilkins`, `motor`, `pendulo`, `bucle`, `electro` y `leva`.
 - **Marca siempre que es publicidad.** La app lo hace con el texto `aviso`, que la ley española (LSSI) exige para las comunicaciones comerciales.
 - **Cuida los textos.** Muchas maquetas se venden como «movimiento perpetuo». En el Taller no digas que lo son. Preséntalas como lo que son: maquetas para comprobar en casa por qué se paran, o dónde esconden la pila.
 
@@ -116,4 +116,4 @@ No hay nada que configurar. En la app: **Añadir → Convertir tu maqueta en pie
 3. La persona corrige con el dedo lo que haga falta, escribe el diámetro real de la rueda y elige cómo van las pesas (brazos con topes, brazos libres, pegadas o sueltas dentro de la rueda) y lo que pesan.
 4. La app crea las piezas a tamaño real encima de la foto, lista para pulsar «Probar».
 
-Funciona con ruedas con pesas, que son la mayoría de maquetas. Para otras (rampas, motores de imanes) está «Foto de fondo para calcar», que pone la foto a escala para dibujar encima.
+Funciona con ruedas con pesas y con ruedas de imanes (opción «Son imanes»: los círculos de la rueda pasan a ser imanes pegados a ella y los de fuera, imanes fijos). Si la maqueta tiene una leva, se añade después con **Añadir → Leva con brazo**, tocando el eje de la rueda. Para otras maquetas (rampas, péndulos) está «Foto de fondo para calcar», que pone la foto a escala para dibujar encima.

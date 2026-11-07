@@ -17,21 +17,21 @@ const caps = [
   ['1-diseno', 'Construye tu máquina en 3D', 'Ruedas, pesas, brazos, muelles, imanes y motores, a escala real.'],
   ['2-prueba', 'Pruébala con física real', 'Mírala moverse y empuja las piezas con el dedo.'],
   ['3-cuentas', 'Mira a dónde va cada julio', 'El libro de cuentas explica por qué se para.'],
-  ['4-piezas', '14 tipos de piezas', 'Imanes de barra, disco, herradura, Halbach y electroimanes.'],
+  ['4-piezas', '15 tipos de piezas', 'Imanes de todo tipo, electroimanes y levas con su brazo.'],
   ['5-clonar', 'Medidas exactas y clonado', 'Repite un brazo 8 veces alrededor de la rueda con un toque.'],
   ['6-ejemplos', 'Ejemplos históricos y retos', 'De la rueda de 1235 al motor de imanes de internet.'],
   ['7-electro', 'Descubre quién paga la energía', 'Si una rueda gira sin parar, el banco encuentra la pila.'],
-  ['8-maqueta', 'Convierte tu maqueta en piezas', 'Hazle una foto: la app encuentra la rueda y las pesas.']
+  ['8-maqueta', 'Convierte tu maqueta en piezas', 'Hazle una foto: la app encuentra la rueda, las pesas y los imanes.']
 ];
 const capsEn = [
   ['1-diseno', 'Build your machine in 3D', 'Wheels, weights, arms, springs, magnets and motors, at real scale.'],
   ['2-prueba', 'Test it with real physics', 'Watch it move and push the parts with your finger.'],
   ['3-cuentas', 'See where every joule goes', 'The energy ledger explains why it stops.'],
-  ['4-piezas', '14 kinds of parts', 'Bar, disc and horseshoe magnets, Halbach arrays and electromagnets.'],
+  ['4-piezas', '15 kinds of parts', 'All kinds of magnets, electromagnets and cams with their arm.'],
   ['5-clonar', 'Exact measurements and cloning', 'Repeat an arm 8 times around the wheel with one tap.'],
   ['6-ejemplos', 'Historical examples and challenges', 'From the wheel of 1235 to the internet magnet motor.'],
   ['7-electro', 'Find out who pays for the energy', 'If a wheel never stops, the bench finds the battery.'],
-  ['8-maqueta', 'Turn your model into parts', 'Take a photo: the app finds the wheel and the weights.']
+  ['8-maqueta', 'Turn your model into parts', 'Take a photo: the app finds the wheel, the weights and the magnets.']
 ];
 (async () => {
   const browser = await chromium.launch();
