@@ -44,8 +44,8 @@ const SPANISH = /[áéíóúñ¿¡]|\b(de|la|el|los|las|que|una|con|para|por|del
   await page.click('#libraryBtn'); await page.waitForTimeout(150); await scan('biblioteca'); await page.click('#libraryModal [data-close]');
   await page.click('#menuBtn'); await page.waitForTimeout(150); await scan('menú'); await page.screenshot({ path: 'en-menu.png' }); await page.click('#menuModal [data-close]');
   await page.click('.tool[data-tool="add"]'); await page.waitForTimeout(150); await scan('paleta'); await page.screenshot({ path: 'en-palette.png' });
-  const fc = page.waitForEvent('filechooser'); await page.click('[data-kind="scan"]'); await (await fc).setFiles('maqueta-prueba2.jpg');
-  await page.waitForFunction(() => document.getElementById('scanBusy').hidden, null, { timeout: 15000 });
+  await page.click('[data-kind="scan"]'); await page.waitForSelector('label[for="scanFile"]'); const fc = page.waitForEvent('filechooser'); await page.click('label[for="scanFile"]'); await (await fc).setFiles('maqueta-prueba2.jpg');
+  await page.waitForFunction(() => document.getElementById('scanBusy').hidden && !document.getElementById('scanView').hidden, null, { timeout: 15000 });
   await scan('asistente 1'); await page.click('#sc_next'); await page.waitForTimeout(100); await scan('asistente 2'); await page.click('#sc_next'); await page.waitForTimeout(100); await scan('asistente 3');
   await page.screenshot({ path: 'en-scan.png' });
   await page.click('#sc_make'); await page.waitForTimeout(400); await scan('tras crear');

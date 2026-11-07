@@ -83,7 +83,7 @@ require('fs').mkdirSync(RAW, { recursive: true });
   // 8 tu maqueta convertida en piezas
   ({ ctx, page } = await app('light'));
   await page.click('.tool[data-tool="add"]'); await page.waitForTimeout(300);
-  const fc = page.waitForEvent('filechooser'); await page.click('[data-kind="scan"]'); await (await fc).setFiles('maqueta-prueba2.jpg');
+  await page.click('[data-kind="scan"]'); await page.waitForSelector('label[for="scanFile"]'); const fc = page.waitForEvent('filechooser'); await page.click('label[for="scanFile"]'); await (await fc).setFiles('maqueta-prueba2.jpg');
   await page.waitForFunction(() => document.getElementById('scanBusy').hidden, null, { timeout: 20000 });
   await page.click('#sc_next'); await page.waitForTimeout(200); await page.click('#sc_next'); await page.waitForTimeout(400);
   await shot(page, '8-maqueta');

@@ -405,6 +405,11 @@ button, .tab, .tool { touch-action: manipulation; }
 .scan-sum { margin: 8px 0 0; font-weight: 600; }
 .scan-nav { justify-content: flex-end; }
 .scan-nav .btn { min-height: 44px; }
+.scan-pick { display: grid; gap: 10px; margin: 14px 0 10px; }
+.scan-pick .btn { min-height: 54px; font-size: 16px; cursor: pointer; }
+.scan-pick .btn svg { width: 24px; height: 24px; }
+.scan-warn { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--warn); background: var(--panel-2); font-size: 14px; color: var(--ink); }
+.vh { position: fixed; left: -200px; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 @media (max-width: 979px) {
   .modal { align-items: flex-end; padding: 0; }
@@ -555,8 +560,10 @@ button, .tab, .tool { touch-action: manipulation; }
 </div>
 
 <input type="file" id="importFile" accept=".json,application/json" hidden>
-<input type="file" id="photoFile" accept="image/*" hidden>
-<input type="file" id="scanFile" accept="image/*" hidden>
+<!-- sin «hidden»: algunos móviles no abren la cámara desde un campo oculto con display:none -->
+<input type="file" id="photoFile" accept="image/*" class="vh" tabindex="-1" aria-hidden="true">
+<input type="file" id="scanFile" accept="image/*" class="vh" tabindex="-1" aria-hidden="true">
+<input type="file" id="scanCam" accept="image/*" capture="environment" class="vh" tabindex="-1" aria-hidden="true">
 <input type="file" id="verifyFiles" accept=".json,application/json" multiple hidden>
 
 <div class="modal" id="verifyModal" hidden>
@@ -570,7 +577,7 @@ button, .tab, .tool { touch-action: manipulation; }
   <div class="box scan" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
     <div class="insp-head"><h3 id="scanTitle">Tu maqueta, en piezas</h3><button class="btn" data-close type="button">Cancelar</button></div>
     <ol class="scan-steps" id="scanSteps"></ol>
-    <div class="scan-view"><canvas id="scanCv" aria-label="Foto de tu maqueta. Toca para marcar la rueda y las pesas."></canvas><div class="scan-busy" id="scanBusy" hidden><span>Buscando la rueda y las pesas…</span></div></div>
+    <div class="scan-view" id="scanView"><canvas id="scanCv" aria-label="Foto de tu maqueta. Toca para marcar la rueda y las pesas."></canvas><div class="scan-busy" id="scanBusy" hidden><span>Buscando la rueda y las pesas…</span></div></div>
     <div id="scanCtl"></div>
   </div>
 </div>

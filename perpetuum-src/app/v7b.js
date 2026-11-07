@@ -4,9 +4,9 @@ const { chromium, open } = require('./pw.js');
   for (const [vp, name, touch] of [[{ width: 390, height: 844 }, 'm', true], [{ width: 1280, height: 800 }, 'd', false]]) {
     const { page, errors } = await open(browser, 'debug.html', vp, 'dark', { touch });
     await page.evaluate(() => localStorage.setItem('taller-perpetuum.bienvenida', '1'));
-    await page.click('#welScan');
-    const fc = await page.waitForEvent('filechooser'); await fc.setFiles('maqueta-prueba.jpg');
-    await page.waitForFunction(() => document.getElementById('scanBusy').hidden, null, { timeout: 15000 });
+    await page.click('#welScan'); await page.waitForSelector('label[for="scanFile"]');
+    const fcp = page.waitForEvent('filechooser'); await page.click('label[for="scanFile"]'); const fc = await fcp; await fc.setFiles('maqueta-prueba.jpg');
+    await page.waitForFunction(() => document.getElementById('scanBusy').hidden && !document.getElementById('scanView').hidden, null, { timeout: 15000 });
     await page.click('#sc_next'); await page.waitForTimeout(150);
     // añadir la pesa de arriba, que se sale de la foto: está en (450, 10) de 900×700
     const pt = await page.evaluate(() => { const r = document.getElementById('scanCv').getBoundingClientRect(); const S = window.__T; return null; });

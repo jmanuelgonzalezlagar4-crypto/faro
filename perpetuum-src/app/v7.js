@@ -7,8 +7,9 @@ const { chromium, open } = require('./pw.js');
   // entrada por la paleta
   await page.click('.tool[data-tool="add"]'); await page.waitForTimeout(200);
   await page.screenshot({ path: 'v7-0-paleta.png' });
+  await page.click('[data-kind="scan"]'); await page.waitForSelector('label[for="scanFile"]');
   const fc = page.waitForEvent('filechooser');
-  await page.click('[data-kind="scan"]');
+  await page.click('label[for="scanFile"]');
   const chooser = await fc; await chooser.setFiles(process.argv[2] || 'maqueta-prueba2.jpg');
   await page.waitForTimeout(150);
   await page.screenshot({ path: 'v7-1-busy.png' });

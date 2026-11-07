@@ -1678,7 +1678,7 @@
     }).join('');
     $('palBody').querySelectorAll('[data-kind]').forEach(function (b) {
       b.addEventListener('click', function () {
-        if (b.dataset.kind === 'photo') { closeModal('palette'); setTimeout(function () { $('photoFile').click(); }, 60); return; }
+        if (b.dataset.kind === 'photo') { $('photoFile').click(); closeModal('palette'); return; }
         if (b.dataset.kind === 'scan') { closeModal('palette'); setTimeout(openScanFile, 60); return; }
         S.tool = 'add'; S.addKind = b.dataset.kind; S.pendingClone = false; S.measure = null;
         closeModal('palette'); updateTools(); updateHint();
@@ -1842,7 +1842,39 @@
     sueltas: T('Bolas que ruedan dentro de la rueda. La app pone un compartimento por bola.')
   };
   function scanArms() { return SC && SC.mount !== 'sueltas'; }
-  function openScanFile() { $('scanFile').click(); }
+  // Primero una pantalla con dos botones que son <label> de los campos de archivo: es la forma que más
+  // móviles aceptan para abrir la cámara (un .click() fuera del toque lo bloquean, sobre todo en iPhone).
+  function openScanFile() {
+    if (S.mode !== 'design') backToDesign();
+    SC = { pick: true, noPicker: false };
+    showModal('scanModal', function () { SC = null; });
+    renderScan();
+  }
+  // Si en 2,5 s no se ha abierto nada (ni la cámara ni la galería), lo dice y explica por qué puede pasar.
+  function watchPicker(inp) {
+    var t, done = false;
+    function off() { window.removeEventListener('blur', seen); document.removeEventListener('visibilitychange', vis); inp.removeEventListener('change', seen); inp.removeEventListener('cancel', seen); }
+    function seen() { done = true; clearTimeout(t); off(); }
+    function vis() { if (document.hidden) seen(); }
+    window.addEventListener('blur', seen); document.addEventListener('visibilitychange', vis);
+    inp.addEventListener('change', seen); inp.addEventListener('cancel', seen);
+    t = setTimeout(function () { off(); if (!done && SC && SC.pick && !SC.noPicker) { SC.noPicker = true; renderScan(); } }, 2500);
+  }
+  function renderPick() {
+    $('scanSteps').hidden = true; $('scanView').hidden = true; $('scanBusy').hidden = true;
+    var cam = '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC.photo + '</svg>';
+    var gal = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4 18l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+    $('scanCtl').innerHTML = '<p class="scan-say">' + T('Hazle una foto de frente a tu maqueta, con toda la rueda dentro. Mejor con buena luz y sobre un fondo liso.') + '</p>' +
+      '<div class="scan-pick"><label class="btn primary" for="scanCam" role="button" tabindex="0">' + cam + T('Hacer una foto') + '</label>' +
+      '<label class="btn" for="scanFile" role="button" tabindex="0">' + gal + T('Elegir una foto que ya tengo') + '</label></div>' +
+      '<p class="note">' + T('La foto se analiza en tu dispositivo y no se envía a ningún sitio.') + '</p>' +
+      (SC.noPicker ? '<p class="scan-warn" role="status">' + T('¿No se ha abierto nada? Algunas aplicaciones no dejan que una página abra la cámara ni la galería, por ejemplo al ver esta prueba dentro de la app de Claude. Abre el enlace en el navegador del móvil (Chrome o Safari) o usa la app instalada.') + '</p>' : '');
+    $('scanCtl').querySelectorAll('label[for]').forEach(function (l) {
+      var inp = $(l.getAttribute('for'));
+      l.addEventListener('click', function () { watchPicker(inp); });
+      l.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); watchPicker(inp); inp.click(); } });
+    });
+  }
   function startScan(data, img, photoId) {
     if (!VIS) { tracePhoto(data); return; }
     if (S.mode !== 'design') backToDesign();
@@ -1890,6 +1922,8 @@
   }
   function renderScan() {
     if (!SC) return;
+    if (SC.pick) { renderPick(); return; }
+    $('scanSteps').hidden = false; $('scanView').hidden = false;
     var names = [T('La rueda'), T('Las pesas'), T('Cómo van')];
     $('scanSteps').innerHTML = names.map(function (n, i) {
       return '<li' + (i === SC.step ? ' aria-current="step"' : '') + (i < SC.step ? ' class="done"' : '') + '><b>' + (i + 1) + '</b> ' + n + '</li>';
@@ -2767,10 +2801,12 @@
     });
     $('welEmpty').addEventListener('click', function () { closeModal('welcomeModal'); newDesign(); });
     $('welScan').addEventListener('click', function () { closeModal('welcomeModal'); setTimeout(openScanFile, 80); });
-    $('scanFile').addEventListener('change', function () {
-      var f = $('scanFile').files && $('scanFile').files[0];
-      if (f) readPhoto(f, function (data, img) { startScan(data, img); });
-      $('scanFile').value = '';
+    ['scanFile', 'scanCam'].forEach(function (id) {
+      $(id).addEventListener('change', function () {
+        var f = $(id).files && $(id).files[0];
+        if (f) readPhoto(f, function (data, img) { startScan(data, img); });
+        $(id).value = '';
+      });
     });
     $('scanCv').addEventListener('click', scanTap);
     window.addEventListener('resize', function () { if (SC) drawScan(); });
