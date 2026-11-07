@@ -39,3 +39,4 @@ a5db909	A widely shared video: a pulley that turns by itself when a magnet is br
 0e16718	A pulley (just the rim, turning on its axle) with a loose iron ball inside. When a magnet is brought close from outside, the ball climbs the rim towards the magnet and the rim turns, like a hamster wheel.
 0de4c2d	The magnet pulls the ball until its force and the ball's weight balance. The ball climbs a little, the rim turns a little, and they stop: the energy the magnet gives is what was stored when it was brought close, and it's spent on friction. To keep the rim turning you'd have to keep moving the magnet, and that energy would come from your hand. Try it: press “Design”, drag the magnet somewhere else and test again, or push the ball with your finger during the test and look at “Your pushes” in the ledger.
 fc252c6	Rim (pulley)
+df8aa18	Drag a part to push it, or a magnet on the wall to move it: the bench records that energy as yours.

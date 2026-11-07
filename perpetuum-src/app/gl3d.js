@@ -96,7 +96,12 @@
     return t;
   }
 
+  var wallParts = {};
+  function offsetPart(id, dx, dy) {
+    (wallParts[id] || []).forEach(function (o) { o.position.x = o.userData.bx + dx; o.position.y = o.userData.by + dy; });
+  }
   function clearMachine() {
+    wallParts = {};
     machine.traverse(function (o) {
       if (o.geometry) o.geometry.dispose();
       if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { if (m.map && m.map !== wallTex) m.map.dispose(); m.dispose(); }); }
@@ -295,10 +300,13 @@
         var o = host.isStatic ? { x: 0, y: 0 } : { x: host.x0 || 0, y: host.y0 || 0 };
         // los imanes pegados a una pieza van en su cara delantera, para que se vean
         var zm = host.isStatic ? 0 : zb(host) + 0.014 + P.magnetModel(p).size / 4;
-        buildMagnet(p, g, o, zm);
+        var mgrp = buildMagnet(p, g, o, zm);
         if (host.isStatic) {
           var mount = zCyl(0.008, zm - WALL_Z, inkM.clone(), 10);
           mount.position.set(p.x, p.y, (zm + WALL_Z) / 2); machine.add(mount);
+          // se puede mover con el dedo durante la prueba
+          [mgrp, mount].forEach(function (o) { o.userData.bx = o.position.x; o.userData.by = o.position.y; });
+          wallParts[p.id] = [mgrp, mount];
         }
       } else if (p.kind === 'pin') {
         var jp = info.jointOf[p.id];
@@ -402,6 +410,7 @@
       half(L / 2, wb2, wb2, sM, -L / 4);
     }
     g.add(grp);
+    return grp;
   }
 
   function fitShadow() {
@@ -558,7 +567,7 @@
 
   root.PerpetuumGL = {
     init: init, resize: resize, setQuality: setQuality, snapshot: snapshot, setColors: setColors, setTheme: setTheme, rebuild: rebuild, update: update, render: render,
-    planePoint: planePoint, pick: pick, project: project, ppm: ppm, fit: fit, orbit: orbit, zoom: zoom, pan: pan, front: front,
+    planePoint: planePoint, pick: pick, offsetPart: offsetPart, project: project, ppm: ppm, fit: fit, orbit: orbit, zoom: zoom, pan: pan, front: front,
     cam: cam, ok: function () { return ok; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

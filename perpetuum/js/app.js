@@ -140,7 +140,7 @@
     motor: T('Toca una rueda o una bisagra para ponerle un motor.'),
     gen: T('Toca una rueda o una bisagra para ponerle un generador.')
   };
-  var HAND_HINT = T('Arrastra una pieza para empujarla: el banco apunta esa energía como tuya.');
+  var HAND_HINT = T('Arrastra una pieza para empujarla, o un imán de la pared para moverlo: el banco apunta esa energía como tuya.');
 
   var STORIES = {
     mazos: {
@@ -251,7 +251,7 @@
   }
 
   function rebuild() {
-    S.dirty = true;
+    S.dirty = true; S.magOff = {};
     S.info = P.build(S.design);
     S.hist = []; S.maxK = 0; S.acc = 0; S.endReason = null; S.lagging = false;
     recordHist(true);
@@ -852,7 +852,8 @@
   }
   function electroOn(p) { var e = S.info.electroOf && S.info.electroOf[p.id]; return e ? e.on : true; }
   function drawMagnet(p, ghost) {
-    var host = ghost ? S.info.world.ground : bodyOf(p.host), c = ghost ? W2S(p.x, p.y) : sp(host, p.x, p.y);
+    var mo = !ghost && S.magOff && S.magOff[p.id], px = p.x + (mo ? mo.x : 0), py = p.y + (mo ? mo.y : 0);
+    var host = ghost ? S.info.world.ground : bodyOf(p.host), c = ghost ? W2S(p.x, p.y) : sp(host, px, py);
     var ang = p.ang * DEG + (ghost ? 0 : bodyAngle(host)), model = P.magnetModel(p);
     var L = Math.max(22, model.size * S.cam.s);
     ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(-ang);
@@ -2777,6 +2778,12 @@
     var nav = (e.button === 2 || e.shiftKey) ? 'pan' : (is3d() ? 'orbit' : 'pan');
     if (S.mode !== 'design') {
       var hit = pickAt(pos), world = S.info.world, body = null;
+      // un imán de la pared: se mueve con el dedo, como quien acerca un imán a la maqueta
+      if (hit && hit.p && hit.p.kind === 'magnet' && !(hit.p.host && find(hit.p.host))) {
+        if (S.mode === 'stopped') { S.endReason = null; setMode('run'); }
+        S.drag = { kind: 'wallmag', id: hit.p.id, last: { x: hit.x, y: hit.y } }; world.stillTime = 0;
+        return;
+      }
       if (hit && hit.p) {
         var b = hit.p.kind === 'magnet' ? bodyOf(hit.p.host) : (hit.p.kind === 'pin' ? bodyOf(hit.p.b) : (hit.p.kind === 'spring' ? null : bodyOf(hit.p.id)));
         if (b && !b.isStatic) body = b;
@@ -2852,6 +2859,18 @@
     if (dr.kind === 'orbit') { GL.orbit(pos.x - dr.last.x, pos.y - dr.last.y); dr.last = pos; return; }
     var w = worldAt(pos);
     if (dr.kind === 'hand') { var H = S.info.world.hand; if (H) { H.tx = w.x; H.ty = w.y; } return; }
+    if (dr.kind === 'wallmag') {
+      // a pasos cortos: si el imán tocaría otra pieza, se queda donde está
+      var mdx = w.x - dr.last.x, mdy = w.y - dr.last.y, steps = Math.max(1, Math.ceil(Math.hypot(mdx, mdy) / 0.004));
+      for (var st = 0; st < steps; st++) {
+        if (!S.info.world.moveFixedMagnet(dr.id, mdx / steps, mdy / steps)) break;
+        dr.last = { x: dr.last.x + mdx / steps, y: dr.last.y + mdy / steps };
+        var off = S.magOff[dr.id] || (S.magOff[dr.id] = { x: 0, y: 0 });
+        off.x += mdx / steps; off.y += mdy / steps;
+      }
+      if (GL && S.magOff[dr.id]) GL.offsetPart(dr.id, S.magOff[dr.id].x, S.magOff[dr.id].y);
+      markDirty(); return;
+    }
     if (dr.kind === 'measure') { S.measure.b = snapPoint(w.x, w.y, true); return; }
     if (dr.kind === 'draw') { dr.b = snapPoint(w.x, w.y, dr.kind2 === 'bar' || dr.kind2 === 'spring'); return; }
     if (dr.kind === 'move') {
@@ -2879,6 +2898,7 @@
     if (!dr) return;
     var tapped = dr.startPx ? Math.hypot(pos.x - dr.startPx.x, pos.y - dr.startPx.y) < 7 : false;
     if (dr.kind === 'hand') { S.info.world.hand = null; return; }
+    if (dr.kind === 'wallmag') return;
     if (dr.kind === 'pan' || dr.kind === 'orbit') {
       if (dr.deselect && Math.hypot(pos.x - dr.start.x, pos.y - dr.start.y) < 6) { S.sel = null; renderInspector(); }
       return;

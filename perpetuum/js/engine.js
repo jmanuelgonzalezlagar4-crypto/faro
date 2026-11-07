@@ -977,6 +977,45 @@
 
   World.prototype.isStopped = function () { return this.stillTime > 1.5; };
 
+  // La mano mueve un imán sujeto a la pared durante la prueba (como quien acerca un imán a una maqueta).
+  // Lo que cambia la energía de los imanes al moverlo es el trabajo de la mano: se apunta en «hand».
+  // No deja meter el imán dentro de otra pieza, porque eso empujaría sin pasar por la cuenta de la mano.
+  World.prototype.moveFixedMagnet = function (tag, dx, dy) {
+    var g = this.ground, ms = this.magnets.filter(function (m) { return m.tag === tag && m.body === g; });
+    if (!ms.length) return false;
+    var idx = [];
+    g.shapes.forEach(function (s, i) { if (s.part === tag) idx.push(i); });
+    function shift(k) {
+      ms.forEach(function (m) { m.lx += k * dx; m.ly += k * dy; });
+      idx.forEach(function (i) { var s = g.shapes[i]; if (s.t === 'c') { s.x += k * dx; s.y += k * dy; } else { s.ax += k * dx; s.ay += k * dy; s.bx += k * dx; s.by += k * dy; } });
+      g.updateWorld();
+    }
+    this.updateMagnetPoses();
+    var U0 = this.magnetEnergy();
+    shift(1);
+    var B = this.bodies, hit = false, out = [], saved = curMargin;
+    curMargin = 0;
+    for (var b = 0; b < B.length && !hit; b++) {
+      if (B[b].isStatic) continue;
+      for (var a = 0; a < idx.length && !hit; a++) {
+        var sa = g.ws[idx[a]];
+        if (!sa || !sa.solid) continue;
+        for (var j = 0; j < B[b].ws.length && !hit; j++) {
+          var sb = B[b].ws[j];
+          if (!sb.solid || sa.pl !== sb.pl) continue;
+          out.length = 0; collideShapes(sa, sb, out);
+          if (out.length && out[0].sep < -0.0005) hit = true;
+        }
+      }
+    }
+    curMargin = saved;
+    if (hit) { shift(-1); this.updateMagnetPoses(); return false; }
+    this.updateMagnetPoses(); this.computeMagnetForces();
+    this.ledger.hand += this.magnetEnergy() - U0;
+    this.stillTime = 0;
+    return true;
+  };
+
   // Balance de la energía desde el inicio
   World.prototype.balance = function () {
     var e = this.energy(), L = this.ledger;
