@@ -61,6 +61,7 @@
     erase: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
     undo: '<path d="M9 5L4 10l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 10h10a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="1.8"/>',
     wheel: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/>',
+    rim: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 12L6.5 6.5M12 12l5.5 5.5" stroke="currentColor" stroke-width="1"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="18.2" r="1.9" fill="currentColor"/>',
     ring: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 9.8L9 4.5M14.2 12l5-3M12 14.2l3 5.3M9.8 12l-5 3" stroke="currentColor" stroke-width="1.3"/><circle cx="7.5" cy="8" r="1.6" fill="currentColor"/>',
     arm: '<path d="M4 20L15 9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="4" cy="20" r="2" fill="var(--panel)" stroke="currentColor" stroke-width="1.4"/><circle cx="16.5" cy="7.5" r="4" fill="currentColor"/>',
     bar: '<path d="M5 18L19 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="5" cy="18" r="2.4" fill="var(--panel)" stroke="currentColor" stroke-width="1.4"/><circle cx="19" cy="6" r="2.4" fill="var(--panel)" stroke="currentColor" stroke-width="1.4"/>',
@@ -88,6 +89,7 @@
     { group: T('Estructura'), items: [
       { id: 'wheel', name: T('Rueda'), desc: T('Con eje fijo. Arrastra para el tamaño.') },
       { id: 'ring', name: T('Rueda de compartimentos'), desc: T('Aro con separadores para bolas.') },
+      { id: 'rim', name: T('Aro o polea'), desc: T('Rueda hueca: solo el aro, para una bola suelta dentro.') },
       { id: 'arm', name: T('Brazo con pesa'), desc: T('Arrastra desde el borde de la rueda.') },
       { id: 'bar', name: T('Brazo'), desc: T('Barra rígida. Arrastra de punta a punta.') },
       { id: 'ball', name: T('Pesa'), desc: T('Bola de plomo, acero, madera o goma.') },
@@ -122,6 +124,7 @@
     erase: T('Toca una pieza para quitarla.'),
     clone: T('Toca la pieza que quieres clonar.'),
     wheel: T('Toca donde irá el eje. Si arrastras, eliges el radio.'),
+    rim: T('Toca donde irá el eje. Si arrastras, eliges el radio. Después pon una pesa dentro.'),
     ring: T('Toca donde irá el eje. Si arrastras, eliges el radio.'),
     arm: T('Arrastra desde el borde de una rueda hacia fuera: crea el brazo, la pesa y la bisagra.'),
     bar: T('Arrastra de un punto a otro. Un extremo sobre otra pieza se une con una bisagra.'),
@@ -174,6 +177,11 @@
       title: T('Rueda con electroimán'), era: T('Muchas máquinas «de imanes» esconden una pila.'),
       what: T('Seis imanes en el borde de la rueda y un electroimán fijo que se enciende justo cuando un imán se acerca, para tirar de él, y se apaga cuando pasa.'),
       why: T('Esta rueda sí gira sin parar, pero porque la batería le da energía cada vez que enciende el electroimán. En el libro de cuentas verás que la batería pone muchísimo más de lo que la rueda gana: casi todo se va en calor de la bobina. Quita la batería (borra el electroimán) y se para.')
+    },
+    hamster: {
+      title: T('Rueda de hámster con imán'), era: T('Un vídeo muy compartido: una polea que gira sola al acercarle un imán.'),
+      what: T('Una polea (solo el aro, que gira sobre su eje) con una bola de hierro suelta dentro. Al acercar un imán por fuera, la bola sube por el aro hacia el imán y el aro gira, como la rueda de un hámster.'),
+      why: T('El imán tira de la bola hasta que su fuerza y el peso de la bola se igualan. La bola sube un poco, el aro gira un poco, y se paran: la energía que da el imán es la que tenía guardada al acercarlo, y se gasta en el roce. Para que el aro siguiera girando habría que ir moviendo el imán, y esa energía la pondría tu mano. Prueba: pulsa «Diseñar», arrastra el imán a otro sitio y vuelve a probar, o empuja la bola con el dedo durante la prueba y mira «Tus empujones» en el libro de cuentas.')
     },
     leva: {
       title: T('Motor de imanes con leva'), era: T('Una de las maquetas de imanes más vistas en internet.'),
@@ -394,11 +402,12 @@
   // ---------- crear piezas ----------
   function createAt(kind, a, b) {
     var d = S.design, before = snapshot(), made = null, dragged = b && Math.hypot(b.x - a.x, b.y - a.y) >= 0.03;
-    if (kind === 'wheel' || kind === 'ring') {
+    if (kind === 'wheel' || kind === 'ring' || kind === 'rim') {
       var r = dragged ? Math.hypot(b.x - a.x, b.y - a.y) : 0.45;
       r = Math.min(1.5, Math.max(0.1, Math.round(r * 100) / 100));
       made = P.makeWheel(d, a.x, a.y, r);
       if (kind === 'ring') { made.style = 'ring'; made.cells = 8; made.tilt = 35; }
+      if (kind === 'rim') { made.style = 'rim'; made.spokes = 2; made.m = 1; }
       d.parts.push(made);
     } else if (kind === 'ball') {
       made = P.makeBall(d, a.x, a.y); d.parts.push(made);
@@ -512,7 +521,7 @@
       });
     }
     if (!host && sel.kind === 'ball') {
-      parts().forEach(function (w) { if (!host && w.kind === 'wheel' && w.style === 'ring' && Math.hypot(sel.x - w.x, sel.y - w.y) < w.r) host = w; });
+      parts().forEach(function (w) { if (!host && w.kind === 'wheel' && (w.style === 'ring' || w.style === 'rim') && Math.hypot(sel.x - w.x, sel.y - w.y) < w.r) host = w; });
     }
     var list = parts().filter(function (q) { return ids.has(q.id); });
     var count = {};
@@ -766,6 +775,17 @@
       ctx.closePath(); ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
       ctx.fillStyle = C['panel-2']; ctx.strokeStyle = C['ink-2']; ctx.lineWidth = 1.4;
       ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(4, (p.r - (p.lift || 0)) * 0.3 * S.cam.s), 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    } else if (p.style === 'rim') {
+      // los radios y el buje van detrás: se dibujan suaves
+      ctx.fillStyle = C.part; ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, 2 * Math.PI); ctx.fill(); ctx.globalAlpha = 1;
+      var nr = Math.max(1, p.spokes || 2);
+      ctx.strokeStyle = C['ink-3']; ctx.lineWidth = 2; ctx.beginPath();
+      for (var kr = 0; kr < nr; kr++) { var tr = ang + kr * 2 * Math.PI / nr; ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + Math.cos(tr) * (R - 2 * P.RIM_R * S.cam.s), c.y - Math.sin(tr) * (R - 2 * P.RIM_R * S.cam.s)); }
+      ctx.stroke();
+      ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(2.5, 2 * P.RIM_R * S.cam.s);
+      ctx.beginPath(); ctx.arc(c.x, c.y, (p.r - P.RIM_R) * S.cam.s, 0, 2 * Math.PI); ctx.stroke();
+      ctx.fillStyle = C['panel-2']; ctx.strokeStyle = C['ink-2']; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(5, R * 0.07), 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
     } else if (p.style === 'ring') {
       var g = P.ringGeometry(p);
       ctx.fillStyle = C.part; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, 2 * Math.PI); ctx.fill(); ctx.globalAlpha = 1;
@@ -959,7 +979,7 @@
     if (!d || !d.preview) return;
     ctx.save(); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.accent; ctx.lineWidth = 2;
     var a = W2S(d.a.x, d.a.y), b = d.b ? W2S(d.b.x, d.b.y) : a;
-    if (d.kind2 === 'wheel' || d.kind2 === 'ring') {
+    if (d.kind2 === 'wheel' || d.kind2 === 'ring' || d.kind2 === 'rim') {
       var r = d.b ? Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y) : 0.45;
       if (r < 0.03) r = 0.45;
       ctx.beginPath(); ctx.arc(a.x, a.y, r * S.cam.s, 0, 2 * Math.PI); ctx.stroke();
@@ -1328,7 +1348,7 @@
   var SHAPE_OPTS = Object.keys(P.MAG_SHAPES).map(function (k) { return [k, P.MAG_SHAPES[k]]; });
   var DENS = { plomo: 11340, acero: 7850, madera: 700, goma: 1100 };
   var NAMES = { wheel: T('Rueda'), ball: T('Pesa'), bar: T('Brazo'), ramp: T('Rampa'), pin: T('Bisagra'), spring: T('Muelle'), magnet: T('Imán') };
-  function partName(p) { return p.kind === 'magnet' ? P.MAG_SHAPES[p.shape || 'bar'] : (p.kind === 'wheel' && p.style === 'ring' ? T('Rueda de compartimentos') : (p.kind === 'wheel' && p.style === 'cam' ? T('Leva') : NAMES[p.kind])); }
+  function partName(p) { return p.kind === 'magnet' ? P.MAG_SHAPES[p.shape || 'bar'] : (p.kind === 'wheel' && p.style === 'ring' ? T('Rueda de compartimentos') : (p.kind === 'wheel' && p.style === 'cam' ? T('Leva') : (p.kind === 'wheel' && p.style === 'rim' ? T('Aro o polea') : NAMES[p.kind]))); }
 
   function renderInspector() {
     S.dirty = true;
@@ -1359,7 +1379,7 @@
       h += numField(T('Centro X'), 'n_x', p.x * 100, 'cm', 1) + numField(T('Centro Y'), 'n_y', p.y * 100, 'cm', 1);
       h += numField(T('Radio'), 'n_r', p.r * 100, 'cm', 1);
       h += field(T('Masa de la rueda'), 'f_m', 0.2, 20, 0.1, p.m, 'kg', null, 1);
-      h += segField(T('Tipo'), 'f_style', [['disc', T('Disco con radios')], ['ring', T('Con compartimentos')]], p.style, true);
+      h += segField(T('Tipo'), 'f_style', [['disc', T('Disco con radios')], ['ring', T('Con compartimentos')], ['rim', T('Aro (polea)')]], p.style, true);
       if (p.style === 'ring') { h += field(T('Compartimentos'), 'f_cells', 3, 16, 1, p.cells, '', null, 0); h += field(T('Inclinación de los separadores'), 'f_tilt', 0, 70, 1, p.tilt, '°', null, 0); }
       else h += field(T('Radios (dibujo)'), 'f_spokes', 3, 16, 1, p.spokes || 8, '', null, 0);
       h += segField(T('Eje'), 'f_axle', [['fixed', T('Fijo a la pared')], ['free', T('Suelto')]], p.axle, true);
@@ -2452,7 +2472,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();

@@ -346,7 +346,7 @@
   function partMass(p) {
     if (p.kind === 'wheel' && p.style === 'cam') { var rc = p.r - (p.lift || 0) / 2; return { m: p.m, cx: p.x, cy: p.y, I: 0.5 * p.m * rc * rc }; }
     if (p.kind === 'wheel') {
-      var I = p.style === 'ring' ? 0.85 * p.m * p.r * p.r : 0.5 * p.m * p.r * p.r;
+      var I = p.style === 'rim' ? 0.92 * p.m * p.r * p.r : (p.style === 'ring' ? 0.85 * p.m * p.r * p.r : 0.5 * p.m * p.r * p.r);
       return { m: p.m, cx: p.x, cy: p.y, I: I };
     }
     if (p.kind === 'ball') return { m: p.m, cx: p.x, cy: p.y, I: 0.4 * p.m * p.r * p.r };
@@ -355,7 +355,7 @@
   }
 
   function partDrag(p) {
-    if (p.kind === 'wheel') return { k: 0.5 * 1.0 * (2 * p.r * 0.03), rot: 0.01 * Math.pow(p.r, 4) * (p.style === 'ring' ? 1.5 : 1) };
+    if (p.kind === 'wheel') return { k: 0.5 * 1.0 * (2 * p.r * 0.03), rot: 0.01 * Math.pow(p.r, 4) * (p.style === 'ring' || p.style === 'rim' ? 1.5 : 1) };
     if (p.kind === 'ball') return { k: 0.5 * 0.47 * Math.PI * p.r * p.r, rot: 0 };
     var L = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
     return { k: 0.5 * 1.0 * L * 0.02, rot: 0.5 * 1.0 * 0.02 * Math.pow(L, 4) / 32 };
@@ -371,6 +371,9 @@
           body.shapes.push({ t: 's', ax: p.x + c0[0] - ox, ay: p.y + c0[1] - oy, bx: p.x + c1[0] - ox, by: p.y + c1[1] - oy, r: CAM_R, mu: 0.3, e: 0.1, crr: 0.002, part: p.id, plane: pl });
         }
         body.shapes.push({ t: 'c', x: p.x - ox, y: p.y - oy, r: Math.max(0.005, (p.r - (p.lift || 0)) * 0.6), mu: 0.3, e: 0.1, part: p.id, plane: pl });
+      } else if (p.style === 'rim') {
+        // aro o polea: solo el aro choca; el buje y los radios van detrás, donde no llega lo de dentro
+        ringGeometry(p).rim.forEach(function (s) { body.shapes.push({ t: 's', ax: p.x + s[0] - ox, ay: p.y + s[1] - oy, bx: p.x + s[2] - ox, by: p.y + s[3] - oy, r: RIM_R, mu: 0.4, e: 0.2, crr: 0.002, part: p.id }); });
       } else if (p.style === 'ring') {
         var g = ringGeometry(p);
         g.rim.forEach(function (s) { body.shapes.push({ t: 's', ax: p.x + s[0] - ox, ay: p.y + s[1] - oy, bx: p.x + s[2] - ox, by: p.y + s[3] - oy, r: RIM_R, mu: mu, e: e, part: p.id }); });
@@ -557,6 +560,27 @@
     return d;
   }
 
+  // rueda de hámster con imán: una polea con una bola de hierro suelta dentro y un imán por fuera
+  function exampleHamster() {
+    var d = emptyDesign();
+    d.example = 'hamster';
+    var cx = 0, cy = 0.38, R = 0.25;
+    d.parts.push((function () { var r = makeRamp(d, -0.36, 0.03, 0.36, 0.03); r.mat = 'madera'; return r; })());
+    var wh = makeWheel(d, cx, cy, R);
+    wh.style = 'rim'; wh.m = 0.6; wh.spokes = 2; wh.bearing = 'bolas'; wh.rpm = 0;
+    d.parts.push(wh);
+    // la bola, abajo, apoyada en el aro por dentro
+    var br = 0.018, rr = R - RIM_R * 2 - br - 0.002;
+    var ball = makeBall(d, cx, cy - rr); ball.r = br; ball.m = 0.19; ball.mat = 'acero';
+    d.parts.push(ball);
+    // el imán, por fuera, abajo a la izquierda, mirando al eje
+    var th = -110 * DEG, rm = R + 0.003 + 0.05;
+    var mg = makeMagnet(d, +(cx + rm * Math.cos(th)).toFixed(3), +(cy + rm * Math.sin(th)).toFixed(3), null, 'bar');
+    mg.size = 0.1; mg.ang = 70; mg.mu = magnetModel(mg).mu;   // un bloque de imanes de neodimio, mirando al eje
+    d.parts.push(mg);
+    return d;
+  }
+
   var EXAMPLES = {
     mazos: { title: T('Rueda de mazos'), make: exampleMallets },
     bolas: { title: T('Rueda de bolas'), make: exampleBalls },
@@ -565,7 +589,8 @@
     pendulo: { title: T('Péndulo de control'), make: examplePendulum },
     bucle: { title: T('Motor que se alimenta solo'), make: exampleLoop },
     electro: { title: T('Rueda con electroimán'), make: exampleElectro },
-    leva: { title: T('Motor de imanes con leva'), make: exampleCamMotor }
+    leva: { title: T('Motor de imanes con leva'), make: exampleCamMotor },
+    hamster: { title: T('Rueda de hámster con imán'), make: exampleHamster }
   };
 
   root.PerpetuumBuild = {

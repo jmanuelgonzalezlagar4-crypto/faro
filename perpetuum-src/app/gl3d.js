@@ -214,6 +214,23 @@
           g.add(addPick(cm, p.id));
           var hc = zCyl(Math.max(0.008, (p.r - (p.lift || 0)) * 0.3), zc - z0 + 0.03, ink2M.clone(), 20);
           hc.position.set(l.x, l.y, (zc + z0) / 2); g.add(addPick(hc, p.id));
+        } else if (p.style === 'rim') {
+          // aro o polea: la banda del aro con sus dos bordes; el buje y los radios, detrás
+          var Dr = Math.max(0.06, 2 * maxFreeR + 0.02);
+          var bandR = new THREE.Mesh((function () { var c = new THREE.CylinderGeometry(p.r, p.r, Dr, 72, 1, true); c.rotateX(Math.PI / 2); return c; })(),
+            mat(colors.steel, 0.35, 0.85, { side: THREE.DoubleSide }));
+          bandR.position.set(l.x, l.y, z0); g.add(addPick(bandR, p.id));
+          [-1, 1].forEach(function (sd) {
+            var lipR = new THREE.Mesh(new THREE.TorusGeometry(p.r - 0.006, 0.01, 8, 72), mat(colors.steel, 0.3, 0.9));
+            lipR.position.set(l.x, l.y, z0 + sd * Dr / 2); g.add(addPick(lipR, p.id));
+          });
+          var nr = Math.max(1, p.spokes || 2), zs = z0 - Dr / 2 - 0.01;
+          for (var kr = 0; kr < nr; kr++) {
+            var tr = kr * 2 * Math.PI / nr, spr = box(p.r * 0.96, 0.02, 0.01, ink2M.clone());
+            spr.position.set(l.x + Math.cos(tr) * p.r * 0.48, l.y + Math.sin(tr) * p.r * 0.48, zs); spr.rotation.z = tr; g.add(addPick(spr, p.id));
+          }
+          var hbr = zCyl(Math.max(0.02, p.r * 0.07), 0.03, ink2M.clone(), 24);
+          hbr.position.set(l.x, l.y, zs); g.add(addPick(hbr, p.id));
         } else if (p.style === 'ring') {
           var D = Math.max(0.1, 2 * maxFreeR + 0.03), geo = P.ringGeometry(p);
           var back = zCyl(p.r, 0.012, mat(colors.part, 0.8, 0, { transparent: true, opacity: 0.92 }), 64);

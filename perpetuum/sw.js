@@ -1,6 +1,6 @@
 // Taller Perpetuum — service worker: la app funciona sin conexión.
 // El nombre de la caché cambia con cada versión publicada y se borra la anterior.
-const CACHE = 'perpetuum-1.1.0-433d3fd2';
+const CACHE = 'perpetuum-1.1.0-69f9426e';
 const ASSETS = [
   './',
   './index.html',

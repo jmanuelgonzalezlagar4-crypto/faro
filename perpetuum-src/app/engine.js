@@ -859,7 +859,9 @@
     for (i = 0; i < B.length; i++) {
       b = B[i];
       if (b.isStatic) continue;
-      if (Math.abs(b.vx) > 0.004 || Math.abs(b.vy) > 0.004 || Math.abs(b.w) > 0.012) { moving = true; break; }
+      // una pieza pequeña que solo se mece un poco (una bola en un hueco) cuenta como parada: se mide la velocidad del borde
+      var ext = Math.min(Math.max(0.5 * Math.hypot(b.maxx - b.minx, b.maxy - b.miny), 0.05), 0.333);
+      if (Math.abs(b.vx) > 0.004 || Math.abs(b.vy) > 0.004 || Math.abs(b.w) * ext > 0.004) { moving = true; break; }
     }
     if (moving || (H && H.body)) this.stillTime = 0; else this.stillTime += dt;
     this.contacts = C;
