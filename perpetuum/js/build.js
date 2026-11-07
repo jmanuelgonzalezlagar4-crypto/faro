@@ -582,8 +582,8 @@
   }
 
   // cilindro con imanes en espiral (dos bandas en la maqueta) y una barra arriba con un imán, que gira
-  // apoyada a la derecha. Una paleta pegada al lateral del cilindro golpea la barra y la levanta justo en el
-  // punto muerto (donde la espiral termina y vuelve a empezar). Visto de frente al eje.
+  // apoyada a la derecha. Una leva en el lateral del cilindro, siempre tocando la barra, la levanta en el
+  // punto muerto (donde la espiral termina y vuelve a empezar) y la deja bajar después. Visto de frente al eje.
   function exampleSpiral(opts) {
     opts = opts || {};
     var d = emptyDesign();
@@ -591,7 +591,7 @@
     var cx = 0, cy = 0.17, R = 0.05;
     var base = makeRamp(d, -0.15, 0.03, 0.17, 0.03); base.mat = 'madera'; d.parts.push(base);
     var wh = makeWheel(d, cx, cy, R);
-    wh.m = opts.m || 3; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -200;   // el empujón inicial, al revés que las agujas del reloj
+    wh.m = opts.m || 3; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -150;   // el empujón inicial, al revés que las agujas del reloj
     d.parts.push(wh);
     // 12 imanes en espiral: cada uno un poco más fuera (más cerca del imán de la barra) que el anterior.
     // El último pasa bajo el imán cuando el cilindro ha girado unos 175°, justo cuando la paleta levanta la barra.
@@ -602,21 +602,32 @@
       mg.size = 0.012; mg.ang = Math.round(th / DEG); mg.grade = 'n52'; mg.mu = magnetModel(mg).mu;
       d.parts.push(mg);
     }
-    // la barra de arriba: bisagra a la derecha (en el agarre) e imán debajo, encima del cilindro
-    var yb = cy + (opts.yb || 0.1);
-    var lever = makeBar(d, 0.12, yb, -0.06, yb); lever.m = 0.05; lever.plane = 1; d.parts.push(lever);
-    var piv = makePin(d, 0.12, yb, null, lever.id); piv.mode = 'limits'; piv.lo = opts.lo != null ? opts.lo : -60; piv.hi = 2; piv.bearing = 'bolas';
+    // la leva, en el lateral del cilindro (delante, en el mismo eje): en forma de huevo, con la punta
+    // hacia abajo al empezar. Llega arriba cuando la espiral está en su punto muerto.
+    var cam = makeCam(d, cx, cy, 0.117);
+    cam.lift = 0.035; cam.lobes = 1; cam.phase = opts.phase != null ? opts.phase : 270; cam.m = 0.05; cam.bearing = 'bolas';
+    if (!opts.noCam) { d.parts.push(cam); var cw = makePin(d, cx, cy, wh.id, cam.id); cw.mode = 'rigid'; d.parts.push(cw); }
+    // la barra de arriba, con la bisagra a la derecha (en el agarre). De ella baja un vástago con un rodillo
+    // que va siempre apoyado en la leva (como el seguidor de una leva) y cuelga el imán, encima del cilindro.
+    var rr = opts.rr || 0.014, yr = cy + (cam.r - cam.lift) + CAM_R + rr + 0.001, yl = cy + 0.145;
+    var lever = makeBar(d, 0.12, yl, -0.06, yl); lever.m = opts.lm || 0.1; lever.plane = 1; d.parts.push(lever);
+    var piv = makePin(d, 0.12, yl, null, lever.id); piv.mode = 'limits'; piv.lo = -60; piv.hi = opts.hi != null ? opts.hi : 1; piv.bearing = 'bolas';
     d.parts.push(piv);
-    var st = makeMagnet(d, cx, yb - 0.013, lever.id, 'bar');
+    var stem = makeBar(d, 0.015, yl, 0.015, yr + BAR_R); stem.m = 0.01; stem.plane = 1; d.parts.push(stem);
+    var sw = makePin(d, 0.015, yl, lever.id, stem.id); sw.mode = 'rigid'; d.parts.push(sw);
+    var roller = makeBall(d, 0.015, yr); roller.r = rr; roller.m = 0.02; roller.mat = opts.rmat || 'madera'; roller.plane = 1; d.parts.push(roller);   // rodillo de plástico o madera: no lo atraen los imanes
+    var rp = makePin(d, 0.015, yr, stem.id, roller.id); rp.bearing = 'bolas'; d.parts.push(rp);
+    if (opts.spring) {
+      // muelle que tira de la barra hacia abajo, para que el rodillo no se despegue de la leva
+      var sp = makeSpring(d, -0.05, yl, -0.05, cy - 0.04, lever.id, null); sp.k = opts.spring; sp.rest = (yl - cy + 0.04) - 0.01; sp.damp = 0.05;
+      d.parts.push(sp);
+    }
+    var hy = cy + 0.085;
+    var hanger = makeBar(d, 0, yl, 0, hy + 0.01); hanger.m = 0.01; d.parts.push(hanger);   // en el plano del cilindro: la leva no la toca
+    var hw = makePin(d, 0, yl, lever.id, hanger.id); hw.mode = 'rigid'; d.parts.push(hw);
+    var st = makeMagnet(d, cx, hy, hanger.id, 'bar');
     st.size = opts.stSize || 0.015; st.ang = opts.stAng != null ? opts.stAng : 90; st.grade = 'n52'; st.mu = magnetModel(st).mu;
     d.parts.push(st);
-    // la paleta: pegada al lateral del cilindro (delante), gira con él y golpea la barra cerca de la bisagra
-    if (!opts.noPaddle) {
-      var pa = (opts.paddle != null ? opts.paddle : 245) * DEG, L = opts.L || 0.105;
-      var paddle = makeBar(d, cx, cy, +(cx + L * Math.cos(pa)).toFixed(4), +(cy + L * Math.sin(pa)).toFixed(4)); paddle.m = 0.02; paddle.plane = 1;
-      d.parts.push(paddle);
-      var pw = makePin(d, cx, cy, wh.id, paddle.id); pw.mode = 'rigid'; d.parts.push(pw);
-    }
     return d;
   }
 

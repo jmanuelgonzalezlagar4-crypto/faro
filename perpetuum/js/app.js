@@ -185,8 +185,8 @@
     },
     espiral: {
       title: T('Cilindro de imanes con palanca'), era: T('Otra maqueta de internet: un cilindro de latón con imanes en espiral.'),
-      what: T('Un cilindro de latón con imanes en espiral, visto de frente al eje: cada imán queda un poco más cerca del imán de la barra de arriba que el anterior, así que ese imán tira siempre hacia el siguiente. La barra gira apoyada a la derecha. Donde la espiral termina está el punto muerto: ahí una paleta pegada al lateral del cilindro golpea la barra y la levanta para que el cilindro lo pase, y la barra vuelve a caer sobre los imanes.'),
-      why: T('Lo que la espiral ayuda al acercarse lo frena en el punto muerto, y para saltarlo la paleta tiene que levantar la barra contra la fuerza de los imanes y su peso. Esa energía sale del propio giro, y cada golpe gasta además otro poco. Compruébalo: borra la paleta (el brazo que sale del eje) y prueba otra vez. Sin ella, el cilindro da muchas más vueltas antes de pararse en el punto muerto: la paleta no ayuda, gasta.')
+      what: T('Un cilindro de latón con imanes en espiral, visto de frente al eje: cada imán queda un poco más cerca del imán de la barra de arriba que el anterior, así que ese imán tira siempre hacia el siguiente. La barra gira apoyada a la derecha y un rodillo suyo va siempre apoyado en una leva del lateral del cilindro. Donde la espiral termina está el punto muerto: ahí la leva sube la barra para apartar el imán, y después la deja bajar otra vez sobre los imanes.'),
+      why: T('Lo que la espiral ayuda al acercarse lo frena en el punto muerto, y para saltarlo la leva tiene que subir la barra contra la fuerza de los imanes y su peso. Esa energía sale del propio giro, y cada vez que la barra sube y baja se pierde otro poco. Compruébalo: borra la leva y prueba otra vez. Sin ella, el cilindro da muchas más vueltas antes de pararse en el punto muerto: la leva no ayuda, gasta.')
     },
     leva: {
       title: T('Motor de imanes con leva'), era: T('Una de las maquetas de imanes más vistas en internet.'),
