@@ -1,0 +1,631 @@
+<title>Taller Perpetuum</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Concepto: banco de pruebas sobre papel de cálculo de ingeniería. El banco ocupa la pantalla; las cuentas y los ajustes se abren debajo, como un cuaderno. */
+:root {
+  --paper: #edf2e8;
+  --paper-deep: #e2eadb;
+  --grid: #d3dfcc;
+  --grid-strong: #b9cdb0;
+  --ink: #1b2926;
+  --ink-2: #485a54;
+  --ink-3: #75867f;
+  --panel: #f6f8f2;
+  --panel-2: #eef2e9;
+  --rule: #d2dccb;
+  --accent: #2639a6;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(38, 57, 166, 0.10);
+  --part: #fafcf7;
+  --north: #cf3a3a;
+  --south: #3866c6;
+  --lead: #6f7883;
+  --steel: #aeb8c2;
+  --wood: #c4935f;
+  --rubber: #3b3f46;
+  --good: #1f7a46;
+  --warn: #9a6300;
+  --bad: #b23a2c;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #6250d6; --s7: #008300;
+  --shadow: 0 1px 0 rgba(27, 41, 38, 0.06), 0 6px 18px rgba(27, 41, 38, 0.08);
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #131c1a; --paper-deep: #17221f; --grid: #1f2d29; --grid-strong: #2c3f39;
+    --ink: #e2ebe5; --ink-2: #a8b9b1; --ink-3: #75877f;
+    --panel: #1a2421; --panel-2: #1f2a27; --rule: #2c3a35;
+    --accent: #93a6ff; --accent-ink: #0d1533; --accent-soft: rgba(147, 166, 255, 0.14);
+    --part: #1e2a26;
+    --north: #ef6a64; --south: #6f97f0;
+    --lead: #8d96a1; --steel: #c3ccd5; --wood: #c9a074; --rubber: #5a5f68;
+    --good: #5fcf8c; --warn: #e6a93a; --bad: #f07c6c;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #9085e9; --s7: #008300;
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #131c1a; --paper-deep: #17221f; --grid: #1f2d29; --grid-strong: #2c3f39;
+  --ink: #e2ebe5; --ink-2: #a8b9b1; --ink-3: #75877f;
+  --panel: #1a2421; --panel-2: #1f2a27; --rule: #2c3a35;
+  --accent: #93a6ff; --accent-ink: #0d1533; --accent-soft: rgba(147, 166, 255, 0.14);
+  --part: #1e2a26;
+  --north: #ef6a64; --south: #6f97f0;
+  --lead: #8d96a1; --steel: #c3ccd5; --wood: #c9a074; --rubber: #5a5f68;
+  --good: #5fcf8c; --warn: #e6a93a; --bad: #f07c6c;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #9085e9; --s7: #008300;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--paper-deep); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased; overflow: hidden;
+}
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.app {
+  height: 100%; display: flex; flex-direction: column; gap: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 8px 8px;
+  max-width: 1560px; margin: 0 auto;
+}
+
+/* cabecera */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; overflow: hidden; }
+.top-actions { flex: none; }
+.brand svg { flex: none; }
+.brand h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.brand p { margin: 2px 0 0; color: var(--ink-2); font-size: 13.5px; }
+.top-actions { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 0 12px;
+  border: 1px solid var(--rule); border-radius: 9px; background: var(--panel); font-weight: 500; font-size: 14px; white-space: nowrap;
+}
+.btn:hover { border-color: var(--ink-3); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn svg { width: 18px; height: 18px; flex: none; }
+select.btn { padding-right: 6px; max-width: 220px; min-width: 0; }
+
+/* banco */
+.work { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.bench { display: contents; }
+.stage {
+  position: relative; flex: 1 1 auto; min-height: 220px; border-radius: 14px; overflow: hidden;
+  background: var(--paper); border: 1px solid var(--rule); box-shadow: var(--shadow); order: 1;
+}
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.hud { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; align-items: center; pointer-events: none; }
+.chip {
+  font-family: var(--f-display); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px;
+  padding: 3px 9px; border-radius: 999px; background: var(--panel); border: 1px solid var(--rule); color: var(--ink-2);
+}
+.chip.is-run { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip.is-stop { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.clock { font-family: var(--f-mono); font-size: 12.5px; color: var(--ink-2); background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 2px 7px; font-variant-numeric: tabular-nums; }
+.viewctl { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.seg2 { display: flex; background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 2px; }
+.seg2 button { border: 0; background: transparent; min-height: 32px; padding: 0 10px; border-radius: 7px; font-weight: 600; font-size: 13.5px; color: var(--ink-2); }
+.seg2 button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.iconbtn { width: 38px; height: 38px; border-radius: 9px; border: 1px solid var(--rule); background: var(--panel); display: grid; place-items: center; font-size: 18px; line-height: 1; }
+.iconbtn svg { width: 18px; height: 18px; }
+.strip {
+  position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; gap: 8px; align-items: flex-end; justify-content: center; pointer-events: none;
+}
+.strip .msg { pointer-events: none; background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 6px 10px; font-size: 13.5px; color: var(--ink-2); max-width: 620px; text-align: center; }
+.strip .msg b { color: var(--ink); font-weight: 600; }
+.strip .btn { pointer-events: auto; min-height: 34px; }
+.toast {
+  position: absolute; left: 12px; right: 12px; top: 52px; margin: 0 auto; width: fit-content; max-width: 560px;
+  background: var(--ink); color: var(--panel); padding: 7px 12px; border-radius: 9px; font-size: 14px; pointer-events: none; transition: opacity 0.2s; text-align: center;
+}
+.dimlabel {
+  position: absolute; transform: translate(-50%, -130%); pointer-events: none; font-family: var(--f-mono); font-size: 12.5px;
+  background: var(--accent); color: var(--accent-ink); padding: 2px 6px; border-radius: 6px; white-space: nowrap;
+}
+
+/* barra inferior */
+.dock { order: 3; flex: none; display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.run { display: flex; gap: 6px; }
+.run .btn { min-height: 48px; }
+.run #playBtn { min-width: 112px; font-size: 16px; }
+.tools {
+  display: flex; gap: 2px; flex: 1 1 420px; min-width: 0; overflow-x: auto;
+  padding: 3px; background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; scrollbar-width: thin;
+}
+.tool {
+  flex: 1 0 50px; min-width: 50px; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--ink-2); font-size: 11.5px; font-weight: 500; padding: 2px;
+}
+.tool svg { width: 24px; height: 24px; }
+.tool:hover { background: var(--panel-2); color: var(--ink); }
+.tool[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.tool[aria-disabled="true"] { opacity: 0.38; }
+.tool .lbl { max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* hoja de ajustes y cuentas */
+.side { order: 2; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; }
+.sheet-head { display: flex; align-items: center; gap: 4px; padding: 6px 6px 0; border-bottom: 1px solid var(--rule); flex: none; }
+.tabs { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; }
+.tab { border: 0; background: transparent; padding: 8px 10px 9px; font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.sheet-close { flex: none; }
+.panes { overflow-y: auto; min-height: 0; flex: 1; -webkit-overflow-scrolling: touch; }
+.pane { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.pane[hidden] { display: none !important; }
+.card { min-width: 0; }
+.card + .card { border-top: 1px solid var(--rule); padding-top: 12px; }
+.card h2 { margin: 0 0 8px; font-family: var(--f-display); font-weight: 600; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; }
+.card h2 small { font-family: var(--f-body); text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; color: var(--ink-3); }
+
+.verdict h3 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 28px; line-height: 1.05; text-wrap: balance; }
+.verdict p { margin: 8px 0 0; color: var(--ink-2); max-width: 62ch; }
+.verdict .state { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-display); font-weight: 600; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+.verdict .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); }
+.verdict[data-tone="run"] .dot { background: var(--accent); }
+.verdict[data-tone="stop"] .dot { background: var(--bad); }
+.verdict[data-tone="ideal"] .dot { background: var(--good); }
+.verdict .warnline { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--warn); background: var(--panel-2); font-size: 13.5px; color: var(--ink-2); }
+
+.split { display: flex; height: 14px; gap: 2px; border-radius: 4px; overflow: hidden; background: var(--panel-2); margin: 4px 0 10px; }
+.split i { display: block; height: 100%; min-width: 0; }
+.ledger { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ledger th { text-align: left; font-family: var(--f-display); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 12.5px; color: var(--ink-3); padding: 10px 0 4px; }
+.ledger td { padding: 5px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+.ledger td.v { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 10px; }
+.ledger tr.total td { font-weight: 600; border-top: 1.5px solid var(--ink-3); }
+.ledger .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+.ledger .sub { display: block; color: var(--ink-3); font-size: 12.5px; }
+.ledger tr.err td { color: var(--ink-3); }
+.ledger tr.dim td { opacity: 0.5; }
+.law { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); }
+
+.chartbox { position: relative; height: 170px; }
+.chartbox canvas { width: 100%; height: 100%; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--ink-2); margin-top: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend i.dash { background: repeating-linear-gradient(90deg, var(--ink-3) 0 4px, transparent 4px 7px) !important; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--panel); font-size: 12px; border-radius: 6px; padding: 5px 7px; font-family: var(--f-mono); white-space: nowrap; top: 0; left: 0; }
+
+.seesaw { width: 100%; height: auto; display: block; max-width: 100%; }
+.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13.5px; }
+.sides div { min-width: 0; }
+.sides b { display: block; font-family: var(--f-mono); font-weight: 500; font-size: 17px; font-variant-numeric: tabular-nums; }
+.sides .r { text-align: right; }
+.note { margin: 6px 0 0; font-size: 13.5px; color: var(--ink-2); }
+
+.insp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.insp-head h3 { margin: 0; font-family: var(--f-display); font-size: 24px; font-weight: 700; }
+.insp-actions { display: flex; gap: 6px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 14px; }
+.field { display: grid; gap: 4px; padding: 8px 0; border-top: 1px solid var(--rule); min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field label, .field .lab { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--ink-2); }
+.field output { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+.field input[type="range"] { width: 100%; accent-color: var(--accent); }
+.field select { width: 100%; min-height: 38px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel-2); padding: 0 8px; }
+.field .help { font-size: 12.5px; color: var(--ink-3); }
+.num { display: flex; align-items: stretch; border: 1px solid var(--rule); border-radius: 9px; overflow: hidden; background: var(--panel-2); }
+.num button { flex: none; width: 40px; border: 0; background: transparent; font-size: 20px; line-height: 1; color: var(--ink-2); }
+.num button:active { background: var(--accent-soft); }
+.num input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; text-align: center; font-family: var(--f-mono); font-size: 15px; padding: 8px 0; -moz-appearance: textfield; }
+.num input::-webkit-outer-spin-button, .num input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.num .unit { align-self: center; padding-right: 8px; font-size: 13px; color: var(--ink-3); }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button { flex: 1 1 auto; min-height: 36px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel-2); font-size: 13.5px; padding: 0 8px; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.toggle { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; color: var(--ink-2); }
+.toggle input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+.danger { color: var(--bad); }
+.empty { color: var(--ink-2); }
+.empty ul { margin: 6px 0 0; padding-left: 18px; }
+.empty li { margin: 3px 0; }
+
+.about h3 { margin: 0 0 2px; font-family: var(--f-display); font-size: 22px; font-weight: 700; }
+.about .era { font-size: 13px; color: var(--ink-3); margin: 0 0 8px; }
+.about p { margin: 0 0 8px; max-width: 62ch; }
+.about h4 { margin: 12px 0 4px; font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.about ol { margin: 6px 0 0; padding-left: 20px; }
+.about li { margin: 4px 0; }
+
+/* ventanas */
+.modal { position: fixed; inset: 0; background: rgba(10, 16, 14, 0.45); display: flex; align-items: center; justify-content: center; z-index: 20; padding: 16px; }
+.modal .box { width: min(620px, 100%); max-height: 88vh; overflow: auto; background: var(--panel); border: 1px solid var(--rule); border-radius: 16px; padding: 14px 16px 16px; box-shadow: var(--shadow); }
+.modal textarea { width: 100%; min-height: 100px; font-family: var(--f-mono); font-size: 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel-2); color: var(--ink); padding: 8px; resize: vertical; }
+.modal .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+.pal-group { margin-top: 12px; }
+.pal-group h4 { margin: 0 0 6px; font-family: var(--f-display); font-weight: 600; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.pal { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; }
+.pal button {
+  display: grid; grid-template-columns: 34px 1fr; gap: 2px 8px; align-items: center; text-align: left;
+  border: 1px solid var(--rule); border-radius: 10px; background: var(--panel-2); padding: 8px; min-height: 56px;
+}
+.pal button svg { width: 30px; height: 30px; grid-row: span 2; color: var(--ink-2); }
+.pal button b { font-weight: 600; font-size: 14px; line-height: 1.15; }
+.pal button span { font-size: 12px; color: var(--ink-3); line-height: 1.2; }
+.pal button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+
+/* móvil: la hoja se abre entre el banco y la barra */
+@media (max-width: 979px) {
+  .brand p { display: none; }
+  .side { max-height: 46%; flex: none; }
+  .side[data-open="false"] { display: none; }
+  .top-actions .btn .wide { display: none; }
+  .top-actions .btn { padding: 0 10px; }
+}
+@media (max-width: 520px) {
+  .brand h1 { font-size: 19px; letter-spacing: 0.03em; }
+  .brand .t1 { display: none; }
+  .top-actions .btn { min-width: 40px; padding: 0 9px; }
+  .brand svg { width: 30px; height: 30px; }
+  select.btn { max-width: 150px; font-size: 13.5px; }
+  .run { width: 100%; }
+  .run #playBtn { flex: 1; }
+  .run #resetBtn { flex: 1; }
+  .run .wide { display: none; }
+  .tools { flex-basis: 100%; }
+  .tool { flex-basis: 46px; min-width: 46px; font-size: 11px; }
+  .verdict h3 { font-size: 24px; }
+  .strip .msg { font-size: 12.5px; }
+}
+/* escritorio: banco a la izquierda, cuaderno a la derecha */
+@media (min-width: 980px) {
+  .app { padding-block: 12px; gap: 10px; }
+  .work { display: grid; grid-template-columns: minmax(0, 1fr) 400px; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; }
+  .stage { grid-column: 1; grid-row: 1; min-height: 0; }
+  .dock { grid-column: 1; grid-row: 2; flex-wrap: nowrap; }
+  .side { grid-column: 2; grid-row: 1 / span 2; max-height: none; }
+  .sheet-close { display: none; }
+}
+/* contador eléctrico sobre el banco */
+.meter { position: absolute; left: 10px; top: 44px; pointer-events: none; background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 6px 9px; font-family: var(--f-mono); font-size: 12px; font-variant-numeric: tabular-nums; display: grid; grid-template-columns: auto auto auto; gap: 2px 10px; align-items: baseline; box-shadow: var(--shadow); }
+.meter .lab { font-family: var(--f-display); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11.5px; color: var(--ink-2); }
+.meter b { font-weight: 500; text-align: right; }
+.meter span.j { text-align: right; color: var(--ink-2); }
+.meter .in { color: var(--s6); } .meter .out { color: var(--s7); }
+.meter .tot { border-top: 1px solid var(--rule); padding-top: 2px; }
+.bill { display: grid; gap: 6px; font-size: 14px; }
+.bill .r { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--rule); padding-top: 5px; }
+.bill .r b { font-family: var(--f-mono); font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.photo-thumb { width: 100%; max-height: 160px; object-fit: contain; border-radius: 10px; border: 1px solid var(--rule); background: var(--panel-2); }
+.rank { display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 10px; align-items: center; border: 1px solid var(--rule); background: var(--panel-2); border-radius: 12px; padding: 8px 10px; }
+.rank .pos { font-family: var(--f-display); font-weight: 700; font-size: 22px; text-align: center; color: var(--ink-2); }
+.rank .meta b { display: block; font-weight: 600; font-size: 15px; }
+.rank .meta span { font-size: 12.5px; color: var(--ink-3); }
+.rank .eff { font-family: var(--f-mono); font-size: 17px; text-align: right; }
+.rank .btn { grid-column: 3; min-height: 32px; padding: 0 10px; font-size: 13px; }
+
+/* patrocinio y concurso */
+.sponsor { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; border: 1px dashed var(--rule); border-radius: 12px; padding: 10px 12px; background: var(--panel-2); }
+.sponsor .tag { grid-column: 1 / -1; font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.sponsor img { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: var(--panel); }
+.sponsor b { display: block; font-size: 15px; }
+.sponsor span { font-size: 13.5px; color: var(--ink-2); }
+.sponsor a.btn { grid-column: 1 / -1; justify-self: start; text-decoration: none; color: var(--ink); min-height: 34px; }
+.contest h3 { font-family: var(--f-display); font-size: 24px; margin: 0; line-height: 1.1; }
+.contest .dates { font-size: 13.5px; color: var(--ink-3); margin: 4px 0 8px; }
+.contest ol { margin: 6px 0 10px; padding-left: 22px; }
+.contest .mail { font-family: var(--f-mono); font-size: 14px; -webkit-user-select: all; user-select: all; background: var(--panel-2); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 8px; display: inline-block; }
+.vtable { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+.vtable th { text-align: left; font-family: var(--f-display); font-weight: 600; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding: 6px 4px; }
+.vtable td { border-top: 1px solid var(--rule); padding: 7px 4px; vertical-align: top; }
+.vtable td.n { font-family: var(--f-mono); text-align: right; white-space: nowrap; }
+.vtable .ok { color: var(--good); } .vtable .ko { color: var(--bad); }
+.vbar { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; margin-top: 8px; }
+.vbar i { display: block; height: 100%; background: var(--accent); width: 0; }
+
+/* comportamiento de app instalada */
+html, body { overscroll-behavior: none; overflow: hidden; }
+.app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.app input, .app textarea, .modal input, .modal textarea { -webkit-user-select: text; user-select: text; }
+button, .tab, .tool { touch-action: manipulation; }
+.toast { display: flex; align-items: center; gap: 12px; }
+.toast button { pointer-events: auto; border: 0; background: transparent; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 13px; padding: 4px 2px; }
+:root[data-theme="dark"] .toast button, :root:not([data-theme="light"]) .toast button { color: var(--accent); }
+.toast.has-action { pointer-events: auto; }
+
+.mtabs { display: flex; gap: 4px; margin: 10px 0 4px; border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: none; }
+.products { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin-top: 10px; }
+.product { display: grid; grid-template-columns: 76px 1fr; gap: 4px 12px; align-items: start; border: 1px solid var(--rule); border-radius: 12px; padding: 10px; background: var(--panel-2); }
+.product img { width: 76px; height: 76px; object-fit: cover; border-radius: 9px; background: var(--panel); grid-row: span 3; }
+.product .ph { width: 76px; height: 76px; border-radius: 9px; background: var(--panel); grid-row: span 3; display: grid; place-items: center; color: var(--ink-3); }
+.product .ph svg { width: 34px; height: 34px; }
+.product b { font-size: 15px; line-height: 1.25; }
+.product span { font-size: 13px; color: var(--ink-2); line-height: 1.3; }
+.product .price { font-family: var(--f-mono); color: var(--ink); }
+.product a.btn { grid-column: 2; justify-self: start; text-decoration: none; color: var(--ink); min-height: 34px; margin-top: 4px; }
+.adtag { font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin-top: 10px; }
+.cardbtn { display: grid; grid-template-columns: 40px 1fr; gap: 2px 10px; text-align: left; align-items: start; border: 1px solid var(--rule); background: var(--panel-2); border-radius: 12px; padding: 10px; min-height: 64px; }
+.cardbtn svg { width: 36px; height: 36px; grid-row: span 3; color: var(--ink-2); }
+.cardbtn b { font-size: 15px; font-weight: 600; line-height: 1.2; }
+.cardbtn .era { font-size: 12px; color: var(--ink-3); }
+.cardbtn span { font-size: 13px; color: var(--ink-2); line-height: 1.3; }
+.cardbtn.done { border-color: var(--good); }
+.cardbtn .badge { justify-self: start; font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; background: var(--panel); border: 1px solid var(--rule); color: var(--ink-3); margin-top: 4px; }
+.cardbtn.done .badge { color: var(--good); border-color: var(--good); }
+.progress { font-size: 13.5px; color: var(--ink-2); margin: 6px 0 0; }
+
+.lib { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.libitem { display: flex; align-items: center; gap: 10px; border: 1px solid var(--rule); border-radius: 12px; padding: 8px 8px 8px 12px; background: var(--panel-2); }
+.libitem.current { border-color: var(--accent); }
+.libitem .meta { flex: 1; min-width: 0; }
+.libitem .meta b { display: block; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.libitem .meta span { font-size: 12.5px; color: var(--ink-3); }
+.libitem .acts { display: flex; gap: 4px; flex: none; }
+.libitem .btn { min-height: 34px; padding: 0 10px; font-size: 13.5px; }
+.saverow { display: flex; gap: 6px; margin-top: 8px; }
+.saverow input { flex: 1; min-width: 0; min-height: 40px; border: 1px solid var(--rule); border-radius: 9px; background: var(--panel-2); padding: 0 10px; color: var(--ink); }
+
+.menu { display: grid; gap: 6px; margin-top: 10px; }
+.menu > button { display: flex; align-items: center; gap: 12px; text-align: left; border: 1px solid var(--rule); background: var(--panel-2); border-radius: 12px; padding: 10px 12px; min-height: 52px; font-size: 15px; font-weight: 500; }
+.menu > button svg { width: 22px; height: 22px; color: var(--ink-2); flex: none; }
+.menu > button small { display: block; font-size: 12.5px; color: var(--ink-3); font-weight: 400; }
+.menu h4 { margin: 10px 0 0; font-family: var(--f-display); font-weight: 600; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.about-app { font-size: 13px; color: var(--ink-3); margin-top: 10px; }
+.about-app a { color: var(--accent); }
+
+.welcome .steps { display: grid; gap: 10px; margin: 12px 0; }
+.welcome .step { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: start; }
+.welcome .step svg { width: 36px; height: 36px; color: var(--accent); }
+.welcome .step b { display: block; font-size: 15px; }
+.welcome .step span { font-size: 14px; color: var(--ink-2); }
+.welcome .rule { padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); font-size: 14px; color: var(--ink-2); }
+.welcome .row .btn { flex: 1 1 200px; min-height: 46px; }
+.welcome h3 { font-family: var(--f-display); font-size: 28px; margin: 0; line-height: 1.05; }
+
+/* asistente: de la foto de la maqueta a las piezas */
+.modal .box.scan { width: min(760px, 100%); }
+.scan-steps { display: flex; gap: 6px; list-style: none; padding: 0; margin: 4px 0 0; }
+.scan-steps li { flex: 1; font-size: 13px; color: var(--ink-3); padding: 4px 0 6px; border-bottom: 3px solid var(--rule); }
+.scan-steps li b { font-family: var(--f-mono); font-weight: 500; }
+.scan-steps li.done { border-color: var(--accent-soft); color: var(--ink-2); }
+.scan-steps li[aria-current="step"] { border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.scan-view { position: relative; margin: 10px 0 8px; border-radius: 10px; overflow: hidden; background: var(--paper-deep); }
+#scanCv { display: block; width: 100%; height: min(46vh, 440px); touch-action: manipulation; cursor: crosshair; }
+.scan-busy { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10, 16, 14, 0.35); }
+.scan-busy span { background: var(--panel); color: var(--ink); padding: 8px 14px; border-radius: 999px; font-weight: 600; box-shadow: var(--shadow); }
+.scan-say { margin: 0 0 8px; font-size: 15px; }
+.scan-sum { margin: 8px 0 0; font-weight: 600; }
+.scan-nav { justify-content: flex-end; }
+.scan-nav .btn { min-height: 44px; }
+.scan-pick { display: grid; gap: 10px; margin: 14px 0 10px; }
+.scan-pick .btn { min-height: 54px; font-size: 16px; cursor: pointer; }
+.scan-pick .btn svg { width: 24px; height: 24px; }
+.scan-warn { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--warn); background: var(--panel-2); font-size: 14px; color: var(--ink); }
+.vh { position: fixed; left: -200px; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+@media (max-width: 979px) {
+  .modal { align-items: flex-end; padding: 0; }
+  .modal .box { width: 100%; max-height: 88vh; border-radius: 18px 18px 0 0; padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="36" height="36" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="20" cy="20" r="2.4" fill="currentColor"/>
+        <g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="20" y1="20" x2="20" y2="6"/><line x1="20" y1="20" x2="32.1" y2="27"/><line x1="20" y1="20" x2="7.9" y2="27"/></g>
+        <g fill="currentColor"><circle cx="20" cy="3.5" r="3"/><circle cx="35" cy="28.5" r="3"/><circle cx="5" cy="28.5" r="3"/></g>
+      </svg>
+      <div><h1><span class="t1">Taller </span>Perpetuum</h1><p>Construye tu máquina y ponla a prueba antes de fabricarla.</p></div>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="examplesBtn" type="button" aria-label="Ejemplos y retos">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 6c2.5-2 5.5-2 8-.5V19c-2.5-1.5-5.5-1.5-8 .5-2.5-2-5.5-2-8-.5z M12 6v13.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="wide">Ejemplos y retos</span></button>
+      <button class="btn" id="libraryBtn" type="button" aria-label="Mis diseños">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="wide">Mis diseños</span></button>
+      <button class="btn" id="menuBtn" type="button" aria-label="Más opciones">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg><span class="wide">Más</span></button>
+    </div>
+  </header>
+
+  <main class="work">
+    <section class="bench" aria-label="Banco de pruebas">
+      <div class="stage" id="stage">
+        <canvas id="cv" aria-label="Banco de pruebas, vista plana"></canvas>
+        <canvas id="gl" aria-label="Banco de pruebas, vista en perspectiva" hidden></canvas>
+        <div class="hud"><span class="chip" id="chip">Diseño</span><span class="clock" id="clock" hidden>0,0 s</span></div>
+        <div class="meter" id="meter" hidden aria-live="off"></div>
+        <div class="viewctl">
+          <div class="seg2" role="group" aria-label="Vista">
+            <button type="button" id="view2d" aria-pressed="false">Plano</button>
+            <button type="button" id="view3d" aria-pressed="true">3D</button>
+          </div>
+          <button class="iconbtn" type="button" id="zoomIn" aria-label="Acercar">+</button>
+          <button class="iconbtn" type="button" id="zoomOut" aria-label="Alejar">−</button>
+          <button class="iconbtn" type="button" id="zoomFit" aria-label="Encuadrar la máquina">
+            <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6V2h4M12 2h4v4M16 12v4h-4M6 16H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+        </div>
+        <div class="strip"><span class="msg" id="hint"></span><button class="btn" id="stripBtn" type="button">Cuentas</button></div>
+        <div class="dimlabel" id="dimlabel" hidden></div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+
+      <div class="dock">
+        <div class="run">
+          <button class="btn primary" id="playBtn" type="button">Probar</button>
+          <button class="btn" id="resetBtn" type="button">Diseñar</button>
+          <button class="btn" id="speedBtn" type="button" aria-label="Velocidad ×1"><span class="wide">Velocidad </span>×1</button>
+        </div>
+        <div class="tools" id="tools" role="toolbar" aria-label="Herramientas"></div>
+      </div>
+    </section>
+
+    <aside class="side" id="side" data-open="false" aria-label="Ajustes y resultados">
+      <div class="sheet-head">
+        <div class="tabs" role="tablist" id="tabs">
+          <button class="tab" role="tab" id="tab-pieza" data-tab="pieza" aria-selected="true" aria-controls="pane-pieza">Pieza</button>
+          <button class="tab" role="tab" id="tab-cuentas" data-tab="cuentas" aria-selected="false" aria-controls="pane-cuentas">Cuentas</button>
+          <button class="tab" role="tab" id="tab-prueba" data-tab="prueba" aria-selected="false" aria-controls="pane-prueba">Prueba</button>
+          <button class="tab" role="tab" id="tab-ayuda" data-tab="ayuda" aria-selected="false" aria-controls="pane-ayuda">Ayuda</button>
+        </div>
+        <button class="iconbtn sheet-close" id="sheetClose" type="button" aria-label="Cerrar el panel">✕</button>
+      </div>
+      <div class="panes">
+        <div class="pane" id="pane-pieza" role="tabpanel" aria-labelledby="tab-pieza"><section class="card" id="inspector"></section></div>
+        <div class="pane" id="pane-cuentas" role="tabpanel" aria-labelledby="tab-cuentas" hidden>
+          <section class="card verdict" id="verdict" aria-live="polite"></section>
+          <section class="card" id="ledgerCard">
+            <h2>Libro de cuentas <small>julios desde el inicio de la prueba</small></h2>
+            <div class="split" id="split" aria-hidden="true"></div>
+            <table class="ledger" id="ledger"></table>
+            <p class="law">La energía que sale siempre es igual a la que entra. Es la primera ley de la termodinámica, y este banco la comprueba en cada paso.</p>
+          </section>
+          <section class="card" id="billCard" hidden>
+            <h2>Contador de la luz <small id="billPrice"></small></h2>
+            <div id="billBody"></div>
+          </section>
+          <section class="card" id="sponsorCard" hidden></section>
+          <section class="card" id="chartCard">
+            <h2>Energía durante la prueba <small>julios</small></h2>
+            <div class="chartbox" id="chartbox"><canvas id="chart"></canvas><div class="tip" id="tip" hidden></div></div>
+            <div class="legend" id="legend"></div>
+          </section>
+          <section class="card" id="balanceCard" hidden>
+            <h2>Balanza de pares <small id="balanceWho">rueda principal</small></h2>
+            <svg class="seesaw" id="seesaw" viewBox="0 0 320 96" role="img" aria-label="Balanza que compara lo que tira de cada lado de la rueda"></svg>
+            <div class="sides" id="sides"></div>
+            <p class="note" id="balanceNote"></p>
+          </section>
+        </div>
+        <div class="pane" id="pane-prueba" role="tabpanel" aria-labelledby="tab-prueba" hidden><section class="card" id="conditions"></section></div>
+        <div class="pane" id="pane-ayuda" role="tabpanel" aria-labelledby="tab-ayuda" hidden><section class="card about" id="about"></section></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="modal" id="examplesModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="exTitle">
+    <div class="insp-head"><h3 id="exTitle">Ejemplos y retos</h3><button class="btn" data-close type="button">Cerrar</button></div>
+    <div class="mtabs" role="tablist">
+      <button class="tab" role="tab" id="exTabEx" aria-selected="true" type="button">Ejemplos</button>
+      <button class="tab" role="tab" id="exTabRe" aria-selected="false" type="button">Retos</button>
+      <button class="tab" role="tab" id="exTabRc" aria-selected="false" type="button">Récords</button>
+      <button class="tab" role="tab" id="exTabCo" aria-selected="false" type="button">Concurso</button>
+      <button class="tab" role="tab" id="exTabSh" aria-selected="false" type="button" hidden>Maquetas</button>
+    </div>
+    <div id="exBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="libraryModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="libTitle">
+    <div class="insp-head"><h3 id="libTitle">Mis diseños</h3><button class="btn" data-close type="button">Cerrar</button></div>
+    <div id="libBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="menuModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <div class="insp-head"><h3 id="menuTitle">Más opciones</h3><button class="btn" data-close type="button">Cerrar</button></div>
+    <div id="menuBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="welcomeModal" hidden>
+  <div class="box welcome" role="dialog" aria-modal="true" aria-labelledby="welTitle">
+    <h3 id="welTitle">Bienvenido al Taller Perpetuum</h3>
+    <p class="note">Aquí puedes construir tu máquina, ponerla a prueba con física real y ver a dónde va cada julio de energía, antes de gastar nada en fabricarla.</p>
+    <div class="steps">
+      <div class="step"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5v9M7.5 12h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><div><b>Construye</b><span>Ruedas, pesas, brazos, muelles, imanes y motores, a escala real y con medidas exactas.</span></div></div>
+      <div class="step"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><div><b>Prueba</b><span>Mírala moverse en 3D y empuja las piezas con el dedo.</span></div></div>
+      <div class="step"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z M8 8h8M8 12h8M8 16h5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><div><b>Lee las cuentas</b><span>El banco apunta de dónde sale cada julio y a dónde va: rozamiento, golpes, aire, calor.</span></div></div>
+    </div>
+    <p class="rule">La regla del taller: aquí se cumple la física de verdad. Si tu máquina pudiera moverse sola para siempre, este banco lo demostraría con sus cuentas.</p>
+    <div class="row"><button class="btn primary" id="welExample" type="button">Ver un ejemplo histórico</button><button class="btn" id="welEmpty" type="button">Empezar de cero</button></div>
+    <div class="row"><button class="btn" id="welScan" type="button">Tengo una maqueta: convertirla en piezas</button></div>
+  </div>
+</div>
+
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+<!-- sin «hidden»: algunos móviles no abren la cámara desde un campo oculto con display:none -->
+<input type="file" id="photoFile" accept="image/*" class="vh" tabindex="-1" aria-hidden="true">
+<input type="file" id="scanFile" accept="image/*" class="vh" tabindex="-1" aria-hidden="true">
+<input type="file" id="scanCam" accept="image/*" capture="environment" class="vh" tabindex="-1" aria-hidden="true">
+<input type="file" id="verifyFiles" accept=".json,application/json" multiple hidden>
+
+<div class="modal" id="verifyModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="verTitle">
+    <div class="insp-head"><h3 id="verTitle">Verificar participaciones</h3><button class="btn" data-close type="button">Cerrar</button></div>
+    <div id="verBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="scanModal" hidden>
+  <div class="box scan" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+    <div class="insp-head"><h3 id="scanTitle">Tu maqueta, en piezas</h3><button class="btn" data-close type="button">Cancelar</button></div>
+    <ol class="scan-steps" id="scanSteps"></ol>
+    <div class="scan-view" id="scanView"><canvas id="scanCv" aria-label="Foto de tu maqueta. Toca para marcar la rueda y las pesas."></canvas><div class="scan-busy" id="scanBusy" hidden><span>Buscando la rueda y las pesas…</span></div></div>
+    <div id="scanCtl"></div>
+  </div>
+</div>
+
+<div class="modal" id="palette" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="palTitle">
+    <div class="insp-head"><h3 id="palTitle">Añadir una pieza</h3><button class="btn" id="palClose" data-close type="button">Cerrar</button></div>
+    <p class="note">Elige la pieza y después toca o arrastra en el banco.</p>
+    <div id="palBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="cloneModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="cloneTitle">
+    <div class="insp-head"><h3 id="cloneTitle">Clonar</h3><button class="btn" id="cloneClose" data-close type="button">Cancelar</button></div>
+    <div id="cloneBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="shareModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+    <div class="insp-head"><h3 id="shareTitle">Compartir el diseño</h3><button class="btn" id="shareClose" data-close type="button">Cerrar</button></div>
+    <p class="note">Copia este texto y mándaselo a quien quieras. Para abrir un diseño que te han pasado, pégalo abajo.</p>
+    <label class="sr" for="shareOut">Tu diseño</label>
+    <textarea id="shareOut" readonly></textarea>
+    <div class="row"><button class="btn primary" id="copyBtn" type="button">Copiar diseño</button></div>
+    <label class="sr" for="shareIn">Pegar un diseño</label>
+    <textarea id="shareIn" placeholder="Pega aquí un diseño"></textarea>
+    <div class="row"><button class="btn" id="loadBtn" type="button">Abrir el diseño pegado</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/*I18N*/
+</script>
+<script>
+/*ENGINE*/
+</script>
+<script>
+/*BUILD*/
+</script>
+<script>
+/*GL*/
+</script>
+<script>
+/*VISION*/
+</script>
+<script>
+/*APP*/
+</script>

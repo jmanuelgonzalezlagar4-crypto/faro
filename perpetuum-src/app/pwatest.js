@@ -1,0 +1,35 @@
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch();
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 860 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  const ext = [];
+  page.on('request', r => { if (!r.url().startsWith('http://localhost:8765')) ext.push(r.url()); });
+  await page.goto('http://localhost:8765/perpetuum/');
+  await page.waitForTimeout(1500);
+  const sw = await page.evaluate(async () => { const r = await navigator.serviceWorker.ready; return r.active && r.active.state; });
+  console.log('service worker:', sw);
+  console.log('fuentes:', await page.evaluate(async () => { await document.fonts.ready; return ['16px "Barlow"', '600 16px "Barlow Condensed"', '16px "IBM Plex Mono"'].map(f => document.fonts.check(f)).join(','); }));
+  console.log('three:', await page.evaluate(() => typeof THREE !== 'undefined' && THREE.REVISION), 'gl:', await page.evaluate(() => !document.getElementById('gl').hidden));
+  const man = await page.evaluate(async () => (await fetch('manifest.webmanifest')).json());
+  console.log('manifest:', man.short_name, man.icons.length, 'iconos');
+  await page.screenshot({ path: 'pwa-online.png' });
+  await ctx.setOffline(true);
+  await page.reload(); await page.waitForTimeout(1500);
+  console.log('sin conexión → título:', await page.title(), '| bienvenida:', await page.isVisible('#welcomeModal'), '| three:', await page.evaluate(() => typeof THREE !== 'undefined'));
+  await page.click('#welExample'); await page.waitForTimeout(300);
+  await page.click('#playBtn'); await page.waitForTimeout(2000);
+  console.log('prueba sin conexión:', await page.locator('#hint').innerText());
+  // botón atrás cierra ventanas
+  await page.click('#menuBtn'); await page.waitForTimeout(200);
+  console.log('menú abierto:', await page.isVisible('#menuModal'));
+  await page.goBack(); await page.waitForTimeout(300);
+  console.log('tras «atrás», menú abierto:', await page.isVisible('#menuModal'), '| url:', page.url());
+  await page.screenshot({ path: 'pwa-offline.png' });
+  console.log('peticiones externas:', ext.length ? ext : 'ninguna');
+  console.log(errors.join('\n') || 'sin errores');
+  await browser.close();
+})();

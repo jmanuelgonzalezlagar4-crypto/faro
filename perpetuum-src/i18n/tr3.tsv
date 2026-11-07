@@ -1,0 +1,144 @@
+18300f1	 (radius 
+1dbed63	Switches on at
+0a03a00	Switches off at
+9fb6796	Repeats every
+a3ebb35	<p class="note field wide">The degrees are the wheel's rotation from the drawn position, clockwise.</p>
+bbf56e1	Length
+80ac79c	<div class="field"><span class="lab"><span>Strength</span><output>
+5538b16	 A·m²</output></span><span class="help">Calculated from the material and the size.</span></div>
+552ff34	Attached to 
+3548238	Fixed to the wall.
+a92baed	Takes electricity from the rotation. 0 = disconnected.
+1f294d6	What the generator produces
+63e5c6e	Is stored
+3a031f6	Is fed into the grid
+25d87a2	Drives the rotation with electricity.
+b528f7b	Motor speed
+61d0c89	Positive: clockwise.
+4e17674	Maximum motor force
+2f886f8	The motor is powered by
+95e2c71	Its generators
+a90372e	A solid ball of 
+e3a24b7	 this size would weigh 
+2d0e1ce	<h2>Test conditions</h2><div class="fields">
+8e2a17a	Gravity
+07ae49b	Earth
+baaf10f	Moon
+ce38545	Mars
+420adda	Ideal world
+e8ccb16	No friction in the axles and no air. It doesn't exist, but it shows that even then no energy is gained.
+82caae2	Air
+c1c97f0	Slows down whatever moves fast.
+c8c28ff	Snap to the grid
+a5429d8	Places parts on exact centimetres and snaps edges and centres.
+c227d51	Show what pulls on each side
+79fa3e9	In the flat view, draws each weight's distance from the wheel's axle.
+d9f0b78	Electricity price
+e999d43	c/kWh
+db14a89	<p class="note">To change the conditions, press “Design”.</p>
+71d502d	<h2 style="margin-top:16px">Photo of your model</h2>
+5066f65	<p class="note">If you already have a model that doesn't work, take a photo of it from the front, with the whole wheel in the picture. The app looks for the wheel and the weights in the photo, you confirm it and enter the real measurements, and it turns into parts you can test here.</p>
+105d20d	>Turn my model into parts</button><button class="btn" id="ph_add" type="button"
+876e7b1	>Just use it as background</button></div>
+0bb3e63	<p class="note">The photo is analysed on your device and isn't sent anywhere. If your model isn't a wheel, use it as a background and trace its parts on top.</p>
+9f0896a	<p class="note">The image for this photo isn't on this device.</p>
+3ec9298	Photo width
+8a813f3	Rotation
+ebb5ec4	Transparency
+9305477	<p class="note"><b>To put it to scale:</b> with <b>Measure</b>, mark something in the photo whose real size you know (for example the wheel's diameter) and type here how long it really is.</p>
+1d5850e	The marked measurement is really
+131ed7d	<div class="row"><button class="btn primary" id="ph_scale" type="button">Set the scale</button><button class="btn" id="ph_scan2" type="button">Turn the photo into parts</button><button class="btn" id="ph_change" type="button">Change the photo</button><button class="btn danger" id="ph_del" type="button">Remove the photo</button></div>
+6ed5a48	First mark a measurement on the photo with the “Measure” tool.
+f4eb8bb	The marked measurement is too short.
+1f4b998	Scale set: the marked measurement is now 
+e15c1d9	<h4>How to use it</h4><ol>
+ff422aa	<li>Press <b>Add</b>, choose a part and tap or drag it on the bench. The fine grid lines are every 10 cm.</li>
+f3d4a61	<li>Tap a part with <b>Move</b> to see its exact measurements in centimetres and degrees, and change them with + and −.</li>
+fb0ecb2	<li>With <b>Clone</b> you repeat a part: around a wheel (for example 8 identical arms) or in a row, at whatever spacing you say.</li>
+be71ae4	<li>Switch between <b>Flat</b> (to draw precisely) and <b>3D</b> (to see it in perspective; drag the background to rotate it).</li>
+ab199e0	<li>Press <b>Test</b>. During the test you can push parts with your finger. In <b>Ledger</b> you'll see where every joule comes from and where it goes.</li></ol>
+ee05fce	<p class="note">The bench calculates machines in a plane, like a wheel or a wall pendulum. The 3D view gives them thickness so you can see them as they would be, but the parts don't move forwards or backwards.</p>
+b5da067	</p><h4>What it shows</h4><p>
+a3ab000	<h3>Your machine</h3><p>Draw your idea at real scale: the bench uses centimetres, kilograms and real gravity. What you see here is what those parts would do if you built them.</p>
+54972e6	Hide panel
+dbda7d8	Ledger
+8dbcd83	Press “Design” to change the machine.
+adedbcb	Nothing to undo.
+447a86b	Undone.
+81f3af2	Redo
+638d936	Nothing to redo.
+fed46e1	Redone.
+ed4eb96	magnet
+1127cb7	magnets
+8b4e775	wheel
+39c0ade	wheels
+d2f68f1	arm
+2893199	arms
+887d910	ramp
+161e43c	ramps
+28d868d	hinge
+e4f4f26	hinges
+e808177	spring
+028ccae	springs
+e4521ba	<p class="note">This will be copied: 
+e630ddc	How
+7035e4a	In a circle
+ab9cd2f	In a row
+01f1056	Around
+25bb280	The axle of wheel 
+f9e6ff8	Another point
+9ef4858	Total parts in the circle
+c318fbc	pcs
+daeeec8	Spread over
+30615ba	<p class="note field wide">One every 
+fb8472e	°. The original counts as the first.</p>
+b969147	New copies
+7e0bd73	Spacing X
+9c66ed7	Spacing Y
+1b70e67	</div><div class="row"><button class="btn primary" id="k_go" type="button">Create copies</button></div>
+1c24bb6	Created 1 copy
+8bd1ade	Created 
+bc27ffc	. “Undo” removes them.
+6c2fc85	That photo couldn't be read.
+853bde5	That file isn't an image that can be opened.
+68d64b8	There's no room left to save the photo on this device. Delete a design or use a smaller photo.
+4272c93	Photo placed. Set its scale with the ruler and trace the parts on top.
+367a970	Photo removed.
+58eb7a9	Arms with stops
+c72fbea	Freely hanging arms
+ac8e26d	Fixed to the wheel
+2941155	Loose inside the wheel
+45e0d13	Each weight is on a hinged arm that only opens as far as a stop, like the mallet wheel.
+3ba0a45	Each weight hangs from a hinge and can swing all the way round.
+4e350f5	The weights don't move relative to the wheel: they're glued, screwed on or on rigid arms.
+12eb252	Balls that roll inside the wheel. The app puts in one compartment per ball.
+96ba582	The wheel
+281efad	The weights
+0747c14	Mounting
+7a09d81	<p class="note">Analysing the photo on your device. It isn't sent anywhere.</p>
+94f9e62	Now tap a point on the <b>edge</b> of the wheel.
+cc84a68	I found the wheel: it's the green circle. 
+6565453	Wheel marked. 
+9af46be	If it doesn't match, tap the <b>centre of the axle</b> and then a point on the <b>edge</b>.
+5ad7d62	I couldn't find the wheel. Tap the <b>centre of the axle</b> and then a point on the <b>edge</b>.
+ac91a1f	Real diameter of the wheel
+08fa511	<p class="note">Measure it from side to side with a tape measure: with that measurement, every part comes out at its real size.</p>
+ab1a21a	<div class="row scan-nav"><button class="btn" id="sc_trace" type="button">It's not a wheel: trace it by hand</button><button class="btn primary" id="sc_next" type="button">Next</button></div>
+3fdcf5d	I couldn't find any weights. Tap each weight in the photo to mark it.
+de878c9	<p class="note">Mark them all, including any hidden by an arm or slightly outside the photo: the number of weights decides how many hinges there are.</p>
+07a3e3d	<div class="row scan-nav"><button class="btn" id="sc_back" type="button">Back</button><button class="btn primary" id="sc_next" type="button">Next</button></div>
+c1e7cb6	How are the weights mounted?
+83cacd2	 The white lines are the arms: they go from each hinge to its weight.
+a5492f3	Rotate the hinges
+113fc40	If the hinges don't land where they are on your model, rotate them.
+8805665	Weight of each weight
+bcb1305	Material of the weights
+c640f44	Weight of each arm
+59d5352	Weight of the wheel
+0ed77d1	Wheel axle and hinges
+385a1f8	<p class="note">Weigh it on a kitchen scale. If you can't, leave the suggested value: it's what it would weigh for its size.</p>
+dd10d49	<div class="row scan-nav"><button class="btn" id="sc_back" type="button">Back</button><button class="btn primary" id="sc_make" type="button">Create the machine</button></div>
+2b1b8c4	Mark the wheel first: tap the centre of the axle and a point on the edge.
+f8c4d0a	Your model is now on the bench, on top of its photo and at real size. 
+46b428a	There's no room to save the photo, but the parts are there. 
+69e5fd3	 Press “Test”.
