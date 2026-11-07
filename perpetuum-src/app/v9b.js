@@ -1,0 +1,30 @@
+const { chromium, open } = require('./pw.js');
+(async () => {
+  const browser = await chromium.launch();
+  const { page, errors } = await open(browser, 'debug.html', { width: 1280, height: 820 }, 'light');
+  await page.evaluate(() => localStorage.setItem('taller-perpetuum.bienvenida', '1'));
+  await page.click('#welEmpty').catch(() => {});
+  await page.click('#view2d'); await page.waitForTimeout(200);
+  const box = await page.locator('#stage').boundingBox(), cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+  await page.mouse.click(cx, cy); await page.waitForTimeout(300);
+  await page.click('.tool[data-tool="add"]'); console.log('paleta abierta:', await page.isVisible('#palette'));
+  await page.click('[data-kind="cam"]'); await page.mouse.click(cx + 3, cy + 2); await page.waitForTimeout(300);
+  await page.click('.tool[data-tool="add"]'); console.log('paleta abierta otra vez:', await page.isVisible('#palette'));
+  if (!(await page.isVisible('#palette'))) await page.click('.tool[data-tool="add"]');
+  await page.click('[data-kind="mag-bar"]'); await page.waitForTimeout(150);
+  const tip = await page.evaluate(() => { const S = window.__T, arm = S.design.parts.find(p => p.kind === 'bar'); const r = document.getElementById('cv').getBoundingClientRect();
+    return { x: r.left + S.vw / 2 + (arm.x2 - 0.03 - S.cam.x) * S.cam.s, y: r.top + S.vh / 2 - (arm.y2 - S.cam.y) * S.cam.s }; });
+  await page.mouse.click(tip.x, tip.y); await page.waitForTimeout(300);
+  console.log('imán pegado a:', await page.evaluate(() => { const d = window.__T.design, m = d.parts.find(p => p.kind === 'magnet'); if (!m) return 'nada'; const h = d.parts.find(p => p.id === m.host); return h ? h.kind + (h.plane ? ' (delante)' : '') : 'pared'; }));
+  await page.click('#view3d'); await page.waitForTimeout(900); await page.screenshot({ path: 'v9b-3d.png' });
+  // cambiar puntas y subida desde el inspector de la leva
+  await page.click('#view2d'); await page.waitForTimeout(200); await page.click('.tool[data-tool="move"]');
+  const c2 = await page.evaluate(() => { const S = window.__T, c = S.design.parts.find(p => p.style === 'cam'); const r = document.getElementById('cv').getBoundingClientRect();
+    return { x: r.left + S.vw / 2 + (c.x + c.r * 0.5 - S.cam.x) * S.cam.s, y: r.top + S.vh / 2 - (c.y - c.r * 0.5 - S.cam.y) * S.cam.s }; });
+  await page.mouse.click(c2.x, c2.y); await page.waitForTimeout(300);
+  console.log('seleccionada:', await page.locator('#inspector h3').first().innerText());
+  await page.fill('#n_lift', '3'); await page.dispatchEvent('#n_lift', 'change'); await page.waitForTimeout(200);
+  console.log('subida:', await page.evaluate(() => window.__T.design.parts.find(p => p.style === 'cam').lift));
+  console.log('errores:', errors.filter(e => !/temporada/.test(e)));
+  await browser.close();
+})();

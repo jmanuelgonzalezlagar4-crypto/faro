@@ -61,9 +61,11 @@
     erase: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
     undo: '<path d="M9 5L4 10l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 10h10a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="1.8"/>',
     wheel: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/>',
+    rim: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 12L6.5 6.5M12 12l5.5 5.5" stroke="currentColor" stroke-width="1"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="18.2" r="1.9" fill="currentColor"/>',
     ring: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 9.8L9 4.5M14.2 12l5-3M12 14.2l3 5.3M9.8 12l-5 3" stroke="currentColor" stroke-width="1.3"/><circle cx="7.5" cy="8" r="1.6" fill="currentColor"/>',
     arm: '<path d="M4 20L15 9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="4" cy="20" r="2" fill="var(--panel)" stroke="currentColor" stroke-width="1.4"/><circle cx="16.5" cy="7.5" r="4" fill="currentColor"/>',
     bar: '<path d="M5 18L19 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="5" cy="18" r="2.4" fill="var(--panel)" stroke="currentColor" stroke-width="1.4"/><circle cx="19" cy="6" r="2.4" fill="var(--panel)" stroke="currentColor" stroke-width="1.4"/>',
+    cam: '<path d="M12 4.5c3.6 0 6.5 3.4 6.5 7.6 0 4-2.9 7.4-6.5 7.4s-6-2.9-6-6.6c0-4.3 2.4-8.4 6-8.4z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="13" r="1.6" fill="currentColor"/><path d="M3 3.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="3.5" r="1.6" fill="var(--panel)" stroke="currentColor" stroke-width="1.2"/>',
     ball: '<circle cx="12" cy="13" r="6.5" fill="currentColor"/><path d="M9.5 6.5L12 4l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
     ramp: '<path d="M3 17L21 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M5 18.5l-1.5 2.5M9 16.5l-1.5 2.5M13 14.5l-1.5 2.5M17 12.5l-1.5 2.5" stroke="currentColor" stroke-width="1.2"/>',
     spring: '<path d="M3 12h3l1.5-5 3 10 3-10 3 10 1.5-5h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
@@ -87,11 +89,13 @@
     { group: T('Estructura'), items: [
       { id: 'wheel', name: T('Rueda'), desc: T('Con eje fijo. Arrastra para el tamaño.') },
       { id: 'ring', name: T('Rueda de compartimentos'), desc: T('Aro con separadores para bolas.') },
+      { id: 'rim', name: T('Aro o polea'), desc: T('Rueda hueca: solo el aro, para una bola suelta dentro.') },
       { id: 'arm', name: T('Brazo con pesa'), desc: T('Arrastra desde el borde de la rueda.') },
       { id: 'bar', name: T('Brazo'), desc: T('Barra rígida. Arrastra de punta a punta.') },
       { id: 'ball', name: T('Pesa'), desc: T('Bola de plomo, acero, madera o goma.') },
       { id: 'ramp', name: T('Rampa'), desc: T('Suelo o rampa fija.') },
-      { id: 'spring', name: T('Muelle'), desc: T('Arrastra entre dos piezas.') }
+      { id: 'spring', name: T('Muelle'), desc: T('Arrastra entre dos piezas.') },
+      { id: 'cam', name: T('Leva con brazo'), desc: T('Va en el eje de una rueda y mueve un brazo.') }
     ] },
     { group: T('Imanes'), items: [
       { id: 'mag-bar', name: T('Imán de barra'), desc: T('El clásico, de neodimio o ferrita.') },
@@ -120,12 +124,14 @@
     erase: T('Toca una pieza para quitarla.'),
     clone: T('Toca la pieza que quieres clonar.'),
     wheel: T('Toca donde irá el eje. Si arrastras, eliges el radio.'),
+    rim: T('Toca donde irá el eje. Si arrastras, eliges el radio. Después pon una pesa dentro.'),
     ring: T('Toca donde irá el eje. Si arrastras, eliges el radio.'),
     arm: T('Arrastra desde el borde de una rueda hacia fuera: crea el brazo, la pesa y la bisagra.'),
     bar: T('Arrastra de un punto a otro. Un extremo sobre otra pieza se une con una bisagra.'),
     ball: T('Toca para poner una pesa.'),
     ramp: T('Arrastra para dibujar una rampa o un suelo.'),
     spring: T('Arrastra entre dos piezas, o entre una pieza y la pared.'),
+    cam: T('Toca el eje de una rueda: la leva va en el mismo eje, con un brazo que la sigue. Después pon un imán en el brazo.'),
     'mag-bar': T('Toca para poner el imán. Encima de una pieza va pegado a ella.'),
     'mag-disc': T('Toca para poner el imán. Encima de una pieza va pegado a ella.'),
     'mag-horseshoe': T('Toca para poner el imán. Encima de una pieza va pegado a ella.'),
@@ -134,7 +140,7 @@
     motor: T('Toca una rueda o una bisagra para ponerle un motor.'),
     gen: T('Toca una rueda o una bisagra para ponerle un generador.')
   };
-  var HAND_HINT = T('Arrastra una pieza para empujarla: el banco apunta esa energía como tuya.');
+  var HAND_HINT = T('Arrastra una pieza para empujarla, o un imán de la pared para moverlo: el banco apunta esa energía como tuya.');
 
   var STORIES = {
     mazos: {
@@ -171,6 +177,26 @@
       title: T('Rueda con electroimán'), era: T('Muchas máquinas «de imanes» esconden una pila.'),
       what: T('Seis imanes en el borde de la rueda y un electroimán fijo que se enciende justo cuando un imán se acerca, para tirar de él, y se apaga cuando pasa.'),
       why: T('Esta rueda sí gira sin parar, pero porque la batería le da energía cada vez que enciende el electroimán. En el libro de cuentas verás que la batería pone muchísimo más de lo que la rueda gana: casi todo se va en calor de la bobina. Quita la batería (borra el electroimán) y se para.')
+    },
+    hamster: {
+      title: T('Rueda de hámster con imán'), era: T('Un vídeo muy compartido: una polea que gira sola al acercarle un imán.'),
+      what: T('Una polea (solo el aro, que gira sobre su eje) con una bola de hierro suelta dentro. Al acercar un imán por fuera, la bola sube por el aro hacia el imán y el aro gira, como la rueda de un hámster.'),
+      why: T('El imán tira de la bola hasta que su fuerza y el peso de la bola se igualan. La bola sube un poco, el aro gira un poco, y se paran: la energía que da el imán es la que tenía guardada al acercarlo, y se gasta en el roce. Para que el aro siguiera girando habría que ir moviendo el imán, y esa energía la pondría tu mano. Prueba: pulsa «Diseñar», arrastra el imán a otro sitio y vuelve a probar, o empuja la bola con el dedo durante la prueba y mira «Tus empujones» en el libro de cuentas.')
+    },
+    eficiente: {
+      title: T('La más eficiente'), era: T('Diseñada por el taller a partir del cilindro de imanes.'),
+      what: T('Lo que queda del cilindro de imanes al quitar todo lo que gasta o no aporta: un cilindro de latón que gira en un rodamiento de bolas, con un generador en el eje. Sin leva, sin barra y sin imanes.'),
+      why: T('Paso a paso, con el mismo empujón: con la leva da 10 vueltas; sin la leva, 20; con los imanes en círculo, sin punto muerto, 30; y sin la barra ni ningún imán, también 30, porque los imanes no aportan nada. Con el generador, el 83 % del empujón sale como electricidad: es la mejor eficiencia que puede tener, porque el generador convierte en electricidad el 85 % de lo que frena y el resto se va en calor y en el roce del eje. Nunca llega al 100 %, y nunca saca más de lo que le das.')
+    },
+    espiral: {
+      title: T('Cilindro de imanes con palanca'), era: T('Otra maqueta de internet: un cilindro de latón con imanes en espiral.'),
+      what: T('Un cilindro de latón con imanes en espiral, visto de frente al eje: cada imán queda un poco más cerca del imán de la barra de arriba que el anterior, así que ese imán tira siempre hacia el siguiente. La barra gira apoyada a la derecha y un rodillo suyo va siempre apoyado en una leva del lateral del cilindro. Donde la espiral termina está el punto muerto: ahí la leva sube la barra para apartar el imán, y después la deja bajar otra vez sobre los imanes.'),
+      why: T('Lo que la espiral ayuda al acercarse lo frena en el punto muerto, y para saltarlo la leva tiene que subir la barra contra la fuerza de los imanes y su peso. Esa energía sale del propio giro, y cada vez que la barra sube y baja se pierde otro poco. Compruébalo: borra la leva y prueba otra vez. Sin ella, el cilindro da muchas más vueltas antes de pararse en el punto muerto: la leva no ayuda, gasta.')
+    },
+    leva: {
+      title: T('Motor de imanes con leva'), era: T('Una de las maquetas de imanes más vistas en internet.'),
+      what: T('Cuatro imanes en el borde de la rueda y un imán fijo en la punta de un brazo. Una leva en el mismo eje sube y baja el brazo: aparta el imán fijo justo cuando un imán de la rueda llegaría al «punto pegajoso» y lo acerca cuando ya ha pasado.'),
+      why: T('Para apartar el imán fijo hay que empujarlo contra la fuerza con la que los imanes se atraen, y ese empujón lo da la leva con la energía de la propia rueda. Lo que se ahorra en el punto pegajoso se paga en la leva, y además el rodillo, el eje y la bisagra rozan. En el libro de cuentas verás que la rueda solo gasta la energía que tenía al empezar, y se para. Cambia la subida o el ángulo de la leva: ninguna combinación saca energía extra.')
     }
   };
 
@@ -221,6 +247,11 @@
       ['x', 'y', 'x1', 'y1', 'x2', 'y2', 'r', 'm', 'size', 'mu'].forEach(function (k) { if (k in p && p[k] != null && !isFinite(p[k])) ok = false; });
       if (!ok) return;
       if (p.kind === 'magnet' && !p.shape) p.shape = 'bar';
+      if (p.kind === 'wheel' && p.style === 'cam') {
+        p.lift = isFinite(p.lift) ? p.lift : p.r * 0.4; p.lobes = isFinite(p.lobes) ? p.lobes : 1; p.phase = isFinite(p.phase) ? p.phase : 90;
+        if (p.plane == null) p.plane = 1;
+      }
+      if (p.plane != null) p.plane = p.plane ? 1 : 0;
       out.parts.push(p);
       var n = parseInt(String(p.id).replace(/\D/g, ''), 10);
       if (n > maxId) maxId = n;
@@ -230,7 +261,7 @@
   }
 
   function rebuild() {
-    S.dirty = true;
+    S.dirty = true; S.magOff = {};
     S.info = P.build(S.design);
     S.hist = []; S.maxK = 0; S.acc = 0; S.endReason = null; S.lagging = false;
     recordHist(true);
@@ -381,11 +412,12 @@
   // ---------- crear piezas ----------
   function createAt(kind, a, b) {
     var d = S.design, before = snapshot(), made = null, dragged = b && Math.hypot(b.x - a.x, b.y - a.y) >= 0.03;
-    if (kind === 'wheel' || kind === 'ring') {
+    if (kind === 'wheel' || kind === 'ring' || kind === 'rim') {
       var r = dragged ? Math.hypot(b.x - a.x, b.y - a.y) : 0.45;
       r = Math.min(1.5, Math.max(0.1, Math.round(r * 100) / 100));
       made = P.makeWheel(d, a.x, a.y, r);
       if (kind === 'ring') { made.style = 'ring'; made.cells = 8; made.tilt = 35; }
+      if (kind === 'rim') { made.style = 'rim'; made.spokes = 2; made.m = 1; }
       d.parts.push(made);
     } else if (kind === 'ball') {
       made = P.makeBall(d, a.x, a.y); d.parts.push(made);
@@ -426,6 +458,8 @@
       var host = bodyPartsAt(a.x, a.y, 0.004)[0];
       made = P.makeMagnet(d, a.x, a.y, host ? host.id : null, kind.slice(4));
       d.parts.push(made);
+    } else if (kind === 'cam') {
+      made = addCam(d, a);
     } else if (kind === 'motor' || kind === 'gen') {
       var tgt = partsAt(a.x, a.y, tolW(), function (q) { return q.kind === 'pin' && q.mode !== 'rigid'; })[0] ||
         partsAt(a.x, a.y, tolW(), function (q) { return q.kind === 'wheel' && q.axle === 'fixed'; })[0];
@@ -435,6 +469,27 @@
       made = tgt;
     }
     if (made) { S.sel = made.id; commit(before); openPiece(); buzz(8); }
+  }
+
+  // Leva en el eje de la rueda tocada, soldada a ella y delante, con un brazo seguidor encima:
+  // bisagra en la pared, un rodillo que rueda sobre la leva y sitio en la punta para un imán.
+  function addCam(d, a) {
+    var hosts = parts().filter(function (q) { return q.kind === 'wheel' && q.style !== 'cam' && Math.hypot(a.x - q.x, a.y - q.y) <= q.r; })
+      .sort(function (x, y) { return Math.hypot(a.x - x.x, a.y - x.y) - Math.hypot(a.x - y.x, a.y - y.y); });
+    var host = hosts[0] || null, cx = host ? host.x : a.x, cy = host ? host.y : a.y;
+    var r = host ? Math.max(0.03, Math.round(Math.min(0.12, host.r * 0.35) * 100) / 100) : 0.06;
+    var cam = P.makeCam(d, cx, cy, r);
+    if (host) { cam.axle = 'free'; cam.bearing = host.bearing; }
+    d.parts.push(cam);
+    if (host) { var weld = P.makePin(d, cx, cy, host.id, cam.id); weld.mode = 'rigid'; d.parts.push(weld); }
+    var rr = Math.max(0.008, Math.round(r * 0.18 * 1000) / 1000), yb = cy + (cam.r - cam.lift) + rr + P.CAM_R + 0.002;
+    var reach = host ? host.r + 0.03 : r * 2.5, x0 = cx - Math.max(0.1, r * 1.8);
+    var arm = P.makeBar(d, x0, yb, cx + reach, yb); arm.m = 0.06; arm.plane = 1; d.parts.push(arm);
+    var piv = P.makePin(d, x0, yb, null, arm.id); piv.bearing = 'bolas'; d.parts.push(piv);
+    var roller = P.makeBall(d, cx, yb); roller.r = rr; roller.m = 0.03; roller.mat = 'plomo'; roller.plane = 1; d.parts.push(roller);
+    var rp = P.makePin(d, cx, yb, arm.id, roller.id); rp.bearing = 'bolas'; d.parts.push(rp);
+    toast(host ? T('Leva puesta en el eje de la rueda, con su brazo encima. Pon un imán en la punta del brazo para que la leva lo mueva.') : T('Leva puesta con su propio eje y su brazo. Para que gire con una rueda, ponla tocando el eje de la rueda.'));
+    return cam;
   }
 
   // ---------- clonar ----------
@@ -476,7 +531,7 @@
       });
     }
     if (!host && sel.kind === 'ball') {
-      parts().forEach(function (w) { if (!host && w.kind === 'wheel' && w.style === 'ring' && Math.hypot(sel.x - w.x, sel.y - w.y) < w.r) host = w; });
+      parts().forEach(function (w) { if (!host && w.kind === 'wheel' && (w.style === 'ring' || w.style === 'rim') && Math.hypot(sel.x - w.x, sel.y - w.y) < w.r) host = w; });
     }
     var list = parts().filter(function (q) { return ids.has(q.id); });
     var count = {};
@@ -666,14 +721,23 @@
     drawPhoto();
     drawGrid();
     var fns = { ramp: drawRamp, wheel: drawWheel, spring: drawSpring, bar: drawBar, ball: drawBall, magnet: drawMagnet, pin: drawPin };
-    ['ramp', 'wheel', 'spring', 'bar', 'ball', 'magnet', 'pin'].forEach(function (k) {
-      parts().forEach(function (p) { if (p.kind === k) fns[k](p); });
+    [0, 1].forEach(function (plane) {
+      ['ramp', 'wheel', 'spring', 'bar', 'ball', 'magnet', 'pin'].forEach(function (k) {
+        parts().forEach(function (p) { if (p.kind === k && planeOf(p) === plane) fns[k](p); });
+      });
     });
     if (S.forces) drawForces();
     if (S.clonePreview) drawGhosts(S.clonePreview);
     var sel = find(S.sel);
     if (sel) drawSelection(sel);
     drawPreview(); drawMeasure(); drawHand(); drawScale();
+  }
+  // plano de cada pieza: 1 = delante de la rueda (leva y su brazo); los imanes y bisagras, con su pieza
+  function planeOf(p) {
+    if (p.plane != null) return p.plane ? 1 : 0;
+    if (p.kind === 'magnet') { var h = p.host && find(p.host); return h && h.plane ? 1 : 0; }
+    if (p.kind === 'pin') { var q = find(p.b); return q && q.plane ? 1 : 0; }
+    return 0;
   }
   function drawGrid() {
     var s = S.cam.s, tl = S2W(0, 0), br = S2W(S.vw, S.vh);
@@ -713,7 +777,26 @@
   }
   function drawWheel(p) {
     var b = bodyOf(p.id), c = sp(b, p.x, p.y), R = p.r * S.cam.s, ang = bodyAngle(b);
-    if (p.style === 'ring') {
+    if (p.style === 'cam') {
+      var pr = P.camProfile(p, 72);
+      ctx.fillStyle = C.wood; ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(1.5, 2 * P.CAM_R * S.cam.s * 0.6);
+      ctx.beginPath();
+      pr.forEach(function (q, i) { var s2 = sp(b, p.x + q[0], p.y + q[1]); if (i) ctx.lineTo(s2.x, s2.y); else ctx.moveTo(s2.x, s2.y); });
+      ctx.closePath(); ctx.globalAlpha = 0.45; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+      ctx.fillStyle = C['panel-2']; ctx.strokeStyle = C['ink-2']; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(4, (p.r - (p.lift || 0)) * 0.3 * S.cam.s), 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    } else if (p.style === 'rim') {
+      // los radios y el buje van detrás: se dibujan suaves
+      ctx.fillStyle = C.part; ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, 2 * Math.PI); ctx.fill(); ctx.globalAlpha = 1;
+      var nr = Math.max(1, p.spokes || 2);
+      ctx.strokeStyle = C['ink-3']; ctx.lineWidth = 2; ctx.beginPath();
+      for (var kr = 0; kr < nr; kr++) { var tr = ang + kr * 2 * Math.PI / nr; ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + Math.cos(tr) * (R - 2 * P.RIM_R * S.cam.s), c.y - Math.sin(tr) * (R - 2 * P.RIM_R * S.cam.s)); }
+      ctx.stroke();
+      ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(2.5, 2 * P.RIM_R * S.cam.s);
+      ctx.beginPath(); ctx.arc(c.x, c.y, (p.r - P.RIM_R) * S.cam.s, 0, 2 * Math.PI); ctx.stroke();
+      ctx.fillStyle = C['panel-2']; ctx.strokeStyle = C['ink-2']; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(5, R * 0.07), 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    } else if (p.style === 'ring') {
       var g = P.ringGeometry(p);
       ctx.fillStyle = C.part; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, 2 * Math.PI); ctx.fill(); ctx.globalAlpha = 1;
       ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(2, 2 * P.RIM_R * S.cam.s);
@@ -779,7 +862,8 @@
   }
   function electroOn(p) { var e = S.info.electroOf && S.info.electroOf[p.id]; return e ? e.on : true; }
   function drawMagnet(p, ghost) {
-    var host = ghost ? S.info.world.ground : bodyOf(p.host), c = ghost ? W2S(p.x, p.y) : sp(host, p.x, p.y);
+    var mo = !ghost && S.magOff && S.magOff[p.id], px = p.x + (mo ? mo.x : 0), py = p.y + (mo ? mo.y : 0);
+    var host = ghost ? S.info.world.ground : bodyOf(p.host), c = ghost ? W2S(p.x, p.y) : sp(host, px, py);
     var ang = p.ang * DEG + (ghost ? 0 : bodyAngle(host)), model = P.magnetModel(p);
     var L = Math.max(22, model.size * S.cam.s);
     ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(-ang);
@@ -906,7 +990,7 @@
     if (!d || !d.preview) return;
     ctx.save(); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.accent; ctx.lineWidth = 2;
     var a = W2S(d.a.x, d.a.y), b = d.b ? W2S(d.b.x, d.b.y) : a;
-    if (d.kind2 === 'wheel' || d.kind2 === 'ring') {
+    if (d.kind2 === 'wheel' || d.kind2 === 'ring' || d.kind2 === 'rim') {
       var r = d.b ? Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y) : 0.45;
       if (r < 0.03) r = 0.45;
       ctx.beginPath(); ctx.arc(a.x, a.y, r * S.cam.s, 0, 2 * Math.PI); ctx.stroke();
@@ -1266,13 +1350,16 @@
   function toggleField(label, id, checked, help, disabled) {
     return '<div class="field wide"><label class="toggle" for="' + id + '"><span>' + esc(label) + (help ? '<span class="help" style="display:block">' + esc(help) + '</span>' : '') + '</span><input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + (disabled ? ' disabled' : '') + '></label></div>';
   }
+  function planeField(p) {
+    return toggleField(T('Delante de la rueda'), 'f_plane', !!p.plane, T('Como el brazo de una leva: no choca con la rueda ni con lo que va detrás, solo con lo que también va delante.'));
+  }
   var BEAR_OPTS = Object.keys(P.BEARINGS).map(function (k) { return [k, P.BEARINGS[k].name + ' · ' + P.BEARINGS[k].note]; });
   var MAT_OPTS = Object.keys(P.MATERIALS).map(function (k) { return [k, P.MATERIALS[k].name]; });
   var GRADE_OPTS = Object.keys(P.GRADES).map(function (k) { return [k, P.GRADES[k].name]; });
   var SHAPE_OPTS = Object.keys(P.MAG_SHAPES).map(function (k) { return [k, P.MAG_SHAPES[k]]; });
   var DENS = { plomo: 11340, acero: 7850, madera: 700, goma: 1100 };
   var NAMES = { wheel: T('Rueda'), ball: T('Pesa'), bar: T('Brazo'), ramp: T('Rampa'), pin: T('Bisagra'), spring: T('Muelle'), magnet: T('Imán') };
-  function partName(p) { return p.kind === 'magnet' ? P.MAG_SHAPES[p.shape || 'bar'] : (p.kind === 'wheel' && p.style === 'ring' ? T('Rueda de compartimentos') : NAMES[p.kind]); }
+  function partName(p) { return p.kind === 'magnet' ? P.MAG_SHAPES[p.shape || 'bar'] : (p.kind === 'wheel' && p.style === 'ring' ? T('Rueda de compartimentos') : (p.kind === 'wheel' && p.style === 'cam' ? T('Leva') : (p.kind === 'wheel' && p.style === 'rim' ? T('Aro o polea') : NAMES[p.kind]))); }
 
   function renderInspector() {
     S.dirty = true;
@@ -1286,11 +1373,24 @@
     var h = '<div class="insp-head"><h3>' + esc(partName(p)) + '</h3>' + (design ? T('<div class="insp-actions"><button class="btn" id="cloneBtn" type="button">Clonar</button><button class="btn danger" id="delBtn" type="button">Quitar</button></div>') : '') + '</div>';
     if (!design) h += T('<p class="note">Pulsa «Diseñar» para cambiar esta pieza.</p>');
     h += '<div class="fields">';
-    if (p.kind === 'wheel') {
+    if (p.kind === 'wheel' && p.style === 'cam') {
+      h += numField(T('Centro X'), 'n_x', p.x * 100, 'cm', 1) + numField(T('Centro Y'), 'n_y', p.y * 100, 'cm', 1);
+      h += numField(T('Radio en la punta'), 'n_r', p.r * 100, 'cm', 0.5) + numField(T('Subida'), 'n_lift', (p.lift || 0) * 100, 'cm', 0.5);
+      h += field(T('Puntas'), 'f_lobes', 1, 6, 1, p.lobes || 1, '', T('Cuántas veces empuja el brazo en cada vuelta.'), 0);
+      h += numField(T('Ángulo de la primera punta'), 'n_phase', p.phase || 0, '°', 5);
+      h += field(T('Masa de la leva'), 'f_m', 0.01, 2, 0.01, p.m, 'kg', null, 2);
+      var welded = parts().some(function (q) { return q.kind === 'pin' && q.mode === 'rigid' && (q.a === p.id || q.b === p.id); });
+      h += '<p class="note field wide">' + (welded ? T('Va soldada en el eje de la rueda y gira con ella. Está delante de la rueda: solo la toca lo que también va delante, como el rodillo de su brazo.') :
+        T('Tiene su propio eje. Está delante de la rueda: solo la toca lo que también va delante.')) + T(' Si el rodillo no puede seguir los valles, baja la subida o usa menos puntas.') + '</p>';
+      if (!welded) {
+        h += segField(T('Eje'), 'f_axle', [['fixed', T('Fijo a la pared')], ['free', T('Suelto')]], p.axle, true);
+        if (p.axle === 'fixed') { h += selectField(T('Calidad del eje'), 'f_bearing', BEAR_OPTS, p.bearing); h += deviceFields(p); }
+      }
+    } else if (p.kind === 'wheel') {
       h += numField(T('Centro X'), 'n_x', p.x * 100, 'cm', 1) + numField(T('Centro Y'), 'n_y', p.y * 100, 'cm', 1);
       h += numField(T('Radio'), 'n_r', p.r * 100, 'cm', 1);
       h += field(T('Masa de la rueda'), 'f_m', 0.2, 20, 0.1, p.m, 'kg', null, 1);
-      h += segField(T('Tipo'), 'f_style', [['disc', T('Disco con radios')], ['ring', T('Con compartimentos')]], p.style, true);
+      h += segField(T('Tipo'), 'f_style', [['disc', T('Disco con radios')], ['ring', T('Con compartimentos')], ['rim', T('Aro (polea)')]], p.style, true);
       if (p.style === 'ring') { h += field(T('Compartimentos'), 'f_cells', 3, 16, 1, p.cells, '', null, 0); h += field(T('Inclinación de los separadores'), 'f_tilt', 0, 70, 1, p.tilt, '°', null, 0); }
       else h += field(T('Radios (dibujo)'), 'f_spokes', 3, 16, 1, p.spokes || 8, '', null, 0);
       h += segField(T('Eje'), 'f_axle', [['fixed', T('Fijo a la pared')], ['free', T('Suelto')]], p.axle, true);
@@ -1304,11 +1404,12 @@
       h += numField(T('Diámetro'), 'n_d', p.r * 200, 'cm', 0.5);
       h += field(T('Masa'), 'f_m', 0.02, 10, 0.01, p.m, 'kg', massHelp(p));
       h += selectField(T('Material'), 'f_mat', MAT_OPTS, p.mat, T('Cambia cómo rebota y roza. El acero lo atraen los imanes.'));
+      h += planeField(p);
     } else if (p.kind === 'bar' || p.kind === 'ramp' || p.kind === 'spring') {
       h += numField(T('Inicio X'), 'n_x', p.x1 * 100, 'cm', 1) + numField(T('Inicio Y'), 'n_y', p.y1 * 100, 'cm', 1);
       h += numField(T('Longitud'), 'n_len', Math.hypot(p.x2 - p.x1, p.y2 - p.y1) * 100, 'cm', 1);
       h += numField(T('Ángulo'), 'n_ang', Math.atan2(p.y2 - p.y1, p.x2 - p.x1) / DEG, '°', 1);
-      if (p.kind === 'bar') h += field(T('Masa'), 'f_m', 0.05, 5, 0.01, p.m, 'kg');
+      if (p.kind === 'bar') h += field(T('Masa'), 'f_m', 0.01, 5, 0.01, p.m, 'kg') + planeField(p);
       if (p.kind === 'ramp') h += selectField(T('Material'), 'f_mat', MAT_OPTS.filter(function (o) { return o[0] !== 'plomo'; }), p.mat);
       if (p.kind === 'spring') {
         var L0 = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
@@ -1386,6 +1487,16 @@
       c.addEventListener('change', function () { if (S.preEdit) { pushUndo(S.preEdit); S.preEdit = null; } save(); renderAbout(); });
     }
     liveRange('f_m', 'm', 'kg', p.kind === 'wheel' ? 1 : 2, function () { var hh = $('f_m_h'); if (hh && p.kind === 'ball') hh.textContent = massHelp(p); });
+    liveRange('f_lobes', 'lobes', '', 0);
+    var pc = $('f_plane');
+    if (pc) pc.addEventListener('change', function () {
+      var b = snapshot();
+      // el brazo y lo que lleva soldado (su rodillo) cambian de plano juntos
+      var ids = { }; ids[p.id] = 1;
+      parts().forEach(function (q) { if (q.kind === 'pin' && (q.a === p.id || q.b === p.id)) { var o = q.a === p.id ? q.b : q.a; var oq = o && find(o); if (oq && (oq.kind === 'ball' || oq.kind === 'bar')) ids[o] = 1; } });
+      parts().forEach(function (q) { if (ids[q.id]) q.plane = pc.checked ? 1 : 0; });
+      commit(b);
+    });
     liveRange('f_cells', 'cells', '', 0); liveRange('f_tilt', 'tilt', '°', 0); liveRange('f_spokes', 'spokes', '', 0);
     liveRange('f_rpm', 'rpm', 'rpm', 0); liveRange('f_gen', 'gen', 'N·m·s', 2);
     liveRange('f_mrpm', 'mrpm', 'rpm', 0); liveRange('f_mtorque', 'mtorque', 'N·m', 2);
@@ -1414,7 +1525,9 @@
     var setters = {
       n_x: function (v) { moveBy(p, v / 100 - ('x1' in p ? p.x1 : p.x), 0); },
       n_y: function (v) { moveBy(p, 0, v / 100 - ('y1' in p ? p.y1 : p.y)); },
-      n_r: function (v) { setWheelRadius(p, Math.max(0.05, Math.min(2, v / 100))); },
+      n_r: function (v) { if (p.style === 'cam') { p.r = Math.max(0.01, Math.min(1, v / 100)); p.lift = Math.min(p.lift || 0, p.r * 0.6); } else setWheelRadius(p, Math.max(0.05, Math.min(2, v / 100))); },
+      n_lift: function (v) { p.lift = Math.max(0, Math.min(p.r * 0.6, v / 100)); },
+      n_phase: function (v) { p.phase = ((v % 360) + 360) % 360; },
       n_d: function (v) { p.r = Math.max(0.005, Math.min(0.3, v / 200)); },
       n_len: function (v) { var a = Math.atan2(p.y2 - p.y1, p.x2 - p.x1), L = Math.max(0.01, v / 100); moveEnd(p, 1, p.x1 + L * Math.cos(a), p.y1 + L * Math.sin(a)); },
       n_ang: function (v) { var L = Math.hypot(p.x2 - p.x1, p.y2 - p.y1); moveEnd(p, 1, p.x1 + L * Math.cos(v * DEG), p.y1 + L * Math.sin(v * DEG)); },
@@ -1834,14 +1947,15 @@
   // La foto se analiza en el propio dispositivo (vision.js): busca la rueda y las pesas, la persona lo
   // confirma o lo corrige con el dedo, pone las medidas reales y la app crea las piezas a tamaño real.
   var VIS = window.PerpetuumVision, SC = null;
-  var MOUNTS = [['topes', T('Brazos con topes')], ['libres', T('Brazos que cuelgan libres')], ['fijas', T('Pegadas a la rueda')], ['sueltas', T('Sueltas dentro de la rueda')]];
+  var MOUNTS = [['topes', T('Brazos con topes')], ['libres', T('Brazos que cuelgan libres')], ['fijas', T('Pegadas a la rueda')], ['sueltas', T('Sueltas dentro de la rueda')], ['imanes', T('Son imanes')]];
   var MOUNT_HELP = {
     topes: T('Cada pesa va en un brazo con bisagra que solo se abre hasta un tope, como la rueda de mazos.'),
     libres: T('Cada pesa cuelga de una bisagra y puede dar la vuelta entera.'),
     fijas: T('Las pesas no se mueven respecto de la rueda: van pegadas, atornilladas o en brazos rígidos.'),
-    sueltas: T('Bolas que ruedan dentro de la rueda. La app pone un compartimento por bola.')
+    sueltas: T('Bolas que ruedan dentro de la rueda. La app pone un compartimento por bola.'),
+    imanes: T('Los círculos que están sobre la rueda pasan a ser imanes pegados a ella, y los de fuera, imanes fijos. Después puedes tocar cada imán para cambiar hacia dónde mira su polo norte. Si tu maqueta tiene una leva, añádela después con Añadir → Leva con brazo, tocando el eje de la rueda.')
   };
-  function scanArms() { return SC && SC.mount !== 'sueltas'; }
+  function scanArms() { return SC && SC.mount !== 'sueltas' && SC.mount !== 'imanes'; }
   // Primero una pantalla con dos botones que son <label> de los campos de archivo: es la forma que más
   // móviles aceptan para abrir la cámara (un .click() fuera del toque lo bloquean, sobre todo en iPhone).
   function openScanFile() {
@@ -1880,7 +1994,7 @@
     if (S.mode !== 'design') backToDesign();
     SC = { data: data, img: img, photoId: photoId || null, step: 0, busy: true, A: null, wheel: null, weights: [], found: false,
       tap: 'center', pc: null, wheelDirty: false, mount: null, fitAuto: null, adj: 0,
-      diam: S.lastScanDiam || 40, wmass: null, mat: 'acero', armMass: null, wheelMass: null, bearing: 'bolas' };
+      diam: S.lastScanDiam || 40, wmass: null, mat: 'acero', armMass: null, wheelMass: null, bearing: 'bolas', grade: 'n52' };
     showModal('scanModal', function () { SC = null; });
     renderScan();
     setTimeout(function () {
@@ -1924,7 +2038,7 @@
     if (!SC) return;
     if (SC.pick) { renderPick(); return; }
     $('scanSteps').hidden = false; $('scanView').hidden = false;
-    var names = [T('La rueda'), T('Las pesas'), T('Cómo van')];
+    var names = [T('La rueda'), T('Pesas o imanes'), T('Cómo van')];
     $('scanSteps').innerHTML = names.map(function (n, i) {
       return '<li' + (i === SC.step ? ' aria-current="step"' : '') + (i < SC.step ? ' class="done"' : '') + '><b>' + (i + 1) + '</b> ' + n + '</li>';
     }).join('');
@@ -1939,17 +2053,19 @@
         T('<p class="note">Mídela de lado a lado con un metro: con esa medida, todas las piezas salen a su tamaño real.</p>') +
         T('<div class="row scan-nav"><button class="btn" id="sc_trace" type="button">No es una rueda: calcarla a mano</button><button class="btn primary" id="sc_next" type="button">Siguiente</button></div>');
     } else if (SC.step === 1) {
-      h += '<p class="scan-say">' + (n ? T(n === 1 ? 'He encontrado <b>1 pesa</b> (círculo amarillo). Toca una para quitarla, o toca donde haya otra para añadirla.' : 'He encontrado <b>{n} pesas</b> (círculos amarillos). Toca una para quitarla, o toca donde haya otra para añadirla.', { n: n }) :
-        T('No he encontrado pesas. Toca cada pesa de la foto para marcarla.')) + '</p>' +
-        T('<p class="note">Marca todas, también las que tape un brazo o se salgan un poco de la foto: el número de pesas decide cuántas bisagras hay.</p>') +
+      h += '<p class="scan-say">' + (n ? T(n === 1 ? 'He encontrado <b>1 pieza redonda</b> (círculo amarillo): una pesa o un imán. Toca uno para quitarlo, o toca donde haya otro para añadirlo.' : 'He encontrado <b>{n} piezas redondas</b> (círculos amarillos): pesas o imanes. Toca una para quitarla, o toca donde haya otra para añadirla.', { n: n }) :
+        T('No he encontrado pesas ni imanes. Toca cada uno en la foto para marcarlo.')) + '</p>' +
+        T('<p class="note">Márcalos todos, también los que tape un brazo o se salgan un poco de la foto, y los imanes fijos que estén fuera de la rueda. Con pesas, su número decide cuántas bisagras hay.</p>') +
+        T('<p class="scan-warn">Si algún círculo amarillo no es una pesa ni un imán (un botón o un icono de la pantalla, un tornillo, un dibujo de la ropa…), tócalo para quitarlo: la app lo convertiría en una pieza.</p>') +
         T('<div class="row scan-nav"><button class="btn" id="sc_back" type="button">Atrás</button><button class="btn primary" id="sc_next" type="button">Siguiente</button></div>');
     } else {
       scanDefaults();
-      var arms = scanArms() && n > 0, half = n ? Math.floor(180 / n) : 0;
-      h += segField(T('¿Cómo van las pesas?'), 'sc_mount', MOUNTS, SC.mount, true) +
+      var arms = scanArms() && n > 0, half = n ? Math.floor(180 / n) : 0, mags = SC.mount === 'imanes';
+      h += segField(T('¿Qué son y cómo van?'), 'sc_mount', MOUNTS, SC.mount, true) +
         '<p class="note">' + MOUNT_HELP[SC.mount] + (arms ? T(' Las líneas blancas son los brazos: salen de cada bisagra hasta su pesa.') : '') + '</p><div class="fields">' +
         (arms && n > 1 ? field(T('Girar las bisagras'), 'sc_adj', -half, half, 1, SC.adj, '°', T('Si las bisagras no caen donde están en tu maqueta, gíralas.'), 0) : '') +
-        (n ? numField(T('Peso de cada pesa'), 'sc_wm', SC.wmass, 'g', 5) + selectField(T('Material de las pesas'), 'sc_mat', MAT_OPTS, SC.mat) : '') +
+        (n && !mags ? numField(T('Peso de cada pesa'), 'sc_wm', SC.wmass, 'g', 5) + selectField(T('Material de las pesas'), 'sc_mat', MAT_OPTS, SC.mat) : '') +
+        (n && mags ? selectField(T('Material de los imanes'), 'sc_grade', GRADE_OPTS, SC.grade) : '') +
         (arms ? numField(T('Peso de cada brazo'), 'sc_am', SC.armMass, 'g', 5) : '') +
         numField(T('Peso de la rueda'), 'sc_whm', SC.wheelMass, 'g', 10) +
         selectField(T('Eje de la rueda y bisagras'), 'sc_bear', BEAR_OPTS.filter(function (o) { return o[0] !== 'ideal'; }), SC.bearing) + '</div>' +
@@ -1961,9 +2077,14 @@
     bindScan();
     requestAnimationFrame(drawScan);
   }
+  function scanOnWheel(wt) { return Math.hypot(wt.x - SC.wheel.cx, wt.y - SC.wheel.cy) <= SC.wheel.r * 1.02; }
   function scanSummary() {
     var n = SC.weights.length, m = MOUNTS.filter(function (o) { return o[0] === SC.mount; })[0];
     if (!n) return T('Rueda de {d} cm, sin pesas.', { d: fmt(SC.diam, 0) });
+    if (SC.mount === 'imanes') {
+      var a = SC.weights.filter(scanOnWheel).length, b = n - a;
+      return b ? T('Rueda de {d} cm con {a} imanes en la rueda y {b} fijos.', { d: fmt(SC.diam, 0), a: a, b: b }) : T('Rueda de {d} cm con {a} imanes.', { d: fmt(SC.diam, 0), a: a });
+    }
     return T(n === 1 ? 'Rueda de {d} cm, 1 pesa de {m} g · {how}.' : 'Rueda de {d} cm, {n} pesas de {m} g · {how}.', { d: fmt(SC.diam, 0), n: n, m: fmt(SC.wmass, 0), how: m[1].toLowerCase() });
   }
   function bindScan() {
@@ -1978,6 +2099,8 @@
     if (adj) adj.addEventListener('input', function () { SC.adj = parseFloat(adj.value) || 0; $('sc_adj_o').textContent = fmt(SC.adj, 0) + ' °'; drawScan(); });
     var mat = $('sc_mat');
     if (mat) mat.addEventListener('change', function () { SC.mat = mat.value; SC.wmass = null; renderScan(); });
+    var gr = $('sc_grade');
+    if (gr) gr.addEventListener('change', function () { SC.grade = gr.value; });
     var bear = $('sc_bear');
     if (bear) bear.addEventListener('change', function () { SC.bearing = bear.value; });
     var tr = $('sc_trace');
@@ -2076,9 +2199,19 @@
     d.parts.push(w);
     var rs = Math.max(0.004, Math.min(R * 0.4, scanTypicalR() * k)), m = Math.max(0.001, SC.wmass / 1000);
     function ball(x, y) { var b = P.makeBall(d, x, y); b.r = Math.round(rs * 1000) / 1000; b.m = m; b.mat = SC.mat; d.parts.push(b); return b; }
-    if (SC.mount === 'sueltas' && n) {
+    if (SC.mount === 'imanes' && n) {
+      // imanes de disco: sobre la rueda, pegados a ella; fuera, fijos a la pared. El norte mira hacia fuera.
+      SC.weights.forEach(function (wt) {
+        var x = X(wt.x), y = Y(wt.y), dist = Math.hypot(x, y), th = Math.atan2(y, x), size = Math.max(0.008, Math.min(0.08, 2 * wt.r * k));
+        var on = scanOnWheel(wt);
+        if (!on && dist - size / 2 < R + 0.004) { dist = R + size / 2 + 0.004; x = dist * Math.cos(th); y = dist * Math.sin(th); }
+        var mg = P.makeMagnet(d, Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000, on ? w.id : null, 'disc');
+        mg.grade = SC.grade; mg.size = Math.round(size * 1000) / 1000; mg.ang = Math.round(th / DEG); mg.mu = P.magnetModel(mg).mu;
+        d.parts.push(mg);
+      });
+    } else if (SC.mount === 'sueltas' && n) {
       w.style = 'ring'; w.cells = Math.max(2, Math.min(24, n)); w.tilt = 35;
-      P.ringSlots(w, rs).forEach(function (q) { ball(q.x, q.y); });
+      P.ringSlots(w, rs).slice(0, n).forEach(function (q) { ball(q.x, q.y); });
     } else if (n) {
       var fit = scanFit();
       // con topes: ángulo de cada brazo respecto de «hacia fuera»; los topes dejan abrirse 100° hacia el lado en que estén
@@ -2350,7 +2483,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();
@@ -2655,6 +2788,12 @@
     var nav = (e.button === 2 || e.shiftKey) ? 'pan' : (is3d() ? 'orbit' : 'pan');
     if (S.mode !== 'design') {
       var hit = pickAt(pos), world = S.info.world, body = null;
+      // un imán de la pared: se mueve con el dedo, como quien acerca un imán a la maqueta
+      if (hit && hit.p && hit.p.kind === 'magnet' && !(hit.p.host && find(hit.p.host))) {
+        if (S.mode === 'stopped') { S.endReason = null; setMode('run'); }
+        S.drag = { kind: 'wallmag', id: hit.p.id, last: { x: hit.x, y: hit.y } }; world.stillTime = 0;
+        return;
+      }
       if (hit && hit.p) {
         var b = hit.p.kind === 'magnet' ? bodyOf(hit.p.host) : (hit.p.kind === 'pin' ? bodyOf(hit.p.b) : (hit.p.kind === 'spring' ? null : bodyOf(hit.p.id)));
         if (b && !b.isStatic) body = b;
@@ -2695,7 +2834,7 @@
       if (hp) S.drag = { kind: 'place', kind2: 'pin', a: snapPoint(hp.x, hp.y, true), startPx: pos };
     } else if (tool === 'add' && S.addKind) {
       var k = S.addKind, hw = pickAt(pos), pt = hw ? { x: hw.x, y: hw.y } : worldAt(pos);
-      if (k === 'ball' || k === 'motor' || k === 'gen' || k.indexOf('mag-') === 0) S.drag = { kind: 'place', kind2: k, a: (k === 'motor' || k === 'gen') ? pt : snapPoint(pt.x, pt.y, k !== 'ball'), startPx: pos };
+      if (k === 'ball' || k === 'motor' || k === 'gen' || k === 'cam' || k.indexOf('mag-') === 0) S.drag = { kind: 'place', kind2: k, a: (k === 'motor' || k === 'gen' || k === 'cam') ? pt : snapPoint(pt.x, pt.y, k !== 'ball'), startPx: pos };
       else S.drag = { kind: 'draw', kind2: k, a: snapPoint(pt.x, pt.y, k === 'bar' || k === 'spring' || k === 'arm'), b: null, preview: true, startPx: pos };
     } else {
       S.drag = { kind: nav, last: pos, start: pos, deselect: true };
@@ -2730,6 +2869,18 @@
     if (dr.kind === 'orbit') { GL.orbit(pos.x - dr.last.x, pos.y - dr.last.y); dr.last = pos; return; }
     var w = worldAt(pos);
     if (dr.kind === 'hand') { var H = S.info.world.hand; if (H) { H.tx = w.x; H.ty = w.y; } return; }
+    if (dr.kind === 'wallmag') {
+      // a pasos cortos: si el imán tocaría otra pieza, se queda donde está
+      var mdx = w.x - dr.last.x, mdy = w.y - dr.last.y, steps = Math.max(1, Math.ceil(Math.hypot(mdx, mdy) / 0.004));
+      for (var st = 0; st < steps; st++) {
+        if (!S.info.world.moveFixedMagnet(dr.id, mdx / steps, mdy / steps)) break;
+        dr.last = { x: dr.last.x + mdx / steps, y: dr.last.y + mdy / steps };
+        var off = S.magOff[dr.id] || (S.magOff[dr.id] = { x: 0, y: 0 });
+        off.x += mdx / steps; off.y += mdy / steps;
+      }
+      if (GL && S.magOff[dr.id]) GL.offsetPart(dr.id, S.magOff[dr.id].x, S.magOff[dr.id].y);
+      markDirty(); return;
+    }
     if (dr.kind === 'measure') { S.measure.b = snapPoint(w.x, w.y, true); return; }
     if (dr.kind === 'draw') { dr.b = snapPoint(w.x, w.y, dr.kind2 === 'bar' || dr.kind2 === 'spring'); return; }
     if (dr.kind === 'move') {
@@ -2757,6 +2908,7 @@
     if (!dr) return;
     var tapped = dr.startPx ? Math.hypot(pos.x - dr.startPx.x, pos.y - dr.startPx.y) < 7 : false;
     if (dr.kind === 'hand') { S.info.world.hand = null; return; }
+    if (dr.kind === 'wallmag') return;
     if (dr.kind === 'pan' || dr.kind === 'orbit') {
       if (dr.deselect && Math.hypot(pos.x - dr.start.x, pos.y - dr.start.y) < 6) { S.sel = null; renderInspector(); }
       return;

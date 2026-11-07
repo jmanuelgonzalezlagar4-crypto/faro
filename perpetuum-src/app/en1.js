@@ -30,7 +30,7 @@ const SPANISH = /[áéíóúñ¿¡]|\b(de|la|el|los|las|que|una|con|para|por|del
   await page.screenshot({ path: 'en-design.png' });
   // inspector de cada tipo de pieza
   const kinds = await page.evaluate(() => [...new Set(window.__T.design.parts.map(p => p.kind))]);
-  for (const ex of ['mazos', 'bolas', 'wilkins', 'motor', 'pendulo', 'bucle', 'electro']) {
+  for (const ex of ['mazos', 'bolas', 'wilkins', 'motor', 'pendulo', 'bucle', 'electro', 'leva']) {
     await page.click('#examplesBtn'); await page.click('[data-ex="' + ex + '"]'); await page.waitForTimeout(300);
     await page.click('.tab[data-tab="ayuda"]').catch(() => {}); await scan('ayuda ' + ex);
     const ids = await page.evaluate(() => { const seen = {}; return window.__T.design.parts.filter(p => { const k = p.kind + (p.mode || '') + (p.shape || ''); if (seen[k]) return false; seen[k] = 1; return true; }).map(p => p.id); });

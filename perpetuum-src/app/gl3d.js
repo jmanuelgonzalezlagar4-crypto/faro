@@ -96,7 +96,12 @@
     return t;
   }
 
+  var wallParts = {};
+  function offsetPart(id, dx, dy) {
+    (wallParts[id] || []).forEach(function (o) { o.position.x = o.userData.bx + dx; o.position.y = o.userData.by + dy; });
+  }
   function clearMachine() {
+    wallParts = {};
     machine.traverse(function (o) {
       if (o.geometry) o.geometry.dispose();
       if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { if (m.map && m.map !== wallTex) m.map.dispose(); m.dispose(); }); }
@@ -145,6 +150,7 @@
   }
 
   // profundidad de cada cuerpo: lo que va colgado de una rueda se pone delante de ella
+  var FRONT = 0.06;   // distancia entre el plano de la rueda y el de delante (levas)
   function depthMap(info, design) {
     var w = info.world, z = new Map(), wheelBodies = new Set();
     Object.keys(info.wheelJoint).forEach(function (id) { wheelBodies.add(info.wheelJoint[id].b); });
@@ -161,6 +167,11 @@
       var mr = 0.012;
       asm.forEach(function (o) { if (!wheelBodies.has(o)) mr = Math.max(mr, ballR.get(o)); });
       z.set(b, 0.03 + mr);
+    });
+    // lo que va delante de la rueda (el brazo de una leva) se dibuja delante
+    w.bodies.forEach(function (b) {
+      var ps = info.partsOfBody.get(b) || [];
+      if (!b.isStatic && ps.length && ps.every(function (p) { return p.plane === 1; })) z.set(b, (z.get(b) || 0) + FRONT);
     });
     return z;
   }
@@ -196,7 +207,36 @@
       if (p.kind === 'wheel') {
         b = info.bodyOf[p.id]; g = groupFor(b); l = local(b, p.x, p.y);
         var z0 = zb(b);
-        if (p.style === 'ring') {
+        if (p.style === 'cam') {
+          // leva: el contorno extruido, delante de la rueda en la que va soldada
+          var zc = (p.plane === 0 || b.isStatic) ? z0 : (info.partsOfBody.get(b) || []).every(function (q) { return q.plane === 1; }) ? z0 : z0 + FRONT;
+          var shp = new THREE.Shape();
+          P.camProfile(p, 72).forEach(function (q, i) { if (i) shp.lineTo(l.x + q[0], l.y + q[1]); else shp.moveTo(l.x + q[0], l.y + q[1]); });
+          shp.closePath();
+          var cg = new THREE.ExtrudeGeometry(shp, { depth: 0.02, bevelEnabled: false, curveSegments: 4 });
+          cg.translate(0, 0, zc - 0.01);
+          var cm = new THREE.Mesh(cg, mat(colors.steel, 0.35, 0.85));
+          g.add(addPick(cm, p.id));
+          var hc = zCyl(Math.max(0.008, (p.r - (p.lift || 0)) * 0.3), zc - z0 + 0.03, ink2M.clone(), 20);
+          hc.position.set(l.x, l.y, (zc + z0) / 2); g.add(addPick(hc, p.id));
+        } else if (p.style === 'rim') {
+          // aro o polea: la banda del aro con sus dos bordes; el buje y los radios, detrás
+          var Dr = Math.max(0.06, 2 * maxFreeR + 0.02);
+          var bandR = new THREE.Mesh((function () { var c = new THREE.CylinderGeometry(p.r, p.r, Dr, 72, 1, true); c.rotateX(Math.PI / 2); return c; })(),
+            mat(colors.steel, 0.35, 0.85, { side: THREE.DoubleSide }));
+          bandR.position.set(l.x, l.y, z0); g.add(addPick(bandR, p.id));
+          [-1, 1].forEach(function (sd) {
+            var lipR = new THREE.Mesh(new THREE.TorusGeometry(p.r - 0.006, 0.01, 8, 72), mat(colors.steel, 0.3, 0.9));
+            lipR.position.set(l.x, l.y, z0 + sd * Dr / 2); g.add(addPick(lipR, p.id));
+          });
+          var nr = Math.max(1, p.spokes || 2), zs = z0 - Dr / 2 - 0.01;
+          for (var kr = 0; kr < nr; kr++) {
+            var tr = kr * 2 * Math.PI / nr, spr = box(p.r * 0.96, 0.02, 0.01, ink2M.clone());
+            spr.position.set(l.x + Math.cos(tr) * p.r * 0.48, l.y + Math.sin(tr) * p.r * 0.48, zs); spr.rotation.z = tr; g.add(addPick(spr, p.id));
+          }
+          var hbr = zCyl(Math.max(0.02, p.r * 0.07), 0.03, ink2M.clone(), 24);
+          hbr.position.set(l.x, l.y, zs); g.add(addPick(hbr, p.id));
+        } else if (p.style === 'ring') {
           var D = Math.max(0.1, 2 * maxFreeR + 0.03), geo = P.ringGeometry(p);
           var back = zCyl(p.r, 0.012, mat(colors.part, 0.8, 0, { transparent: true, opacity: 0.92 }), 64);
           back.position.set(l.x, l.y, z0 - D / 2); g.add(addPick(back, p.id));
@@ -260,10 +300,13 @@
         var o = host.isStatic ? { x: 0, y: 0 } : { x: host.x0 || 0, y: host.y0 || 0 };
         // los imanes pegados a una pieza van en su cara delantera, para que se vean
         var zm = host.isStatic ? 0 : zb(host) + 0.014 + P.magnetModel(p).size / 4;
-        buildMagnet(p, g, o, zm);
+        var mgrp = buildMagnet(p, g, o, zm);
         if (host.isStatic) {
           var mount = zCyl(0.008, zm - WALL_Z, inkM.clone(), 10);
           mount.position.set(p.x, p.y, (zm + WALL_Z) / 2); machine.add(mount);
+          // se puede mover con el dedo durante la prueba
+          [mgrp, mount].forEach(function (o) { o.userData.bx = o.position.x; o.userData.by = o.position.y; });
+          wallParts[p.id] = [mgrp, mount];
         }
       } else if (p.kind === 'pin') {
         var jp = info.jointOf[p.id];
@@ -367,6 +410,7 @@
       half(L / 2, wb2, wb2, sM, -L / 4);
     }
     g.add(grp);
+    return grp;
   }
 
   function fitShadow() {
@@ -523,7 +567,7 @@
 
   root.PerpetuumGL = {
     init: init, resize: resize, setQuality: setQuality, snapshot: snapshot, setColors: setColors, setTheme: setTheme, rebuild: rebuild, update: update, render: render,
-    planePoint: planePoint, pick: pick, project: project, ppm: ppm, fit: fit, orbit: orbit, zoom: zoom, pan: pan, front: front,
+    planePoint: planePoint, pick: pick, offsetPart: offsetPart, project: project, ppm: ppm, fit: fit, orbit: orbit, zoom: zoom, pan: pan, front: front,
     cam: cam, ok: function () { return ok; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

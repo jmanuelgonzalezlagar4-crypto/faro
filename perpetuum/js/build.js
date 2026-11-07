@@ -5,7 +5,7 @@
   var T = (root.PerpetuumI18n && root.PerpetuumI18n.t) || function (s) { return s; };
   var DEG = Math.PI / 180;
 
-  var BAR_R = 0.012, RAMP_R = 0.012, MAG_R = 0.016, RIM_R = 0.014, DIV_R = 0.011;
+  var BAR_R = 0.012, RAMP_R = 0.012, MAG_R = 0.016, RIM_R = 0.014, DIV_R = 0.011, CAM_R = 0.006;
 
   // Calidad del eje. par de rozamiento = fc·carga + ft0  (fc = coeficiente × radio del eje)
   var BEARINGS = {
@@ -37,6 +37,22 @@
   function makeWheel(d, x, y, r) {
     return { id: uid(d), kind: 'wheel', x: x, y: y, r: r || 0.5, m: 3, style: 'disc', cells: 8, tilt: 35, spokes: 8,
       axle: 'fixed', bearing: 'bronce', gen: 0, rpm: 0 };
+  }
+  // leva: una rueda con forma, con «puntas» que empujan lo que la toca. Va delante de la rueda (plano 1).
+  function makeCam(d, x, y, r) {
+    var p = makeWheel(d, x, y, r || 0.06);
+    p.style = 'cam'; p.m = 0.1; p.lift = Math.round(p.r * 0.4 * 1000) / 1000; p.lobes = 1; p.phase = 90; p.plane = 1; p.spokes = 0;
+    return p;
+  }
+  // contorno de la leva respecto de su centro: radio mayor p.r en cada punta, p.r - p.lift en los valles
+  function camProfile(p, n) {
+    n = n || 72;
+    var out = [], L = Math.max(1, Math.round(p.lobes || 1)), lift = Math.max(0, Math.min(p.r * 0.6, p.lift || 0)), ph = (p.phase || 0) * DEG;
+    for (var i = 0; i < n; i++) {
+      var t = i / n * 2 * Math.PI, rho = p.r - lift + lift * (1 + Math.cos(L * (t - ph))) / 2;
+      out.push([rho * Math.cos(t), rho * Math.sin(t)]);
+    }
+    return out;
   }
   function makeBall(d, x, y) {
     return { id: uid(d), kind: 'ball', x: x, y: y, r: 0.05, m: 1, mat: 'plomo' };
@@ -328,8 +344,9 @@
   }
 
   function partMass(p) {
+    if (p.kind === 'wheel' && p.style === 'cam') { var rc = p.r - (p.lift || 0) / 2; return { m: p.m, cx: p.x, cy: p.y, I: 0.5 * p.m * rc * rc }; }
     if (p.kind === 'wheel') {
-      var I = p.style === 'ring' ? 0.85 * p.m * p.r * p.r : 0.5 * p.m * p.r * p.r;
+      var I = p.style === 'rim' ? 0.92 * p.m * p.r * p.r : (p.style === 'ring' ? 0.85 * p.m * p.r * p.r : 0.5 * p.m * p.r * p.r);
       return { m: p.m, cx: p.x, cy: p.y, I: I };
     }
     if (p.kind === 'ball') return { m: p.m, cx: p.x, cy: p.y, I: 0.4 * p.m * p.r * p.r };
@@ -338,7 +355,7 @@
   }
 
   function partDrag(p) {
-    if (p.kind === 'wheel') return { k: 0.5 * 1.0 * (2 * p.r * 0.03), rot: 0.01 * Math.pow(p.r, 4) * (p.style === 'ring' ? 1.5 : 1) };
+    if (p.kind === 'wheel') return { k: 0.5 * 1.0 * (2 * p.r * 0.03), rot: 0.01 * Math.pow(p.r, 4) * (p.style === 'ring' || p.style === 'rim' ? 1.5 : 1) };
     if (p.kind === 'ball') return { k: 0.5 * 0.47 * Math.PI * p.r * p.r, rot: 0 };
     var L = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
     return { k: 0.5 * 1.0 * L * 0.02, rot: 0.5 * 1.0 * 0.02 * Math.pow(L, 4) / 32 };
@@ -347,7 +364,15 @@
   function addShapes(body, p, ox, oy) {
     if (p.kind === 'wheel') {
       var mu = 0.45, e = 0.3;
-      if (p.style === 'ring') {
+      if (p.style === 'cam') {
+        // la leva es una curva lisa (en el motor, forma 'k'), para que lo que se apoya en ella ruede sin tropezar
+        var pl = p.plane == null ? 1 : p.plane, liftK = Math.max(0, Math.min(p.r * 0.6, p.lift || 0));
+        body.shapes.push({ t: 'k', x: p.x - ox, y: p.y - oy, r: CAM_R, R: p.r, lift: liftK, lobes: Math.max(1, Math.round(p.lobes || 1)), ph: (p.phase || 0) * DEG, mu: 0.3, e: 0.1, crr: 0.002, part: p.id, plane: pl });
+        body.shapes.push({ t: 'c', x: p.x - ox, y: p.y - oy, r: Math.max(0.005, (p.r - liftK) * 0.6), mu: 0.3, e: 0.1, part: p.id, plane: pl });
+      } else if (p.style === 'rim') {
+        // aro o polea: solo el aro choca; el buje y los radios van detrás, donde no llega lo de dentro
+        ringGeometry(p).rim.forEach(function (s) { body.shapes.push({ t: 's', ax: p.x + s[0] - ox, ay: p.y + s[1] - oy, bx: p.x + s[2] - ox, by: p.y + s[3] - oy, r: RIM_R, mu: 0.4, e: 0.2, crr: 0.002, part: p.id }); });
+      } else if (p.style === 'ring') {
         var g = ringGeometry(p);
         g.rim.forEach(function (s) { body.shapes.push({ t: 's', ax: p.x + s[0] - ox, ay: p.y + s[1] - oy, bx: p.x + s[2] - ox, by: p.y + s[3] - oy, r: RIM_R, mu: mu, e: e, part: p.id }); });
         g.dividers.forEach(function (s) { body.shapes.push({ t: 's', ax: p.x + s[0] - ox, ay: p.y + s[1] - oy, bx: p.x + s[2] - ox, by: p.y + s[3] - oy, r: DIV_R, mu: mu, e: e, part: p.id }); });
@@ -357,9 +382,9 @@
       }
     } else if (p.kind === 'ball') {
       var mat = MATERIALS[p.mat] || MATERIALS.plomo;
-      body.shapes.push({ t: 'c', x: p.x - ox, y: p.y - oy, r: p.r, mu: mat.mu, e: mat.e, crr: mat.crr, part: p.id });
+      body.shapes.push({ t: 'c', x: p.x - ox, y: p.y - oy, r: p.r, mu: mat.mu, e: mat.e, crr: mat.crr, part: p.id, plane: p.plane || 0 });
     } else if (p.kind === 'bar') {
-      body.shapes.push({ t: 's', ax: p.x1 - ox, ay: p.y1 - oy, bx: p.x2 - ox, by: p.y2 - oy, r: BAR_R, mu: 0.45, e: 0.3, part: p.id });
+      body.shapes.push({ t: 's', ax: p.x1 - ox, ay: p.y1 - oy, bx: p.x2 - ox, by: p.y2 - oy, r: BAR_R, mu: 0.45, e: 0.3, part: p.id, plane: p.plane || 0 });
     }
   }
 
@@ -506,6 +531,122 @@
     return d;
   }
 
+  // motor de imanes con leva: la leva aparta el imán fijo justo antes del «punto pegajoso»
+  function exampleCamMotor() {
+    var d = emptyDesign();
+    d.example = 'leva';
+    var cx = 0, cy = 0.12, R = 0.2;
+    var wh = makeWheel(d, cx, cy, R);
+    wh.m = 2; wh.spokes = 4; wh.bearing = 'bolas'; wh.rpm = 90;
+    d.parts.push(wh);
+    for (var k = 0; k < 4; k++) {
+      var th = k * Math.PI / 2, mg = makeMagnet(d, cx + 0.182 * Math.cos(th), cy + 0.182 * Math.sin(th), wh.id, 'bar');
+      mg.ang = th / DEG; d.parts.push(mg);
+    }
+    var cam = makeCam(d, cx, cy, 0.07);
+    cam.lift = 0.018; cam.lobes = 4; cam.phase = 45; cam.bearing = 'bolas';
+    d.parts.push(cam);
+    var weld = makePin(d, cx, cy, wh.id, cam.id); weld.mode = 'rigid'; d.parts.push(weld);
+    // brazo seguidor: bisagra en la pared a la izquierda, rodillo sobre la leva y el imán fijo en la punta
+    var rr = 0.012, yb = cy + (cam.r - cam.lift) + rr + CAM_R + 0.002;
+    var arm = makeBar(d, -0.12, yb, 0.25, yb); arm.m = 0.06; arm.plane = 1; d.parts.push(arm);
+    var piv = makePin(d, -0.12, yb, null, arm.id); piv.bearing = 'bolas'; d.parts.push(piv);
+    var roller = makeBall(d, cx, yb); roller.r = rr; roller.m = 0.03; roller.mat = 'plomo'; roller.plane = 1; d.parts.push(roller);
+    var rw = makePin(d, cx, yb, arm.id, roller.id); rw.bearing = 'bolas'; d.parts.push(rw);   // el rodillo gira: rueda sobre la leva
+    var st = makeMagnet(d, 0.232, yb, arm.id, 'bar');
+    st.ang = Math.atan2(yb - cy, 0.232 - cx) / DEG; d.parts.push(st);
+    return d;
+  }
+
+  // rueda de hámster con imán: una polea con una bola de hierro suelta dentro y un imán por fuera
+  function exampleHamster() {
+    var d = emptyDesign();
+    d.example = 'hamster';
+    var cx = 0, cy = 0.38, R = 0.25;
+    d.parts.push((function () { var r = makeRamp(d, -0.36, 0.03, 0.36, 0.03); r.mat = 'madera'; return r; })());
+    var wh = makeWheel(d, cx, cy, R);
+    wh.style = 'rim'; wh.m = 0.6; wh.spokes = 2; wh.bearing = 'bolas'; wh.rpm = 0;
+    d.parts.push(wh);
+    // la bola, abajo, apoyada en el aro por dentro
+    var br = 0.018, rr = R - RIM_R * 2 - br - 0.002;
+    var ball = makeBall(d, cx, cy - rr); ball.r = br; ball.m = 0.19; ball.mat = 'acero';
+    d.parts.push(ball);
+    // el imán, por fuera, abajo a la izquierda, mirando al eje
+    var th = -110 * DEG, rm = R + 0.003 + 0.05;
+    var mg = makeMagnet(d, +(cx + rm * Math.cos(th)).toFixed(3), +(cy + rm * Math.sin(th)).toFixed(3), null, 'bar');
+    mg.size = 0.1; mg.ang = 70; mg.mu = magnetModel(mg).mu;   // un bloque de imanes de neodimio, mirando al eje
+    d.parts.push(mg);
+    return d;
+  }
+
+  // cilindro con imanes en espiral (dos bandas en la maqueta) y una barra arriba con un imán, que gira
+  // apoyada a la derecha. Una leva en el lateral del cilindro, siempre tocando la barra, la levanta en el
+  // punto muerto (donde la espiral termina y vuelve a empezar) y la deja bajar después. Visto de frente al eje.
+  function exampleSpiral(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'espiral';
+    var cx = 0, cy = 0.17, R = 0.05;
+    var base = makeRamp(d, -0.15, 0.03, 0.17, 0.03); base.mat = 'madera'; d.parts.push(base);
+    var wh = makeWheel(d, cx, cy, R);
+    wh.m = opts.m || 3; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -150;   // el empujón inicial, al revés que las agujas del reloj
+    d.parts.push(wh);
+    // 12 imanes en espiral: cada uno un poco más fuera (más cerca del imán de la barra) que el anterior.
+    // El último pasa bajo el imán cuando el cilindro ha girado unos 175°, justo cuando la paleta levanta la barra.
+    var n = 12;
+    for (var k = 0; k < n; k++) {
+      var th = ((opts.start != null ? opts.start : 245) - k * 360 / n) * DEG, rk = R - 0.004 + k * 0.0015;
+      var mg = makeMagnet(d, +(cx + rk * Math.cos(th)).toFixed(4), +(cy + rk * Math.sin(th)).toFixed(4), wh.id, 'disc');
+      mg.size = opts.rotSize || 0.02; mg.ang = Math.round(th / DEG); mg.grade = 'n52'; mg.mu = magnetModel(mg).mu;
+      d.parts.push(mg);
+    }
+    // la leva, en el lateral del cilindro (delante, en el mismo eje): en forma de huevo, con la punta
+    // hacia abajo al empezar. Llega arriba cuando la espiral está en su punto muerto.
+    // radio de la base fijo (ahí descansa el rodillo); la punta sube «lift» por encima
+    var lift = opts.lift != null ? opts.lift : 0.002;   // lo mínimo: cuanto más sube, más gasta
+    var cam = makeCam(d, cx, cy, 0.082 + lift);
+    cam.lift = lift; cam.lobes = 1; cam.phase = opts.phase != null ? opts.phase : 270; cam.m = 0.05; cam.bearing = 'bolas';
+    if (!opts.noCam) { d.parts.push(cam); var cw = makePin(d, cx, cy, wh.id, cam.id); cw.mode = 'rigid'; d.parts.push(cw); }
+    // la barra de arriba, con la bisagra a la derecha (en el agarre). De ella baja un vástago con un rodillo
+    // que va siempre apoyado en la leva (como el seguidor de una leva) y cuelga el imán, encima del cilindro.
+    var rr = opts.rr || 0.014, yr = cy + (cam.r - cam.lift) + CAM_R + rr + 0.001, yl = cy + 0.145;
+    var lever = makeBar(d, 0.12, yl, -0.06, yl); lever.m = opts.lm || 0.1; lever.plane = 1; d.parts.push(lever);
+    var piv = makePin(d, 0.12, yl, null, lever.id); piv.mode = 'limits'; piv.lo = -60; piv.hi = opts.hi != null ? opts.hi : 1; piv.bearing = 'bolas';
+    d.parts.push(piv);
+    var stem = makeBar(d, 0.015, yl, 0.015, yr + BAR_R); stem.m = 0.01; stem.plane = 1; d.parts.push(stem);
+    var sw = makePin(d, 0.015, yl, lever.id, stem.id); sw.mode = 'rigid'; d.parts.push(sw);
+    var roller = makeBall(d, 0.015, yr); roller.r = rr; roller.m = 0.02; roller.mat = opts.rmat || 'madera'; roller.plane = 1; d.parts.push(roller);   // rodillo de plástico o madera: no lo atraen los imanes
+    var rp = makePin(d, 0.015, yr, stem.id, roller.id); rp.bearing = 'bolas'; d.parts.push(rp);
+    if (opts.spring) {
+      // muelle que tira de la barra hacia abajo, para que el rodillo no se despegue de la leva
+      var sp = makeSpring(d, -0.05, yl, -0.05, cy - 0.04, lever.id, null); sp.k = opts.spring; sp.rest = (yl - cy + 0.04) - 0.01; sp.damp = 0.05;
+      d.parts.push(sp);
+    }
+    var hy = cy + (opts.hy || 0.094);
+    var hanger = makeBar(d, 0, yl, 0, hy + 0.01); hanger.m = 0.01; d.parts.push(hanger);   // en el plano del cilindro: la leva no la toca
+    var hw = makePin(d, 0, yl, lever.id, hanger.id); hw.mode = 'rigid'; d.parts.push(hw);
+    var st = makeMagnet(d, cx, hy, hanger.id, 'bar');
+    st.size = opts.stSize || 0.03; st.ang = opts.stAng != null ? opts.stAng : 90; st.grade = 'n52'; st.mu = magnetModel(st).mu;
+    d.parts.push(st);
+    return d;
+  }
+
+  // la más eficiente: lo que queda del cilindro de imanes al quitar todo lo que gasta o no aporta.
+  // Un volante en un rodamiento de bolas y un generador que convierte el giro en electricidad deprisa,
+  // antes de que el roce se lo coma.
+  function exampleEfficient(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'eficiente';
+    var cx = 0, cy = 0.17, R = 0.05;
+    var base = makeRamp(d, -0.15, 0.03, 0.17, 0.03); base.mat = 'madera'; d.parts.push(base);
+    var wh = makeWheel(d, cx, cy, R);
+    wh.m = 3; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -150;
+    wh.gen = opts.gen != null ? opts.gen : 0.02; wh.gdest = 'bus';
+    d.parts.push(wh);
+    return d;
+  }
+
   var EXAMPLES = {
     mazos: { title: T('Rueda de mazos'), make: exampleMallets },
     bolas: { title: T('Rueda de bolas'), make: exampleBalls },
@@ -513,16 +654,20 @@
     motor: { title: T('Motor de imanes'), make: exampleMagnetMotor },
     pendulo: { title: T('Péndulo de control'), make: examplePendulum },
     bucle: { title: T('Motor que se alimenta solo'), make: exampleLoop },
-    electro: { title: T('Rueda con electroimán'), make: exampleElectro }
+    electro: { title: T('Rueda con electroimán'), make: exampleElectro },
+    leva: { title: T('Motor de imanes con leva'), make: exampleCamMotor },
+    hamster: { title: T('Rueda de hámster con imán'), make: exampleHamster },
+    espiral: { title: T('Cilindro de imanes con palanca'), make: exampleSpiral },
+    eficiente: { title: T('La más eficiente'), make: exampleEfficient }
   };
 
   root.PerpetuumBuild = {
     build: build, emptyDesign: emptyDesign, find: find, isBodyPart: isBodyPart, ringGeometry: ringGeometry, ringSlots: ringSlots,
-    makeWheel: makeWheel, makeBall: makeBall, makeBar: makeBar, makeRamp: makeRamp, makePin: makePin,
+    makeWheel: makeWheel, makeCam: makeCam, camProfile: camProfile, makeBall: makeBall, makeBar: makeBar, makeRamp: makeRamp, makePin: makePin,
     makeSpring: makeSpring, makeMagnet: makeMagnet, partMass: partMass, magSize: magSize,
     magnetModel: magnetModel, electroPower: electroPower, GRADES: GRADES, MAG_SHAPES: MAG_SHAPES,
     BEARINGS: BEARINGS, MATERIALS: MATERIALS, GRAVITY: GRAVITY, EXAMPLES: EXAMPLES,
-    BAR_R: BAR_R, RAMP_R: RAMP_R, MAG_R: MAG_R, RIM_R: RIM_R, DIV_R: DIV_R
+    BAR_R: BAR_R, RAMP_R: RAMP_R, MAG_R: MAG_R, RIM_R: RIM_R, DIV_R: DIV_R, CAM_R: CAM_R
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PerpetuumBuild;
 })(typeof window !== 'undefined' ? window : globalThis);
