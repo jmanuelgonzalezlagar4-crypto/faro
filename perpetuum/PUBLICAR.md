@@ -103,7 +103,7 @@ En `temporada.json`, dentro de `tienda.productos`, añade una entrada por maquet
 ```
 
 - `enlace`: tu enlace de afiliado. Lo consigues en el programa de afiliados de AliExpress (AliExpress Portals). Lee sus condiciones y comprueba que permiten usar los enlaces dentro de una app.
-- `ejemplo` (opcional): si la maqueta se parece a un ejemplo de la app, pon su clave y también aparecerá en «Ayuda» al abrir ese ejemplo. Las claves son `mazos`, `bolas`, `wilkins`, `motor`, `pendulo`, `bucle`, `electro`, `leva` y `hamster`.
+- `ejemplo` (opcional): si la maqueta se parece a un ejemplo de la app, pon su clave y también aparecerá en «Ayuda» al abrir ese ejemplo. Las claves son `mazos`, `bolas`, `wilkins`, `motor`, `pendulo`, `bucle`, `electro`, `leva`, `hamster` y `espiral`.
 - **Marca siempre que es publicidad.** La app lo hace con el texto `aviso`, que la ley española (LSSI) exige para las comunicaciones comerciales.
 - **Cuida los textos.** Muchas maquetas se venden como «movimiento perpetuo». En el Taller no digas que lo son. Preséntalas como lo que son: maquetas para comprobar en casa por qué se paran, o dónde esconden la pila.
 

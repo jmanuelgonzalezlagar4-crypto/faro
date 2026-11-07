@@ -183,6 +183,11 @@
       what: T('Una polea (solo el aro, que gira sobre su eje) con una bola de hierro suelta dentro. Al acercar un imán por fuera, la bola sube por el aro hacia el imán y el aro gira, como la rueda de un hámster.'),
       why: T('El imán tira de la bola hasta que su fuerza y el peso de la bola se igualan. La bola sube un poco, el aro gira un poco, y se paran: la energía que da el imán es la que tenía guardada al acercarlo, y se gasta en el roce. Para que el aro siguiera girando habría que ir moviendo el imán, y esa energía la pondría tu mano. Prueba: pulsa «Diseñar», arrastra el imán a otro sitio y vuelve a probar, o empuja la bola con el dedo durante la prueba y mira «Tus empujones» en el libro de cuentas.')
     },
+    espiral: {
+      title: T('Cilindro de imanes con palanca'), era: T('Otra maqueta de internet: un cilindro de latón con imanes en espiral.'),
+      what: T('Un cilindro con imanes en espiral: cada uno queda un poco más cerca del imán de la palanca que el anterior, así que el imán de arriba tira siempre hacia el siguiente. Donde la espiral termina está el punto muerto: ahí un golpeador en el mismo eje levanta la palanca para que el cilindro lo pase, y la palanca vuelve a caer sobre los imanes.'),
+      why: T('Lo que la espiral ayuda al acercarse lo frena en el punto muerto, y para saltarlo el golpeador tiene que levantar la palanca contra la fuerza de los imanes y su peso. Esa energía sale del propio giro, y cada golpe y cada roce gasta otro poco. Compruébalo: borra el golpeador (la leva) y prueba otra vez. Sin él, el cilindro da muchas más vueltas antes de pararse en el punto muerto: el golpeador no ayuda, gasta.')
+    },
     leva: {
       title: T('Motor de imanes con leva'), era: T('Una de las maquetas de imanes más vistas en internet.'),
       what: T('Cuatro imanes en el borde de la rueda y un imán fijo en la punta de un brazo. Una leva en el mismo eje sube y baja el brazo: aparta el imán fijo justo cuando un imán de la rueda llegaría al «punto pegajoso» y lo acerca cuando ya ha pasado.'),
@@ -772,7 +777,7 @@
       ctx.fillStyle = C.wood; ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(1.5, 2 * P.CAM_R * S.cam.s * 0.6);
       ctx.beginPath();
       pr.forEach(function (q, i) { var s2 = sp(b, p.x + q[0], p.y + q[1]); if (i) ctx.lineTo(s2.x, s2.y); else ctx.moveTo(s2.x, s2.y); });
-      ctx.closePath(); ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+      ctx.closePath(); ctx.globalAlpha = 0.45; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
       ctx.fillStyle = C['panel-2']; ctx.strokeStyle = C['ink-2']; ctx.lineWidth = 1.4;
       ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(4, (p.r - (p.lift || 0)) * 0.3 * S.cam.s), 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
     } else if (p.style === 'rim') {
@@ -2473,7 +2478,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();

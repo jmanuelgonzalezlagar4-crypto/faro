@@ -581,6 +581,42 @@
     return d;
   }
 
+  // cilindro con imanes en espiral, palanca con un imán encima y un golpeador en el mismo eje que la
+  // levanta en el punto muerto (donde la espiral termina y vuelve a empezar)
+  function exampleSpiral(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'espiral';
+    var cx = 0, cy = 0.14, R = 0.05;
+    var base = makeRamp(d, -0.15, 0.03, 0.15, 0.03); base.mat = 'madera'; d.parts.push(base);
+    var wh = makeWheel(d, cx, cy, R);
+    wh.m = 0.8; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -300;   // el empujón inicial, al revés que las agujas del reloj
+    d.parts.push(wh);
+    // 12 imanes en espiral: cada uno un poco más fuera (más cerca del imán de la palanca) que el anterior.
+    // El último pasa bajo la palanca cuando la rueda ha girado unos 175°, justo cuando el golpeador la levanta.
+    var n = 12;
+    for (var k = 0; k < n; k++) {
+      var th = ((opts.start != null ? opts.start : 245) - k * 360 / n) * DEG, rk = R - 0.004 + k * 0.0015;
+      var mg = makeMagnet(d, +(cx + rk * Math.cos(th)).toFixed(4), +(cy + rk * Math.sin(th)).toFixed(4), wh.id, 'disc');
+      mg.size = 0.012; mg.ang = Math.round(th / DEG); mg.grade = 'n52'; mg.mu = magnetModel(mg).mu;
+      d.parts.push(mg);
+    }
+    // golpeador: leva de una punta en el mismo eje, delante del cilindro
+    var cam = makeCam(d, cx, cy, 0.1);
+    cam.lift = 0.045; cam.lobes = 1; cam.phase = opts.phase != null ? opts.phase : 270; cam.m = 0.03; cam.bearing = 'bolas';
+    d.parts.push(cam);
+    var weld = makePin(d, cx, cy, wh.id, cam.id); weld.mode = 'rigid'; d.parts.push(weld);
+    // palanca: bisagra en el poste de la izquierda; el imán, encima del cilindro, mirando hacia abajo
+    var yb = cy + 0.09;   // con la palanca abajo, la punta del golpeador la alcanza; el resto de la leva no
+    var lever = makeBar(d, -0.11, yb, 0.06, yb); lever.m = 0.05; lever.plane = 1; d.parts.push(lever);
+    var piv = makePin(d, -0.11, yb, null, lever.id); piv.mode = 'limits'; piv.lo = -2; piv.hi = 30; piv.bearing = 'bolas';
+    d.parts.push(piv);
+    var st = makeMagnet(d, cx, yb, lever.id, 'bar');
+    st.size = 0.02; st.ang = opts.stAng != null ? opts.stAng : 90; st.grade = 'n52'; st.mu = magnetModel(st).mu;
+    d.parts.push(st);
+    return d;
+  }
+
   var EXAMPLES = {
     mazos: { title: T('Rueda de mazos'), make: exampleMallets },
     bolas: { title: T('Rueda de bolas'), make: exampleBalls },
@@ -590,7 +626,8 @@
     bucle: { title: T('Motor que se alimenta solo'), make: exampleLoop },
     electro: { title: T('Rueda con electroimán'), make: exampleElectro },
     leva: { title: T('Motor de imanes con leva'), make: exampleCamMotor },
-    hamster: { title: T('Rueda de hámster con imán'), make: exampleHamster }
+    hamster: { title: T('Rueda de hámster con imán'), make: exampleHamster },
+    espiral: { title: T('Cilindro de imanes con palanca'), make: exampleSpiral }
   };
 
   root.PerpetuumBuild = {
