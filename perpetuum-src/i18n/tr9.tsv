@@ -1,0 +1,10 @@
+5a3dfec	Floating arrow roller
+b23de1c	The improved arrow roller, floating on magnetic bearings.
+68b10f2	The same improved roller, but the cylinder no longer turns on ball bearings: it floats on two magnetic bearings, one at each end of the axle. In each one, a ring of 12 magnets stuck to the axle sits inside another ring of 18 fixed magnets, all magnetized along the axle with north on the same side: they push each other and the axle stays centred. Along the axle a needle tip holds it, because fixed magnets cannot hold it in every direction at once.
+7b8ede8	Removing the axle friction hardly changes anything: with the same push it turns about 15 times instead of 13, because what spends the energy is the cam, with its rollers, its guides and the little knocks of the rollers against it. Even with no friction or air at all, those knocks end up stopping it. The magnets give it no energy.
+c8cfedd	Floating flywheel
+5e5f2a0	What Claude proposes to get the most out of it.
+8a94cff	The same brass cylinder and the same push, but with no magnets pulling on it, no cam and nothing touching it: it floats on two magnetic bearings and only a needle tip holds it along the axle. The only things slowing it down are the air and that tip.
+ca2b06a	It's the machine that lasts longest: after 10 minutes it still turns at about 140 rpm, and it takes about half an hour to stop (in a vacuum bell jar, almost an hour). But it doesn't move by itself: it only stores the push and lets it go very slowly. Give it a generator (tap the cylinder, «Generator») and it returns 84 % of the push as electricity; more is impossible, because the generator itself loses 15 % as heat. It never returns more than you give it.
+f98697f	Floating on magnets
+cd6d193	It's held by the magnets you place around the axle (magnetized along the axle, with north on the same side). A needle tip holds it along the axle: it's the only thing that rubs.

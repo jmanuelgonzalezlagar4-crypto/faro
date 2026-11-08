@@ -287,6 +287,14 @@
           var hb = zCyl(Math.max(0.025, p.r * 0.09), 0.05, ink2M.clone(), 24);
           hb.position.set(l.x, l.y, z0); g.add(addPick(hb, p.id));
         }
+        if (p.axle === 'levitado') {
+          var hl = (p.len || 0.024) / 2 + 0.03;
+          var shaft = zCyl(0.006, 2 * hl, inkM.clone(), 16); shaft.position.set(l.x, l.y, z0); g.add(addPick(shaft, p.id));
+          var needle = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.03, 12), mat(colors.steel, 0.3, 0.9));
+          needle.rotation.x = -Math.PI / 2; needle.position.set(p.x, p.y, z0 + hl + 0.015); machine.add(needle);
+          var jw = info.wheelJoint[p.id];
+          if (jw) addDevices(p, jw, machine, p.x, p.y, z0 - hl - 0.04);
+        }
         if (p.axle === 'fixed') {
           var ax = zCyl(0.012, z0 - WALL_Z, inkM.clone(), 16);
           ax.position.set(p.x, p.y, (z0 + WALL_Z) / 2); machine.add(ax); ax.castShadow = true;
@@ -407,7 +415,12 @@
     grp.position.set(p.x - o.x, p.y - o.y, z);
     grp.rotation.z = a;
     function half(len, wdt, dep, material, cx) { var m = box(len, wdt, dep, material); m.position.x = cx; grp.add(addPick(m, p.id)); return m; }
-    if (model.shape === 'disc' && p.z != null) {
+    if (model.shape === 'disc' && p.ax) {
+      // imantado a lo largo del eje: un disco de cara a nosotros, con el norte delante o detrás
+      [[p.ax > 0 ? nM : sM, 1], [p.ax > 0 ? sM : nM, -1]].forEach(function (e) {
+        var cm = zCyl(L / 2, L / 4, e[0], 24); cm.position.z = e[1] * L / 8; grp.add(addPick(cm, p.id));
+      });
+    } else if (model.shape === 'disc' && p.z != null) {
       // un disco tumbado sobre la superficie (el norte hacia fuera): su eje va en la dirección del imán
       [[nM, 1], [sM, -1]].forEach(function (e) {
         var cg = new THREE.CylinderGeometry(L / 2, L / 2, L / 4, 24); cg.rotateZ(-Math.PI / 2);

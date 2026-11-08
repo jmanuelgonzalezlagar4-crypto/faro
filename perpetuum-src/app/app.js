@@ -193,6 +193,16 @@
       what: T('El mismo cilindro, los mismos imanes y los mismos palos con sus guías. Cambian cuatro cosas: la leva es lisa (sube y baja poco a poco, con lo más alto justo en el salto de una flecha a la otra), levanta solo 8 mm, los rodillos son grandes (16 mm) y los muelles más suaves.'),
       why: T('Con la leva lisa, lo que cuesta subir los palos se devuelve al bajarlos, y sin escalón no hay golpe; los rodillos grandes giran más despacio y gastan menos en su eje. Con el mismo empujón da unas 13 vueltas en vez de 4. Aun así no se mueve sola: el cilindro sin imanes ni leva da 35. Los imanes no aportan energía; lo mejor que se puede hacer es que gasten poco.')
     },
+    flechas3: {
+      title: T('Rodillo de flechas flotante'), era: T('El rodillo de flechas mejorado, flotando en cojinetes magnéticos.'),
+      what: T('El mismo rodillo mejorado, pero el cilindro ya no gira en rodamientos de bolas: flota en dos cojinetes magnéticos, uno en cada punta del eje. En cada uno, un anillo de 12 imanes pegados al eje dentro de otro de 18 imanes fijos, todos imantados a lo largo del eje con el norte hacia el mismo lado: se empujan y el eje queda centrado. A lo largo del eje lo aguanta una punta de aguja, porque con imanes fijos no se puede sostener en todas las direcciones a la vez.'),
+      why: T('Quitar el roce del eje casi no cambia nada: con el mismo empujón da unas 15 vueltas en vez de 13, porque lo que gasta la energía es la leva, con sus rodillos, sus guías y los golpecitos de los rodillos contra ella. Incluso sin ningún rozamiento ni aire, esos golpecitos acaban parándolo. Los imanes no le dan energía.')
+    },
+    flotante: {
+      title: T('Volante flotante'), era: T('Lo que propone Claude para sacar el máximo.'),
+      what: T('El mismo cilindro de latón y el mismo empujón, pero sin imanes que tiren de él, sin leva y sin nada que lo toque: flota en dos cojinetes magnéticos y solo una punta de aguja lo aguanta a lo largo del eje. Lo único que lo frena es el aire y esa punta.'),
+      why: T('Es la máquina que más aguanta: a los 10 minutos todavía gira a unas 140 rpm, y tarda una media hora en pararse (en una campana de vacío, casi una hora). Pero no se mueve sola: solo guarda el empujón y lo suelta muy despacio. Ponle un generador (toca el cilindro, «Generador») y devuelve el 84 % del empujón como electricidad; más no se puede, porque el propio generador pierde un 15 % en calor. Nunca devuelve más de lo que le das.')
+    },
     eficiente: {
       title: T('La más eficiente'), era: T('Diseñada por el taller a partir del cilindro de imanes.'),
       what: T('Lo que queda del cilindro de imanes al quitar todo lo que gasta o no aporta: un cilindro de latón que gira en un rodamiento de bolas, con un generador en el eje. Sin leva, sin barra y sin imanes.'),
@@ -262,8 +272,8 @@
         p.lift = isFinite(p.lift) ? p.lift : p.r * 0.4; p.lobes = isFinite(p.lobes) ? p.lobes : 1; p.phase = isFinite(p.phase) ? p.phase : 90;
         if (p.plane == null) p.plane = 1;
       }
-      if (p.plane != null) p.plane = p.plane ? 1 : 0;
-      ['z', 'wz', 'wide', 'soft', 'th', 'len', 'sang', 'drop'].forEach(function (k) { if (k in p && !isFinite(p[k])) delete p[k]; });
+      if (p.plane != null) p.plane = p.plane === 2 && p.kind === 'magnet' ? 2 : (p.plane ? 1 : 0);
+      ['z', 'wz', 'wide', 'soft', 'th', 'len', 'sang', 'drop', 'ax'].forEach(function (k) { if (k in p && !isFinite(p[k])) delete p[k]; });
       out.parts.push(p);
       var n = parseInt(String(p.id).replace(/\D/g, ''), 10);
       if (n > maxId) maxId = n;
@@ -733,7 +743,7 @@
     drawPhoto();
     drawGrid();
     var fns = { ramp: drawRamp, wheel: drawWheel, spring: drawSpring, bar: drawBar, ball: drawBall, magnet: drawMagnet, pin: drawPin };
-    [0, 1].forEach(function (plane) {
+    [0, 1, 2].forEach(function (plane) {   // los cojinetes de las puntas del eje, delante de todo
       ['ramp', 'wheel', 'spring', 'bar', 'ball', 'magnet', 'pin'].forEach(function (k) {
         parts().forEach(function (p) { if (p.kind === k && planeOf(p) === plane) fns[k](p); });
       });
@@ -746,6 +756,7 @@
   }
   // plano de cada pieza: 1 = delante de la rueda (leva y su brazo); los imanes y bisagras, con su pieza
   function planeOf(p) {
+    if (p.plane === 2) return 2;   // detrás de todo (los cojinetes magnéticos de las puntas del eje)
     if (p.plane != null) return p.plane ? 1 : 0;
     if (p.kind === 'magnet') { var h = p.host && find(p.host); return h && h.plane ? 1 : 0; }
     if (p.kind === 'pin') { var q = find(p.b); return q && q.plane ? 1 : 0; }
@@ -838,6 +849,12 @@
       ctx.fillStyle = C.part; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(c.x, c.y, 4.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
       drawDevices(p, c.x, c.y, S.info.wheelJoint[p.id]);
+    } else if (p.axle === 'levitado') {
+      // flotando: sin eje a la pared; la punta de aguja que lo aguanta a lo largo, vista de frente
+      ctx.strokeStyle = C.accent; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(c.x, c.y, 2, 0, 2 * Math.PI); ctx.fill();
+      drawDevices(p, c.x, c.y, S.info.wheelJoint[p.id]);
     }
   }
   function drawBar(p) {
@@ -877,7 +894,7 @@
     var mo = !ghost && S.magOff && S.magOff[p.id], px = p.x + (mo ? mo.x : 0), py = p.y + (mo ? mo.y : 0);
     var host = ghost ? S.info.world.ground : bodyOf(p.host), c = ghost ? W2S(p.x, p.y) : sp(host, px, py);
     var ang = p.ang * DEG + (ghost ? 0 : bodyAngle(host)), model = P.magnetModel(p);
-    var L = Math.max(22, model.size * S.cam.s);
+    var L = Math.max(p.plane === 2 ? 4 : 22, model.size * S.cam.s);   // los de los cojinetes, a su tamaño: son muchos y juntos
     ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(-ang);
     if (ghost) ctx.globalAlpha = 0.45;
     ctx.lineWidth = 1.2; ctx.strokeStyle = C.ink;
@@ -887,7 +904,13 @@
       ctx.strokeRect(x, y, w, h);
     }
     if (!p.host && !ghost) { ctx.strokeStyle = C['ink-3']; ctx.lineWidth = 1; ctx.strokeRect(-L / 2 - 4, -L / 2 - 4, L + 8, L + 8); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; }
-    if (model.shape === 'disc') {
+    if (model.shape === 'disc' && p.ax) {
+      // imantado a lo largo del eje: se ve una cara entera, norte o sur
+      ctx.fillStyle = p.ax > 0 ? C.north : C.south; ctx.beginPath(); ctx.arc(0, 0, L / 2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      if (L >= 14) { ctx.fillStyle = '#ffffff'; ctx.font = '600 ' + Math.max(9, Math.round(L * 0.45)) + 'px ' + F.display; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.save(); ctx.rotate(ang); ctx.fillText(p.ax > 0 ? 'N' : 'S', 0, 1); ctx.restore(); }
+      ctx.restore();
+      return;
+    } else if (model.shape === 'disc') {
       ctx.fillStyle = C.north; ctx.beginPath(); ctx.arc(0, 0, L / 2, -Math.PI / 2, Math.PI / 2); ctx.fill();
       ctx.fillStyle = C.south; ctx.beginPath(); ctx.arc(0, 0, L / 2, Math.PI / 2, 3 * Math.PI / 2); ctx.fill();
       ctx.beginPath(); ctx.arc(0, 0, L / 2, 0, 2 * Math.PI); ctx.stroke();
@@ -1085,7 +1108,7 @@
   function mainWheel() {
     var sel = find(S.sel);
     if (sel && sel.kind === 'wheel' && sel.axle === 'fixed' && S.info.wheelJoint[sel.id]) return sel;
-    return parts().filter(function (p) { return p.kind === 'wheel' && p.axle === 'fixed' && S.info.wheelJoint[p.id]; })[0] || null;
+    return parts().filter(function (p) { return p.kind === 'wheel' && p.axle === 'fixed' && S.info.wheelJoint[p.id]; })[0] || null;   // flotando no tiene un eje fijo en el que medir pares
   }
   function torqueBalance() {
     var wp = mainWheel();
@@ -1425,7 +1448,12 @@
       h += segField(T('Tipo'), 'f_style', [['disc', T('Disco con radios')], ['ring', T('Con compartimentos')], ['rim', T('Aro (polea)')]], p.style, true);
       if (p.style === 'ring') { h += field(T('Compartimentos'), 'f_cells', 3, 16, 1, p.cells, '', null, 0); h += field(T('Inclinación de los separadores'), 'f_tilt', 0, 70, 1, p.tilt, '°', null, 0); }
       else h += field(T('Radios (dibujo)'), 'f_spokes', 3, 16, 1, p.spokes || 8, '', null, 0);
-      h += segField(T('Eje'), 'f_axle', [['fixed', T('Fijo a la pared')], ['free', T('Suelto')]], p.axle, true);
+      h += segField(T('Eje'), 'f_axle', [['fixed', T('Fijo a la pared')], ['levitado', T('Flotando en imanes')], ['free', T('Suelto')]], p.axle, true);
+      if (p.axle === 'levitado') {
+        h += '<p class="note field wide">' + T('Lo sostienen los imanes que pongas alrededor del eje (imantados a lo largo del eje, con el norte hacia el mismo lado). Una punta de aguja lo aguanta a lo largo: es lo único que roza.') + '</p>';
+        h += field(T('Giro inicial'), 'f_rpm', -600, 600, 1, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
+        h += deviceFields(p);
+      }
       if (p.axle === 'fixed') {
         h += selectField(T('Calidad del eje'), 'f_bearing', BEAR_OPTS, p.bearing);
         h += field(T('Giro inicial'), 'f_rpm', -600, 600, 1, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
@@ -2520,7 +2548,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam', flechas3: 'mag-disc', flotante: 'wheel' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();

@@ -7,6 +7,7 @@
   var MU0 = 4 * Math.PI * 1e-7;
   var KMAG = 1e-7;           // μ0 / 4π
   var MAG_SOFT2 = 0.02 * 0.02;
+  var MAG_ZCUT = 0.1;   // dos imanes separados más que esto a lo largo del eje no se cuentan (su efecto es despreciable)
   var SLOP = 0.002;          // penetración tolerada (m)
   var MARGIN = 0.001;        // distancia a la que se activa un contacto (m)
   var BOUNCE_V = 0.25;       // velocidad mínima para rebotar (m/s)
@@ -361,9 +362,10 @@
     opt = opt || {};
     var la = a.toLocal(wx, wy), lb = b.toLocal(wx, wy);
     var sl = opt.slide != null, sa = sl ? opt.slide - a.a : 0;
+    // spin: solo rozamiento al girar (una punta de aguja en el extremo del eje); no sujeta la pieza en el plano
     if (sl) { opt.limit = true; opt.lo = 0; opt.hi = 0; opt.fc = 0; opt.ft0 = 0; }
     var j = {
-      slide: sl, sax: Math.cos(sa), say: Math.sin(sa), sfc: opt.sfc || 0, sf0: opt.sf0 || 0, js: 0,
+      slide: sl, spin: !!opt.spin, sax: Math.cos(sa), say: Math.sin(sa), sfc: opt.sfc || 0, sf0: opt.sf0 || 0, js: 0,
       nx: 0, ny: 0, tx: 0, ty: 0, kn: 0, kt: 0, maxSF: 0,
       a: a, b: b, lax: la.x, lay: la.y, lbx: lb.x, lby: lb.y,
       ref: b.a - a.a,
@@ -411,9 +413,10 @@
   // cuentan los polos (una carga en cada cara) y no un dipolo: de cerca es mucho más fiel (un norte frente a un
   // norte siempre empuja). Sin ella, dipolo como siempre.
   // wz: un imán con polos puede ser largo a lo largo del eje (sus caras son dos líneas cargadas de ese largo)
-  World.prototype.addMagnet = function (body, wx, wy, ang, mu, tag, z, soft, poles, wz) {
+  // ax: imán imantado a lo largo del eje (+1: norte hacia delante, -1: hacia atrás); solo con polos
+  World.prototype.addMagnet = function (body, wx, wy, ang, mu, tag, z, soft, poles, wz, ax) {
     var l = body.toLocal(wx, wy);
-    var m = { body: body, lx: l.x, ly: l.y, la: ang - body.a, mu: mu, mu0: mu, on: true, wx: 0, wy: 0, z: z || 0, s2: soft > 0 ? soft * soft : MAG_SOFT2 / 2, d: poles > 0 ? poles : 0, wz: poles > 0 && wz > 0 ? wz : 0,
+    var m = { body: body, lx: l.x, ly: l.y, la: ang - body.a, mu: mu, mu0: mu, on: true, wx: 0, wy: 0, z: z || 0, s2: soft > 0 ? soft * soft : MAG_SOFT2 / 2, d: poles > 0 ? poles : 0, wz: poles > 0 && wz > 0 && !ax ? wz : 0, ax: poles > 0 && ax ? (ax > 0 ? 1 : -1) : 0,
       dx: 0, dy: 0, fx: 0, fy: 0, tq: 0, tag: tag || null };
     this.magnets.push(m);
     return m;
@@ -497,16 +500,18 @@
     for (var j = 0; j < n; j++) { var za = -awz / 2 + (j + 0.5) * awz / n; g += lineG(rho, dz - za - bwz / 2, dz - za + bwz / 2); }
     return g / n / bwz;
   }
-  function Upoles(ax, ay, adx, ady, amu, ad, bx, by, bdx, bdy, bmu, bd, dz, s2, awz, bwz) {
+  // aa, ab: imantado a lo largo del eje (los polos se separan en z y no en el plano)
+  function Upoles(ax, ay, adx, ady, amu, ad, bx, by, bdx, bdy, bmu, bd, dz, s2, awz, bwz, aa, ab) {
     var qa = amu / ad, qb = bmu / bd, ha = ad / 2, hb = bd / 2, U = 0;
+    var pa = aa ? 0 : 1, pb = ab ? 0 : 1;
     for (var i = -1; i <= 1; i += 2) {
-      var px = ax + i * ha * adx, py = ay + i * ha * ady;
-      for (var k = -1; k <= 1; k += 2) U += i * k * poleG(bx + k * hb * bdx - px, by + k * hb * bdy - py, dz, s2, awz, bwz);
+      var px = ax + i * ha * adx * pa, py = ay + i * ha * ady * pa, pz = i * ha * (aa || 0);
+      for (var k = -1; k <= 1; k += 2) U += i * k * poleG(bx + k * hb * bdx * pb - px, by + k * hb * bdy * pb - py, dz + k * hb * (ab || 0) - pz, s2, awz, bwz);
     }
     return KMAG * qa * qb * U;
   }
-  function Upair(ax, ay, adx, ady, amu, bx, by, bdx, bdy, bmu, dz, s2, ad, bd, awz, bwz) {
-    if (ad > 0 && bd > 0) return Upoles(ax, ay, adx, ady, amu, ad, bx, by, bdx, bdy, bmu, bd, dz || 0, s2 != null ? s2 : MAG_SOFT2, awz || 0, bwz || 0);
+  function Upair(ax, ay, adx, ady, amu, bx, by, bdx, bdy, bmu, dz, s2, ad, bd, awz, bwz, aa, ab) {
+    if (ad > 0 && bd > 0) return Upoles(ax, ay, adx, ady, amu, ad, bx, by, bdx, bdy, bmu, bd, dz || 0, s2 != null ? s2 : MAG_SOFT2, awz || 0, bwz || 0, aa || 0, ab || 0);
     var rx = bx - ax, ry = by - ay;
     var R2 = rx * rx + ry * ry + (dz ? dz * dz : 0) + (s2 != null ? s2 : MAG_SOFT2), R = Math.sqrt(R2), R5 = R2 * R2 * R;
     return KMAG * amu * bmu / R5 * (R2 * (adx * bdx + ady * bdy) - 3 * (adx * rx + ady * ry) * (bdx * rx + bdy * ry));
@@ -540,8 +545,8 @@
       a = M[i];
       for (j = i + 1; j < M.length; j++) {
         b = M[j];
-        if (a.body === b.body) continue;
-        U += Upair(a.wx, a.wy, a.dx, a.dy, a.mu, b.wx, b.wy, b.dx, b.dy, b.mu, b.z - a.z, a.s2 + b.s2, a.d, b.d, a.wz, b.wz);
+        if (a.body === b.body || Math.abs(b.z - a.z) > MAG_ZCUT) continue;
+        U += Upair(a.wx, a.wy, a.dx, a.dy, a.mu, b.wx, b.wy, b.dx, b.dy, b.mu, b.z - a.z, a.s2 + b.s2, a.d, b.d, a.wz, b.wz, a.ax, b.ax);
       }
     }
     for (i = 0; i < this.steel.length; i++) {
@@ -557,8 +562,8 @@
     for (j = 0; j < M.length; j++) {
       if (j === i) continue;
       b = M[j];
-      if (b.body === a.body) continue;
-      U += Upair(x, y, dx, dy, a.mu, b.wx, b.wy, b.dx, b.dy, b.mu, b.z - a.z, a.s2 + b.s2, a.d, b.d, a.wz, b.wz);
+      if (b.body === a.body || Math.abs(b.z - a.z) > MAG_ZCUT) continue;
+      U += Upair(x, y, dx, dy, a.mu, b.wx, b.wy, b.dx, b.dy, b.mu, b.z - a.z, a.s2 + b.s2, a.d, b.d, a.wz, b.wz, a.ax, b.ax);
     }
     for (j = 0; j < this.steel.length; j++) {
       var s = this.steel[j];
@@ -594,11 +599,13 @@
       var Uxm = this._magLocalU(i, m.wx - h, m.wy, m.dx, m.dy);
       var Uyp = this._magLocalU(i, m.wx, m.wy + h, m.dx, m.dy);
       var Uym = this._magLocalU(i, m.wx, m.wy - h, m.dx, m.dy);
+      m.fx = -(Uxp - Uxm) / (2 * h);
+      m.fy = -(Uyp - Uym) / (2 * h);
+      // un imán imantado a lo largo del eje no cambia al girar en el plano: no tiene par propio
+      if (m.ax) { m.tq = 0; continue; }
       var ca = Math.cos(h), sa = Math.sin(h);
       var Uap = this._magLocalU(i, m.wx, m.wy, m.dx * ca - m.dy * sa, m.dx * sa + m.dy * ca);
       var Uam = this._magLocalU(i, m.wx, m.wy, m.dx * ca + m.dy * sa, -m.dx * sa + m.dy * ca);
-      m.fx = -(Uxp - Uxm) / (2 * h);
-      m.fy = -(Uyp - Uym) / (2 * h);
       m.tq = -(Uap - Uam) / (2 * h);
     }
     for (j = 0; j < S.length; j++) {
@@ -872,7 +879,7 @@
       j.phaseA = phaseA;
       // arranque en caliente con el impulso de la misma fase del paso anterior
       var wpx = (phaseA ? j.pAx : j.pBx) * 0.9, wpy = (phaseA ? j.pAy : j.pBy) * 0.9;
-      if (j.slide) { wpx = 0; wpy = 0; }   // en las guías el arranque en caliente mete energía cuando algo se atasca contra ellas
+      if (j.slide || j.spin) { wpx = 0; wpy = 0; }   // en las guías el arranque en caliente mete energía cuando algo se atasca contra ellas
       j.px = wpx; j.py = wpy;
       applyImpulse(a, -wpx, -wpy, j.rax, j.ray);
       applyImpulse(bb, wpx, wpy, j.rbx, j.rby);
@@ -887,6 +894,14 @@
         j = J[k];
         var aa = j.a, b2 = j.b;
         if (j.slide) { this._solveSlide(j, phaseA); continue; }
+        if (j.spin) {
+          if (j.maxFric > 0 && j.kAng > 0) {
+            var lfs = -(b2.w - aa.w) / j.kAng, olds2 = j.jf;
+            j.jf = clamp(olds2 + lfs, -j.maxFric, j.maxFric); lfs = j.jf - olds2;
+            aa.w -= aa.iI * lfs; b2.w += b2.iI * lfs;
+          }
+          continue;
+        }
         if (j.kAng > 0) {
           if (j.maxFric > 0) {
             var lf = -(b2.w - aa.w) / j.kAng, old = j.jf;
@@ -1100,6 +1115,7 @@
 
   World.prototype.correctJoint = function (j) {
     var a = j.a, b = j.b;
+    if (j.spin) return;
     var ca = Math.cos(a.a), sa = Math.sin(a.a), cb = Math.cos(b.a), sb = Math.sin(b.a);
     var rax = ca * j.lax - sa * j.lay, ray = sa * j.lax + ca * j.lay;
     var rbx = cb * j.lbx - sb * j.lby, rby = sb * j.lbx + cb * j.lby;

@@ -24,6 +24,8 @@
   };
 
   var GRAVITY = { tierra: 9.81, luna: 1.62, marte: 3.71 };
+  // rozamiento de la punta de aguja que aguanta a lo largo un eje que flota en imanes (N·m)
+  var NEEDLE = 0.00002;
 
   function uid(d) { d.next = (d.next || 1); return 'p' + (d.next++); }
 
@@ -152,7 +154,8 @@
     // A lo largo del eje (fuera del dibujo): todos los dipolos van a la altura z del imán.
     // Con «poles» se cuentan sus dos caras (norte y sur), separadas por su grueso.
     var z0 = +p.z || 0, thick = p.poles ? (shape === 'disc' ? L / 2 : (shape === 'bar' ? L : 0)) : 0;
-    dip.forEach(function (dp) { dp.z = z0; dp.soft = p.soft > 0 ? p.soft : 0; dp.poles = thick; });
+    // ax: imantado a lo largo del eje (un disco visto de frente: una cara es el norte y la otra el sur)
+    dip.forEach(function (dp) { dp.z = z0; dp.soft = p.soft > 0 ? p.soft : 0; dp.poles = thick; dp.ax = thick && p.ax ? p.ax : 0; });
     if (shape === 'bar' && p.wz > 0) {
       // un imán de barra largo a lo largo del eje (wz): tiene más imán (si no es plano, su fondo era L/2)
       var more = p.wide > 0 ? 1 : p.wz / (L / 2);
@@ -272,12 +275,12 @@
       if (p.kind !== 'magnet') return;
       var host = bodyFor(p.host), model = magnetModel(p);
       model.shapes.forEach(function (sh) {
-        var o = { mu: 0.3, e: 0.3, crr: 0.002, part: p.id, massless: true, r: sh.r, t: sh.t };
+        var o = { mu: 0.3, e: 0.3, crr: 0.002, part: p.id, massless: true, r: sh.r, t: sh.t, plane: p.plane || 0 };
         if (sh.t === 'c') { var l = host.toLocal(sh.x, sh.y); o.x = l.x; o.y = l.y; }
         else { var la = host.toLocal(sh.ax, sh.ay), lb = host.toLocal(sh.bx, sh.by); o.ax = la.x; o.ay = la.y; o.bx = lb.x; o.by = lb.y; }
         host.shapes.push(o);
       });
-      info.magnetOf[p.id] = model.dipoles.map(function (dp) { return w.addMagnet(host, dp.x, dp.y, dp.ang, dp.mu, p.id, dp.z, dp.soft, dp.poles, dp.wz); });
+      info.magnetOf[p.id] = model.dipoles.map(function (dp) { return w.addMagnet(host, dp.x, dp.y, dp.ang, dp.mu, p.id, dp.z, dp.soft, dp.poles, dp.wz, dp.ax); });
       if (p.shape === 'electro') electroParts.push(p);
     });
 
@@ -295,12 +298,14 @@
 
     // 5. ejes de las ruedas
     parts.forEach(function (p) {
-      if (p.kind !== 'wheel' || p.axle !== 'fixed') return;
+      if (p.kind !== 'wheel' || (p.axle !== 'fixed' && p.axle !== 'levitado')) return;
       var b = bodyFor(p.id);
       if (b.isStatic) return;
       var br = BEARINGS[ideal ? 'ideal' : p.bearing] || BEARINGS.bronce;
-      var j = w.addJoint(w.ground, b, p.x, p.y, { fc: br.axle[0], ft0: br.axle[1], gen: p.gen || 0, genDest: p.gdest, motor: motorOf(p, 1), tag: p.id });
-      info.wheelJoint[p.id] = j;
+      var opt = { fc: br.axle[0], ft0: br.axle[1], gen: p.gen || 0, genDest: p.gdest, motor: motorOf(p, 1), tag: p.id };
+      // flotando en imanes: lo sostienen los imanes; solo una punta de aguja en un extremo del eje lo aguanta a lo largo
+      if (p.axle === 'levitado') { opt.spin = true; opt.fc = 0; opt.ft0 = ideal ? 0 : NEEDLE; }
+      info.wheelJoint[p.id] = w.addJoint(w.ground, b, p.x, p.y, opt);
     });
 
     // 6. bisagras
@@ -368,7 +373,7 @@
 
     // 9. giro inicial de las ruedas
     parts.forEach(function (p) {
-      if (p.kind !== 'wheel' || !p.rpm || p.axle !== 'fixed') return;
+      if (p.kind !== 'wheel' || !p.rpm || (p.axle !== 'fixed' && p.axle !== 'levitado')) return;
       var b = bodyFor(p.id);
       if (b.isStatic) return;
       var om = -p.rpm * 2 * Math.PI / 60;  // positivo = sentido horario
@@ -782,6 +787,57 @@
     return exampleArrows({ example: 'flechas2', rpm: opts.rpm, prof: 'lisa', lift: 0.008, thPeak: -5, rr: 0.008, pre: 0.07 });
   }
 
+  // Cojinetes magnéticos: un cojinete en cada punta del eje. En cada uno, un anillo de discos pegados al eje
+  // dentro de otro anillo de discos fijos, todos imantados a lo largo del eje con el norte hacia el mismo lado:
+  // se empujan, y el eje queda centrado en el plano (si se acerca a un lado, ese lado empuja más). A lo largo
+  // del eje no se aguantan solos (nadie puede, con imanes fijos): ahí lo sujeta una punta de aguja.
+  // En el dibujo se ven los dos cojinetes uno encima del otro: los imanes se alternan entre las dos puntas.
+  // drop: lo que baja el eje por su peso; el anillo fijo se pone esa altura más arriba para que empiece quieto.
+  var BEARING = { n1: 24, n2: 36, s1: 0.012, s2: 0.014, r1: 0.013, r2: 0.031 };
+  function addMagBearing(d, wh, zEnd, drop) {
+    var B = BEARING;
+    function ring(n, r, size, host, off, dy) {
+      for (var k = 0; k < n; k++) {
+        var a = (k + off) / n * 2 * Math.PI;
+        var m = makeMagnet(d, +(wh.x + r * Math.cos(a)).toFixed(5), +(wh.y + dy + r * Math.sin(a)).toFixed(5), host, 'disc');
+        m.size = size; m.ax = 1; m.ang = 0; m.grade = 'n52'; m.poles = true; m.soft = size / 4; m.plane = 2;
+        m.z = k % 2 ? zEnd : -zEnd; m.mu = magnetModel(m).mu;
+        d.parts.push(m);
+      }
+    }
+    ring(B.n1, B.r1, B.s1, wh.id, 0, 0);
+    ring(B.n2, B.r2, B.s2, null, 0.5, drop || 0);
+  }
+
+  // Volante flotante (lo que propone Claude para sacar el máximo): el mismo cilindro de latón, sin imanes que
+  // tiren de él ni leva, flotando en dos cojinetes magnéticos y sujeto a lo largo por una punta de aguja.
+  // No toca nada más: lo único que lo frena es el aire y esa punta.
+  function exampleFloating(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'flotante';
+    var cx = 0, cy = 0.13, R = 0.05, LEN = 0.13;
+    var base = makeRamp(d, -0.11, 0.012, 0.11, 0.012); base.mat = 'madera'; d.parts.push(base);
+    var wh = makeWheel(d, cx, cy, R);
+    wh.m = opts.m || 1.6; wh.spokes = 6; wh.axle = 'levitado'; wh.rpm = opts.rpm != null ? opts.rpm : 300; wh.len = LEN; wh.look = 'laton';
+    wh.gen = opts.gen || 0; wh.gdest = 'bus';
+    d.parts.push(wh);
+    addMagBearing(d, wh, LEN / 2 + 0.02, opts.drop != null ? opts.drop : BEARING_DROP);
+    if (opts.air === false) d.air = false;
+    return d;
+  }
+  var BEARING_DROP = 0.00116;   // medido: con 1,6 kg el eje baja 1,16 mm
+
+  // El rodillo de flechas mejorado, flotando en los mismos cojinetes magnéticos en vez de en rodamientos de bolas
+  function exampleArrowsFloating(opts) {
+    opts = opts || {};
+    var d = exampleArrows({ example: 'flechas3', rpm: opts.rpm, prof: 'lisa', lift: 0.008, thPeak: -5, rr: 0.008, pre: 0.07 });
+    var wh = d.parts.find(function (p) { return p.kind === 'wheel' && p.style !== 'cam'; });
+    wh.axle = 'levitado';
+    addMagBearing(d, wh, wh.len / 2 + 0.02, opts.drop != null ? opts.drop : BEARING_DROP);
+    return d;
+  }
+
   var EXAMPLES = {
     mazos: { title: T('Rueda de mazos'), make: exampleMallets },
     bolas: { title: T('Rueda de bolas'), make: exampleBalls },
@@ -795,7 +851,9 @@
     espiral: { title: T('Cilindro de imanes con palanca'), make: exampleSpiral },
     eficiente: { title: T('La más eficiente'), make: exampleEfficient },
     flechas: { title: T('Rodillo de flechas'), make: exampleArrows },
-    flechas2: { title: T('Rodillo de flechas mejorado'), make: exampleArrowsBetter }
+    flechas2: { title: T('Rodillo de flechas mejorado'), make: exampleArrowsBetter },
+    flechas3: { title: T('Rodillo de flechas flotante'), make: exampleArrowsFloating },
+    flotante: { title: T('Volante flotante'), make: exampleFloating }
   };
 
   root.PerpetuumBuild = {
