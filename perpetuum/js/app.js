@@ -1303,6 +1303,7 @@
     if (S.endReason !== 'numeric' && errAbs > Math.max(0.02, 0.01 * scale)) {
       warn = T('Error de cálculo del simulador en esta prueba: ') + fmtJ(b.error) + ' (' + pct(errAbs / scale) + T(' del total). Aparece con muchos golpes a la vez y no es energía real. Te lo enseñamos para que las cuentas sean completas.');
     }
+    if (S.info.overlaps && S.info.overlaps.length) warn = (warn ? warn + ' ' : '') + T('Hay piezas metidas una dentro de otra que no se pueden separar: así no se puede construir, y el banco, al intentar separarlas, mete energía que no existe. Sepáralas para que las cuentas valgan.');
     return { tone: tone, state: state, title: title, text: text, warn: warn };
   }
   function renderVerdict() {

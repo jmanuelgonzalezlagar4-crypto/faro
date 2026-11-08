@@ -404,6 +404,14 @@
 
     w.bodies.forEach(function (b) { b.ws = []; b.updateWorld(); b.x0 = b.x; b.y0 = b.y; b.a0 = b.a; });
     w.start();
+    // piezas metidas una dentro de otra que el banco no ha podido separar (por ejemplo, dos brazos clavados a la
+    // pared que se cruzan): así no se puede construir, y empujarse sin poder separarse mete energía que no existe
+    info.overlaps = [];
+    w.findContacts().forEach(function (c) {
+      if (c.sep > -0.003) return;
+      var pa = (info.partsOfBody.get(c.A) || [])[0], pb = (info.partsOfBody.get(c.B) || [])[0];
+      info.overlaps.push({ a: pa ? pa.id : null, b: pb ? pb.id : null, depth: -c.sep });
+    });
     return info;
   }
 
