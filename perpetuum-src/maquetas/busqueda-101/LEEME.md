@@ -54,13 +54,17 @@ Ninguno es energía de verdad:
   - Con un paso más fino no cambia: no es redondeo.
   - Con cada péndulo en su propio plano, uno detrás de otro sin poder chocar (`empujones.jsonl`), dan del 100,005 %
     al 100,5 %. Queda una excepción: el nº 1759, con un 117 %.
-  - Ese resto es redondeo: con un paso 8 veces más fino, todos bajan al 100,00 % (`imanes.js`).
+  - Ese resto es redondeo. Se probaron con un paso 8 veces más fino los cuatro que quedaban por encima del 100,1 %
+    (1759, 1369, 746 y 135), y todos bajan a entre el 100,002 % y el 100,04 % (`imanes.js`).
   - En el nº 1759, dos imanes de 2 a 4 cm se cruzan a menos de medio milímetro, cosa imposible en un aparato de
     verdad.
-- **El balancín (101,3 %)** empieza con la rampa 2 mm metida en un escalón, justo por debajo de la alarma de piezas
-  solapadas (3 mm). Al sacarla, el banco le mete 0,77 mJ en los primeros 0,04 s.
-  - Los otros balancines que pasan del 100,1 % (hasta el 100,8 %) tienen lo mismo: entre 0,02 y 0,4 mJ en el primer
-    décimo de segundo.
+- **El balancín (101,3 %)** empieza con la rampa apoyada 2 mm dentro de un escalón, justo por debajo de la alarma de
+  piezas solapadas (3 mm). Al separarla, el banco le mete 0,77 mJ en los primeros 0,04 s. Con los escalones 4 mm más
+  abajo da el 100,000 % (`separa.js`).
+  - Los otros balancines que pasan del 100,1 % (hasta el 100,8 %) tienen un empujón parecido, de 0,02 a 0,4 mJ.
+    Aparece en los primeros segundos, mientras una pieza está apoyada apretada contra otra.
+  - En los que se miraron durante un minuto (1975, 284 y 156), con el paso normal y con uno 8 veces más fino, no
+    crece. Luego la máquina pierde de 14 a 106 mJ y se para. Un 101 % de verdad tendría que repetirse en cada vuelta.
 
 **Ningún aparato da más del 100 %.**
 
