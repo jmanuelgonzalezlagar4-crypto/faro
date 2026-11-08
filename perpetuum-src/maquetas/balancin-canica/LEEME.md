@@ -241,3 +241,28 @@ La cuenta, con estas medidas:
   V se despega del suelo. Para levantar todo eso, la bobina tiene que pesar más de unos 48 g.
 - **No puede ser las dos cosas:** menos de 22 g y más de 48 g a la vez. Quedaría que el golpe de bajada doblara la
   V, pero ese golpe sale de la energía de la bola, y cada vez queda menos.
+
+### Con un solo escalón, el de la derecha (`ciclo2.js`, `corre-ciclo2.js`)
+
+Corrección del usuario: solo hay un escalón, el de la punta, a la derecha. No hay tope para la bobina ni suelo
+para la V. El palo empieza arriba, con el brazo y la rampa en línea recta cuesta abajo y la bola en la punta.
+
+El barrido (`un-escalon-barrido.jsonl`) prueba 101 casos:
+
+- el brazo inclinado de 8° a 30°;
+- la punta de 0 a 16 cm por encima del escalón al empezar;
+- la bobina de 30 a 90 g, con pasos de 2 g entre 31 y 39 g;
+- dos casos sin roces.
+
+Resultados:
+
+- **Bobina de 40 g o más:** la punta se apoya en el escalón y el escalón aguanta la bola. La V no se forma, y todo
+  se para en 2 o 3 s.
+- **Bobina de 30 a 39 g, con mucho hueco hasta el escalón:** el palo llega con tanto impulso que la V sí se forma, y
+  la bola rueda al fondo (`un-escalon.png`).
+  - Con 30 g, la bobina no puede levantar el palo con la bola en la V.
+  - De 35 a 39 g, la bobina lo levanta un poco y la bola sube balanceándose hasta la punta. Pero el palo no vuelve
+    arriba: se queda entre 17° y 34° por debajo, con la bola en la punta sobre el escalón.
+- **Ningún ciclo completo:** en ningún caso el palo vuelve a subir para empezar otra vez. Lo más que dura es 7,3 s.
+- **De dónde sale el movimiento:** de los 30 a 50 mJ que tenía el palo arriba al empezar, que se van en roces y
+  golpes. Para dar otra vuelta, alguien tendría que volver a subirlo.
