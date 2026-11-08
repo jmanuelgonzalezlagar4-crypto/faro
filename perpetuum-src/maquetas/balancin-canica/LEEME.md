@@ -207,3 +207,37 @@ La cuenta es la de siempre:
   palo; si pesa más, el palo se queda arriba.
 - **Volver al poste cuesta energía:** de la V al poste la bola tiene que subir, y eso cuesta lo mismo que dio al
   bajar.
+
+### El ciclo completo, explicado por el usuario (`ciclo.js`, `corre-ciclo.js`)
+
+1. **Bola en la punta:** pesa más su lado y baja. La punta de la rampa se apoya en el escalón y se forma la V.
+2. **La bola rueda al fondo de la V:** está más cerca del eje, la bobina vuelve a pesar más y levanta el palo.
+3. **Al levantarse, la V se pone recta:** el brazo y la rampa quedan en línea cuesta abajo, y la bola rueda otra
+   vez hasta la punta y el escalón.
+
+El modelo:
+
+- **El brazo derecho:** baja recto desde el eje.
+- **La rampa:** cuelga de una bisagra al final del brazo. Puede quedar recta, en línea con el brazo, pero no colgar
+  más, y se puede doblar hacia arriba formando la V.
+- **El escalón y el suelo:** el escalón está bajo la punta y el suelo de la V bajo la bisagra.
+
+El barrido (`ciclo-barrido.jsonl`) prueba 96 casos:
+
+- el brazo inclinado de 8° a 30°;
+- la bobina de 40 a 70 g;
+- distintos huecos hasta el escalón;
+- distintas alturas del suelo de la V y del tope de la bobina.
+
+Además prueba bobinas de 15 y 25 g. **Ninguno hace ni un ciclo:** todos se paran antes de 2,7 s, con la bola en la
+punta sobre el escalón (`ciclo.png`).
+
+La cuenta, con estas medidas:
+
+- **Para que se forme la V:** la punta tiene que estar apoyada en el escalón, y el escalón aguanta la bola. Así que
+  el palo tiene que pesar más de la derecha sin contar la bola, y eso solo pasa si la bobina pesa menos de unos
+  22 g.
+- **Para que la bobina levante el palo después:** la bola en el fondo de la V suma su peso a la derecha en cuanto la
+  V se despega del suelo. Para levantar todo eso, la bobina tiene que pesar más de unos 48 g.
+- **No puede ser las dos cosas:** menos de 22 g y más de 48 g a la vez. Quedaría que el golpe de bajada doblara la
+  V, pero ese golpe sale de la energía de la bola, y cada vez queda menos.
