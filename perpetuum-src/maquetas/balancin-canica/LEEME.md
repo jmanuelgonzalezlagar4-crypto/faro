@@ -148,3 +148,34 @@ Resultados:
 
 Para cerrar el ciclo, la bola tendría que volver del fondo de la V a la punta, que está más alta. Esa subida cuesta
 lo mismo que dio al bajar, y en cada golpe y cada roce se pierde algo.
+
+### Tal como lo pintó el usuario (`dibujo.js`, `corre-dibujo.js`)
+
+El tercer dibujo del usuario:
+
+- **El palo:** recto desde la bobina hasta el eje.
+- **El brazo derecho:** baja recto desde el eje hasta el fondo de la V.
+- **La rampa:** desde el fondo de la V sube suave hasta la punta, que acaba en un gancho.
+- **La bobina:** cuelga de la punta izquierda y llega casi a la mesa; cuando ese lado baja, se apoya en la mesa.
+
+En el modelo, la bobina cuelga de una varilla con bisagra. La rampa va con bisagra en el fondo de la V, con un
+escalón bajo la punta y un suelo bajo la V. La bola empieza junto al gancho.
+
+El barrido (`dibujo-barrido.jsonl`) prueba 64 casos:
+
+- bobina de 50 a 110 g;
+- la rampa colgando 10° o 25°;
+- la bobina a 1 o 4 cm de la mesa;
+- dos alturas de escalón;
+- dos alturas de suelo.
+
+Resultados:
+
+- **Ninguna vuelta completa:** en ninguno de los 64 casos la bola vuelve de la V a la punta. Todos se paran antes
+  de 7,7 s, y el palo baja una vez como mucho.
+- **Dónde se queda la bola:** en 28 casos en el fondo de la V, y en 36 en la punta, sobre el escalón.
+- **El caso que más dura** (`dibujo.png`, 6,9 s):
+  1. El lado de la bola baja y la punta llega al escalón.
+  2. La bobina sube el palo y la bola rueda hasta la V.
+  3. La bobina se apoya en la mesa, y la bola se balancea en la V hasta quedarse quieta.
+- **La bobina apoyada hace de tope:** el palo ya no se mueve, y nada sube la bola otra vez hasta la punta.
