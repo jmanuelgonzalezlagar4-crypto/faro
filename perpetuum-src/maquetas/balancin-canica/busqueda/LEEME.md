@@ -78,3 +78,40 @@ Sin roces pasa casi lo mismo (67,7 %). Lo que se pierde está en los golpes:
 - la bola contra el tope y contra el fondo de la V;
 - la punta de la rampa contra el escalón;
 - la bisagra al doblarse y al ponerse recta.
+
+## ¿Qué levanta el palo? (`compara.js`, `pesos.js`, `que-sube-el-palo.png`)
+
+El usuario explica que, al bajar la bola a la V y quedar más cerca del eje, la bobina pesa más, levanta el palo y
+pone la V recta. En el banco el palo sí sube y la V sí se pone recta. Pero lo que lo levanta no es la bola.
+
+**Tres pruebas con el mejor diseño** (`compara.js`):
+
+| Bola | Baja a | Sube luego a |
+|---|---|---|
+| Libre: va al fondo de la V | −11,5° | 16,8° |
+| Pegada en la punta: nunca va a la V | −12,5° | 17,5° |
+| Sin bola | −10,8° | 19,1° |
+
+Las tres suben casi igual, y ninguna vuelve a los 30° del principio.
+
+**Cuánto tira cada lado** (`pesos.js`). Es el peso por la distancia al eje, en N·cm, con el palo abajo del todo
+(−11,5°):
+
+| | Lado de la bobina | Lado de la bola |
+|---|---|---|
+| Punta de la rampa en el escalón, bola en la punta | 14,6 | 11,0 |
+| Punta de la rampa en el escalón, bola en el fondo de la V | 14,6 | 12,3 |
+| Rampa sin apoyar en el escalón, bola en el fondo de la V | 14,6 | 18,3 |
+| Rampa sin apoyar en el escalón, bola en la punta | 14,6 | 20,4 |
+
+- **Lo que hace ganar a la bobina es el escalón, no la bola.** Mientras la punta de la rampa está apoyada en el
+  escalón, el escalón aguanta parte de la rampa y casi toda la bola si está en la punta.
+- **Al bajar al fondo de la V, la bola pasa su peso del escalón al palo.** El lado de la bola pesa más, no menos:
+  de 11,0 a 12,3.
+- **En cuanto la V se pone recta, la rampa deja el escalón.** Entonces gana el lado de la bola, esté donde esté la
+  bola.
+- **El palo siempre acaba en el mismo sitio:** donde la rampa recta toca justo el escalón (unos 15°). Por debajo
+  gana la bobina; por encima, el lado de la bola. Sube más allá solo con el impulso que le queda.
+- **De dónde sale ese impulso:** de la bajada desde 30°. Al bajar se sueltan 27,6 mJ. De ellos, 8,8 mJ se pierden
+  en golpes y 19,1 mJ en roces. La mayor parte, 17,7 mJ, se pierde cuando la punta cae en el escalón de goma y
+  resbala.

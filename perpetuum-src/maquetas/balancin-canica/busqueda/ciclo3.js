@@ -22,6 +22,7 @@ module.exports = function (P, o) {
   const h = P.makePin(d, B[0], B[1], arm.id, ramp.id); h.mode = 'limits'; h.lo = 0; h.hi = o.hi; h.bearing = 'bolas'; d.parts.push(h);
   const R = o.rb || 0.01, f = Math.max(0.5, 1 - (R + 0.02) / L), bx = B[0] + f * (E[0] - B[0]), by = B[1] + f * (E[1] - B[1]);
   const ball = P.makeBall(d, bx + (0.006 + R + 0.0005) * n[0], by + (0.006 + R + 0.0005) * n[1]); ball.r = R; ball.m = o.mb; ball.mat = 'acero'; d.parts.push(ball);
+  if (o.pegada) { const wp = P.makePin(d, ball.x, ball.y, ramp.id, ball.id); wp.mode = "rigid"; d.parts.push(wp); }
   const pad = (x1, y1, x2, y2, mat) => { const r = P.makeRamp(d, x1, y1, x2, y2); r.mat = mat || 'goma'; d.parts.push(r); };
   pad(-0.60, TAB, 1.4, TAB, 'madera');                                            // la mesa
   const yr = E[1] - 0.006 - 0.012 - o.hr;                                         // el escalón, bajo la punta
