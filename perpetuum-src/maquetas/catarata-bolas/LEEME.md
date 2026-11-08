@@ -90,5 +90,5 @@ Por qué no hay manera:
   agua que aparta por esa misma altura. Para flotar, la bola tiene que pesar menos que esa agua, así que el
   golpe siempre se queda corto.
 
-En tres casos con muchas bolas apiladas en el tubo (unas 30), el banco se equivocó a favor de la máquina y
-sumó energía que no existe: 2, 35 y 67 J. Aun así no entró ninguna bola.
+En cinco casos, todos con la fila de 5 bolas y muchas más apiladas encima, el banco se equivocó a favor de la
+máquina: sumó entre 2 y 67 J que no existen. Aun así no entró ninguna bola.
