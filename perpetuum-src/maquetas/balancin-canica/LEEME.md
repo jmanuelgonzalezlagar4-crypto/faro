@@ -264,5 +264,5 @@ Resultados:
   - De 35 a 39 g, la bobina lo levanta un poco y la bola sube balanceándose hasta la punta. Pero el palo no vuelve
     arriba: se queda entre 17° y 34° por debajo, con la bola en la punta sobre el escalón.
 - **Ningún ciclo completo:** en ningún caso el palo vuelve a subir para empezar otra vez. Lo más que dura es 7,3 s.
-- **De dónde sale el movimiento:** de los 30 a 50 mJ que tenía el palo arriba al empezar, que se van en roces y
+- **De dónde sale el movimiento:** de los 25 a 50 mJ que tenía el palo arriba al empezar, que se van en roces y
   golpes. Para dar otra vuelta, alguien tendría que volver a subirlo.
