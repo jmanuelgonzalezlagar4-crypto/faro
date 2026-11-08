@@ -299,3 +299,39 @@ hacia abajo, para que el fondo empuje las bolas hacia arriba.
   subir en el fondo lo cobra en la entrada, porque la entrada también está en el fondo. Además las bolas ya no
   ruedan, se arrastran, y la noria da menos vueltas.
 - **Las bolas imantadas, una encima de otra, se atraen** y forman cadenas.
+
+## Aire comprimido en vez de bolas
+
+`aire.js` monta una noria de cangilones de 1 L, de 80 cm, dentro de un tanque de 1 m:
+
+- Por abajo se mete aire en cada cangilón que sube. El aire empuja hacia arriba lo que pesa el agua que aparta,
+  y se expande al subir, porque arriba el agua aprieta menos.
+- Arriba, el cangilón se vuelca y suelta el aire.
+- El banco no tiene aire: el script le pone a cada cangilón su empuje y el frenado del agua, y apunta las dos
+  cosas en las cuentas. Error: menos de 0,1 J.
+- Aparte calcula lo que cuesta comprimir ese aire hasta la presión del fondo: con un compresor perfecto (que no
+  se calienta) y con uno de verdad (65 %).
+
+En 2 minutos, según lo que frena el generador:
+
+| Generador | Gira a | Aire | Compresor perfecto | Compresor de verdad | Electricidad | Sobre el perfecto | Sobre el de verdad |
+|---|---|---|---|---|---|---|---|
+| 3 | 15 rpm | 244 L | 1.957 J | 3.010 J | 749 J | 38 % | 25 % |
+| 10 | 7,6 rpm | 131 L | 1.047 J | 1.610 J | 694 J | 66 % | 43 % |
+| 30 | 2,9 rpm | 51 L | 411 J | 632 J | 302 J | 74 % | 48 % |
+| 100 | 0,9 rpm | 18 L | 145 J | 223 J | 94 J | 65 % | 42 % |
+
+- **Más deprisa:** el agua frena los cangilones y se come casi la mitad.
+- **Despacio:** queda el aire que se suelta arriba, que aún podía expandirse, y el generador (85 %).
+- **Lo mejor posible:** el 74 % de lo que cuesta comprimir el aire con un compresor perfecto, el 48 % con uno de
+  verdad.
+
+Por qué no puede pasar del 100 %:
+
+- **Ida y vuelta:** para meter el aire en el fondo hay que comprimirlo hasta la presión del fondo. Con un
+  compresor perfecto, medio litro a 1 m cuesta 5,38 J. Al subir y expandirse empuja, como mucho, esos mismos
+  5,38 J.
+- **Más hondo no ayuda:** comprimir y expandir crecen igual.
+- **Una noria de aire es un motor de aire comprimido:** devuelve parte de lo que gastó el compresor.
+- **Para qué sí sirve:** guardar energía con aire comprimido existe de verdad. Se comprime cuando sobra
+  electricidad y se suelta cuando hace falta. Devuelve entre el 40 y el 70 %.
