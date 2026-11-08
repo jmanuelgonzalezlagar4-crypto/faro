@@ -202,3 +202,25 @@ Siempre falta alrededor de 1 J.
 - **Fila de 30 bolas:** metería la bola sola, y sobrarían 2,4 J (7,3 J que da la fila contra 4,9 J que cuesta
   entrar). Pero para mantenerla tan alta hay que subir cada bola nueva 1 m por encima de donde llega sola, y eso
   cuesta justo 2,4 J.
+
+### Con el tanque lleno hasta la boca
+
+Las bolas salen por el borde, al nivel del agua, a 1 m sobre el hueco. Ya no hay columna por encima del agua que
+las suba más, así que la fila de fuera puede tener como mucho 1 m: 10 bolas. `tanque-lleno.js` lo prueba con la
+fila perfecta y el golpe entero:
+
+| Bola | Fila | Caída | Golpe que trae | Golpe que hace falta |
+|---|---|---|---|---|
+| 247 g | 10 (24 N) | 0 m | 0 J | 3,24 J |
+| 247 g | 6 | 0,4 m | 0,97 J | 4,29 J |
+| 247 g | 0 | 1 m | 2,42 J | 6,17 J |
+| 350 g | 10 (34 N) | 0 m | 0 J | 2,18 J |
+| 350 g | 6 | 0,4 m | 1,37 J | 3,44 J |
+| 350 g | 0 | 1 m | 3,43 J | 5,85 J |
+
+Sale peor que con la columna por encima del agua: falta de 2,2 a 3,7 J. Lo que el agua empuja a cada bola al
+subir (2,7 J con 247 g) ya no sirve para subirla más arriba: se gasta en frenarla y en la superficie.
+
+- **Bolas más pesadas:** empujan más en la fila, pero apenas asoman; con 450 g ya no sale ninguna por el borde.
+- **El agua que se pierde:** con el tanque a rebosar, cada bola que entra echa fuera medio litro de agua por
+  arriba.
