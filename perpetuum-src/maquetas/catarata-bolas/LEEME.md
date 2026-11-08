@@ -92,3 +92,44 @@ Por qué no hay manera:
 
 En cinco casos, todos con la fila de 5 bolas y muchas más apiladas encima, el banco se equivocó a favor de la
 máquina: sumó entre 2 y 67 J que no existen. Aun así no entró ninguna bola.
+
+## Otro líquido: agua de mar, salmuera, uno el doble de pesado
+
+`barrido.js` y `umbral.js` aceptan también la densidad del líquido (`rho`). Las bolas cambian de peso con el
+líquido para que asomen lo mismo: el 53 % (como las de 247 g en agua dulce) o el 14 % (como las de 450 g).
+
+Golpe más fuerte que se consiguió / golpe que hace falta, con bolas que asoman el 14 % y 3 m de líquido:
+
+| Líquido | Densidad | Golpe / necesario | Proporción |
+|---|---|---|---|
+| Agua dulce | 1.000 kg/m³ | 12,0 / 16,9 J | 71 % |
+| Agua de mar | 1.025 | 12,3 / 17,4 J | 71 % |
+| Salmuera (agua con toda la sal que admite) | 1.200 | 14,4 / 20,3 J | 71 % |
+| Un líquido el doble de pesado que el agua | 2.000 | 24,2 / 33,9 J | 71 % |
+
+En los 16 casos no entra ninguna bola. Un líquido más pesado empuja más las bolas hacia arriba, pero también
+aprieta más en el fondo. Las dos cosas crecen igual, así que la proporción no cambia.
+
+## Perder agua a cambio de que la bola entre: la esclusa
+
+`esclusa.js` pone en el hueco del fondo de la noria de bolas una esclusa perfecta: una cámara con dos puertas,
+sin roce. La bola entra sin empujar nada, pero cada vez se escapa por abajo el agua que ocupa: medio litro a
+la presión del fondo. Esa agua se apunta como energía que entra, porque hay que reponerla para que el tanque no
+se vacíe.
+
+| En 2 minutos | Agua dulce | Agua de mar | Salmuera |
+|---|---|---|---|
+| Bolas que entran | 161 | 161 | 160 |
+| Vueltas de la noria | 64 | 66 | 71 |
+| Agua que se escapa | 84 L (760 J) | 84 L (779 J) | 84 L (913 J) |
+| Electricidad | 20 J | 21 J | 24 J |
+| Lo que saca del agua que se escapa | 2,6 % | 2,7 % | 2,6 % |
+
+Con la esclusa la noria no se para nunca, pero es un molino de agua, y muy malo:
+
+- Cada bola gasta medio litro, que lleva 4,7 J; la noria saca 0,12 J.
+- Con esa misma agua, una turbina normal (70 %) sacaría unos 530 J, 26 veces más.
+- Para que no se acabe el agua hay que volver a subirla: subir 84 L a 1 m con una bomba normal (70 %) cuesta
+  1.100 J, para sacar 20.
+- Si el agua viene sola de más arriba, de un río o de la lluvia, entonces sí da energía: la del agua que baja.
+  Pero una turbina la aprovecha mucho mejor que las bolas.

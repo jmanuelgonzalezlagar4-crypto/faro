@@ -20,5 +20,5 @@ while (w.t < T && !w.isStopped()) {
   if (w.t % 1 < w.dt) mine = Math.min(mine, w.balance().error);
 }
 const b = w.balance();
-const flota = (1 - o.m / (1000 * 4 / 3 * Math.PI * 0.05 ** 3)) * 100;
-console.log(JSON.stringify({ m: o.m, H: o.H, sobre: o.sobre, nf: o.nf || 0, nt: d._nt, sobresale: +flota.toFixed(0), salen, entra, golpe_max: +(Math.max(0, ...golpes)).toFixed(2), caidas: golpes.length, hueco_mm: +((X1 + 0.05 - minxPlug) * 1000).toFixed(1), t: +w.t.toFixed(1), parada: w.isStopped(), gastado: +b.reserve.toFixed(2), agua: +b.water.toFixed(2), err: +b.error.toFixed(3), errmin: +mine.toFixed(3), ms: Date.now() - t0 }));
+const flota = (1 - o.m / ((o.rho || 1000) * 4 / 3 * Math.PI * 0.05 ** 3)) * 100;
+console.log(JSON.stringify({ rho: o.rho || 1000, m: o.m, H: o.H, sobre: o.sobre, nf: o.nf || 0, nt: d._nt, sobresale: +flota.toFixed(0), salen, entra, golpe_max: +(Math.max(0, ...golpes)).toFixed(2), caidas: golpes.length, hueco_mm: +((X1 + 0.05 - minxPlug) * 1000).toFixed(1), t: +w.t.toFixed(1), parada: w.isStopped(), gastado: +b.reserve.toFixed(2), agua: +b.water.toFixed(2), err: +b.error.toFixed(3), errmin: +mine.toFixed(3), ms: Date.now() - t0 }));

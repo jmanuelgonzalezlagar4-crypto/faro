@@ -208,7 +208,7 @@
     flotadores: {
       title: T('Noria de bolas flotantes'), era: T('El prototipo de un usuario de la app: bolas huecas que suben solas por el agua.'),
       what: T('Una columna de agua de 1 m llena de bolas de acero huecas de 10 cm. El agua las empuja hacia arriba; las que van dentro empujan a las de encima, que salen por arriba y caen por un canal a una noria de paletas con generador. Luego bajan rodando por otro canal hasta un hueco en el fondo de la columna, por donde tienen que volver a entrar. El hueco deja pasar las bolas pero no el agua: el mejor cierre posible, sin roce.'),
-      why: T('Las bolas suben, la noria gira casi dos vueltas y se para, porque abajo las bolas no pueden entrar. En el fondo el agua aprieta con casi 10.000 Pa: para meter una bola hay que empujarla con hasta 72 N, y la fila de bolas del canal empuja con unos 5 N. Meter una bola cuesta 5 J, justo lo que da al subir y al bajar. Además, de lo que tenía, el agua se come una parte frenando las bolas y otra se va en golpes.')
+      why: T('Las bolas suben, la noria da cuatro vueltas y media y se para, porque abajo las bolas no pueden entrar. En el fondo el agua aprieta con casi 10.000 Pa: para meter una bola hay que empujarla con hasta 72 N, y las bolas amontonadas delante del hueco empujan con unos 11 N. Meter una bola cuesta 5 J, justo lo que da al subir y al bajar. Además, de lo que tenía, el agua se come una parte frenando las bolas y otra se va en golpes.')
     },
     ruedaflot: {
       title: T('Rueda de flotadores'), era: T('La idea clásica de las bolas que flotan, en una rueda.'),

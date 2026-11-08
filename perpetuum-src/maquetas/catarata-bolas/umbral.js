@@ -1,4 +1,4 @@
-// Uso: node umbral.js '{"m":0.45,"H":3,"sobre":0}'
+// Uso: node umbral.js '{"m":0.45,"H":3,"sobre":0,"rho":1000}'
 // golpe mínimo, entero a la bola del hueco, para meterla, según el alto del agua y el peso de las bolas
 const A = require('path').join(__dirname, '../../app');
 const E = require(A + '/engine.js'); global.PerpetuumEngine = E;
@@ -16,4 +16,4 @@ function prueba(J) {
 }
 let lo = 0.1, hi = 10; while (!prueba(hi)) hi *= 2;
 for (let k = 0; k < 12; k++) { const m = (lo + hi) / 2; if (prueba(m)) hi = m; else lo = m; }
-console.log(JSON.stringify({ m: o.m, H: o.H, golpe: +hi.toFixed(2), despacio: +(1000 * 9.81 * 4 / 3 * Math.PI * 0.05 ** 3 * (o.H - 0.05)).toFixed(2) }));
+console.log(JSON.stringify({ rho: o.rho || 1000, m: o.m, H: o.H, golpe: +hi.toFixed(2), despacio: +((o.rho || 1000) * 9.81 * 4 / 3 * Math.PI * 0.05 ** 3 * (o.H - 0.05)).toFixed(2) }));

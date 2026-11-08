@@ -5,7 +5,7 @@ module.exports = function (P, o) {
   d.example = 'catarata'; d.iters = 60;
   const H = o.H || 1, M = o.m || 0.247, sobre = o.sobre != null ? o.sobre : 0.15, nf = o.nf || 0;
   const YB = 0.05, YS = YB + H, X0 = 0, X1 = 0.11, R = 0.05, TOP = YS + sobre;
-  d.parts.push(P.makeTank(d, X0, YB, X1, YS));
+  const tk = P.makeTank(d, X0, YB, X1, YS); tk.rho = o.rho || 1000; d.parts.push(tk);
   const wall = (x1, y1, x2, y2) => { const r = P.makeRamp(d, x1, y1, x2, y2); r.mat = 'madera'; d.parts.push(r); };
   const YC = YB + R, XH = X1 + R - 0.006, XT = XH + 2 * R;
   const c = XT - YC + Math.SQRT2 * (R + RR), xf = c + YB - RR, half = R + 0.006 + RR, HT = TOP - 0.14;

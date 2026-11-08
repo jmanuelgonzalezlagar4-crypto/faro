@@ -896,18 +896,21 @@
     opts = opts || {};
     var d = emptyDesign();
     d.example = 'flotadores';
-    var YB = 0.05, YS = 1.05, X0 = 0, X1 = 0.13, R = 0.05;
+    d.iters = 60;   // columna y canal llenos de bolas apretadas: con menos vueltas se van corriendo poco a poco
+    var YB = 0.05, YS = 1.05, X0 = 0, X1 = 0.11, R = 0.05;   // columna justa para una bola: suben en fila recta
     d.parts.push(makeTank(d, X0, YB, X1, YS));
     function wall(x1, y1, x2, y2, mat) { var r = makeRamp(d, x1, y1, x2, y2); r.mat = mat || 'madera'; d.parts.push(r); return r; }
-    wall(-0.05, YB - RAMP_R, X1 + 0.03, YB - RAMP_R);                 // fondo
+    wall(-0.05, YB - RAMP_R, X1 + 0.12, YB - RAMP_R);                 // fondo, que sigue fuera hasta el canal de vuelta
     // la columna sigue por encima del agua: las bolas que van dentro empujan hacia arriba a las que ya han salido,
     // y un techo inclinado empuja la de arriba hacia una salida al lado, por encima del agua
     var TOP = opts.top || 1.20;
     wall(X0 - RAMP_R, YB - RAMP_R, X0 - RAMP_R, TOP + 0.2);                // pared izquierda
     wall(X1 + RAMP_R, YB + 2 * R + 0.02, X1 + RAMP_R, TOP - RAMP_R);       // pared derecha: hueco abajo y salida arriba
-    wall(X0 - 0.02, TOP + 0.115, X1 + 0.05, TOP + 0.16);                    // techo inclinado
+    // techo a 30°: empuja la bola de arriba hacia la salida
+    var tx = 0.055 - 0.5 * (R + RAMP_R), ty = TOP + 0.02 + 0.866 * (R + RAMP_R), t30 = Math.tan(Math.PI / 6);
+    wall(-0.03, ty + (-0.03 - tx) * t30, X1 + 0.07, ty + (X1 + 0.07 - tx) * t30);
     wall(X1 + 0.035, TOP - 0.03, 0.40, 1.02);                               // canal hacia la noria
-    wall(0.98, 0.42, X1 + 0.06, YB + R + 0.005);                            // canal de vuelta al hueco del fondo
+    wall(0.98, 0.42, X1 + 0.12, YB - RAMP_R);                               // canal de vuelta: baja hasta el suelo, delante del hueco
     wall(1.0, 0.40, 1.0, 1.05);                                             // tope del canal de vuelta
     // la noria: un buje con 6 paletas finas, en un rodamiento de bolas y con generador
     var NX = 0.66, NY = 0.78, NR = 0.24;
@@ -920,7 +923,7 @@
     }
     // las bolas: diez llenando la columna, una en cada canal y una esperando en el hueco de abajo
     var spots = [];
-    for (var kb = 0; kb < 10; kb++) spots.push([kb % 2 ? 0.08 : 0.05, 0.11 + 0.095 * kb]);   // la columna llena, en zigzag
+    for (var kb = 0; kb < 10; kb++) spots.push([0.055, 0.11 + 0.1005 * kb]);                 // la columna llena
     spots.push([0.30, 1.12], [0.55, 0.32], [X1 + 0.12, 0.14]);
     spots.forEach(function (q) { var b = makeBall(d, q[0], q[1]); b.r = R; b.m = opts.m || 0.247; b.mat = 'acero'; d.parts.push(b); });
     return d;
