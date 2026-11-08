@@ -161,3 +161,44 @@ Con la esclusa la noria no se para nunca, pero es un molino de agua, y muy malo:
   vapor.
 - **Ni con todo perfecto:** meter la bola cuesta como mínimo 4,9 J, y a la vuelta da como mucho esos 4,9 J.
   Con un generador del 85 % y un solenoide del 80 %, cada bola deja al acumulador 1,9 J más vacío.
+
+## Una fila que casi equilibre el agua, y el peso de la que cae para rematar
+
+La idea: que la fila pese casi lo que empuja el agua, para que con la bola que cae encima la del hueco entre
+sobrada. Hay tres preguntas.
+
+**1. ¿Qué fila mete la bola sola?** `fila-perfecta.js` cambia la fila por un empuje fijo igual a su peso, como
+si la fila y la curva fueran perfectas, sin roces. Primero lo probé con una fila de verdad y una curva redonda,
+pero el banco no consigue pasar bien tanto peso por la curva.
+
+- **Fila que cae de golpe:** con 60,5 N la bola entra sola. Son 25 bolas de 247 g, una fila de 2,5 m.
+- **Fila que empuja despacio:** hacen falta 73 N, lo que aprieta el agua con la bola a medio meter. Son 30
+  bolas, 3 m.
+
+**2. ¿Hasta dónde suben las bolas solas?** La columna del tanque empuja hacia arriba las bolas que salen del
+agua, pero solo hasta cierta altura. Con las bolas de debajo sumergidas:
+
+- en teoría, hasta 2,0 m sobre el hueco: 20 bolas, 48,5 N;
+- en el banco, salen por arriba hasta 1,5 m, y a 1,7 m ya no sale ninguna (`barrido.js` con `sobre`).
+
+Pase lo que pase, la fila más alta que las bolas pueden alcanzar solas empuja dos tercios de lo que hace falta.
+
+**3. ¿Llega el golpe para lo que falta?** `fila-y-caida.js` empieza con la fila más alta posible, de 20 bolas.
+Luego la acorta para que la bola de arriba caiga desde más alto. Es el mejor caso: fila perfecta y golpe entero.
+
+| Fila | Caída | Golpe que trae | Golpe que hace falta |
+|---|---|---|---|
+| 20 bolas (48,5 N) | 0 m | 0 J | 1,14 J |
+| 18 | 0,2 m | 0,48 J | 1,49 J |
+| 16 | 0,4 m | 0,97 J | 1,88 J |
+| 14 | 0,6 m | 1,45 J | 2,31 J |
+| 12 | 0,8 m | 1,94 J | 2,77 J |
+| 10 | 1,0 m | 2,42 J | 3,24 J |
+
+Siempre falta alrededor de 1 J.
+
+- **Fila más corta:** cada bola que se le quita deja caer la de arriba 10 cm más. La caída gana justo lo que la
+  fila pierde, 0,24 J, pero como golpe se aprovecha peor.
+- **Fila de 30 bolas:** metería la bola sola, y sobrarían 2,4 J (7,3 J que da la fila contra 4,9 J que cuesta
+  entrar). Pero para mantenerla tan alta hay que subir cada bola nueva 1 m por encima de donde llega sola, y eso
+  cuesta justo 2,4 J.

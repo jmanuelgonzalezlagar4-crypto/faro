@@ -8,7 +8,7 @@ module.exports = function (P, o) {
   const tk = P.makeTank(d, X0, YB, X1, YS); tk.rho = o.rho || 1000; d.parts.push(tk);
   const wall = (x1, y1, x2, y2) => { const r = P.makeRamp(d, x1, y1, x2, y2); r.mat = 'madera'; d.parts.push(r); };
   const YC = YB + R, XH = X1 + R - 0.006, XT = XH + 2 * R;
-  const c = XT - YC + Math.SQRT2 * (R + RR), xf = c + YB - RR, half = R + 0.006 + RR, HT = TOP - 0.14;
+  const c = XT - YC + Math.SQRT2 * (R + RR), xf = c + YB - RR, half = R + 0.006 + RR, HT = o.tubo || TOP - 0.14;
   wall(-0.05, YB - RR, xf, YB - RR);
   wall(xf, YB - RR, xf + 0.15, YB - RR + 0.15);
   wall(X0 - RR, YB - RR, X0 - RR, TOP + 0.25);
@@ -17,8 +17,8 @@ module.exports = function (P, o) {
   wall(-0.03, ty + (-0.03 - tx) * t30, X1 + 0.07, ty + (X1 + 0.07 - tx) * t30);
   wall(X1 + 0.035, TOP - 0.03, XT - half, HT);
   wall(XT - half, YB + 2 * R + 0.02, XT - half, HT);
-  wall(XT + half, XT + half - c, XT + half, TOP + 0.1);
-  const spots = [], nt = o.nt || Math.max(4, Math.floor((TOP + 0.02 - 0.3) / 0.1005));
+  wall(XT + half, XT + half - c, XT + half, Math.max(TOP + 0.1, HT + 0.3));
+  const spots = [], nt = o.nt != null ? o.nt : Math.max(4, Math.floor((TOP + 0.02 - 0.3) / 0.1005));
   for (let k = 0; k < nt; k++) spots.push([0.055, TOP + 0.02 - 2 * R * k - 0.0005 * k]);
   spots.push([XH, YC], [XT, YC]);
   for (let k = 1; k <= nf; k++) spots.push([XT, YC + 2 * R * k + 0.0005 * k]);
