@@ -101,7 +101,7 @@ la rampa, a varias alturas, y una base debajo de la bisagra.
 
 - **Dónde se queda la bola:** al final de la rampa, apoyada en el escalón.
 - **Por qué no vuelve:** en cuanto el final de la rampa toca el escalón, el escalón aguanta el peso de la bola,
-  así que el palo ya no lo nota y deja de bajar (a los 2° o 10°). Para formar la V, la bisagra tendría que seguir
+  así que el palo ya no lo nota y deja de bajar, entre los 2° y los 10°. Para formar la V, la bisagra tendría que seguir
   bajando, y eso solo pasa si el palo pesa más del lado de la bola; pero esa bola está en el escalón.
 - **Lo que pide la vuelta:** para que la bola vuelva a la bisagra y luego otra vez al final, el palo tendría que
   pesar más de un lado y del otro a la vez, en la misma postura.
