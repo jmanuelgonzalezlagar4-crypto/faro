@@ -133,3 +133,31 @@ Con la esclusa la noria no se para nunca, pero es un molino de agua, y muy malo:
   1.100 J, para sacar 20.
 - Si el agua viene sola de más arriba, de un río o de la lluvia, entonces sí da energía: la del agua que baja.
   Pero una turbina la aprovecha mucho mejor que las bolas.
+
+## En una cámara de vacío, con un acumulador y una descarga
+
+`descarga.js` monta la noria de bolas en una cámara de vacío, sin aire.
+
+- El generador de la noria carga un acumulador, que empieza con 100 J.
+- Cuando una bola se queda quieta delante del hueco, una descarga le da un empujón (un solenoide que convierte
+  en movimiento el 80 % de la electricidad).
+- Dentro hay una trampilla que solo se abre hacia dentro. Sin ella, las bolas empujadas fuerte rebotan contra
+  la pared del fondo y vuelven a salir.
+
+| Descarga | Descargas | Bolas que entran | Gasta del acumulador | Produce la noria | Acumulador al final |
+|---|---|---|---|---|---|
+| 0,5 J (en 1 min) | 119 | 0 | 74 J | 1,0 J | 27 J |
+| 2 J | 11 | 0 | 28 J | 1,0 J | 73 J |
+| 5 J | 16 | 0 | 100 J | 1,0 J | 1 J |
+| 6,5 J | 12 | 12 | 98 J | 2,7 J | 5 J |
+| 8 J | 10 | 10 | 100 J | 2,4 J | 2 J |
+| 8 J, con aire | 10 | 10 | 100 J | 2,9 J | 3 J |
+
+- **Descarga pequeña:** no mete ninguna bola, y el acumulador se gasta igual.
+- **Descarga que sí las mete:** cada bola cuesta 8 J del acumulador, y la noria le devuelve unos 0,2 J. A los
+  15 s el acumulador ya no puede dar otra descarga y la máquina se para.
+- **El vacío casi no cambia nada:** el aire solo se llevaba 0,3 J de 100. Lo que frena es el agua (32 J), y las
+  bolas siguen moviéndose dentro del agua. Además, en el vacío el agua hierve a 20 °C: la cámara se llenaría de
+  vapor.
+- **Ni con todo perfecto:** meter la bola cuesta como mínimo 4,9 J, y a la vuelta da como mucho esos 4,9 J.
+  Con un generador del 85 % y un solenoide del 80 %, cada bola deja al acumulador 1,9 J más vacío.
