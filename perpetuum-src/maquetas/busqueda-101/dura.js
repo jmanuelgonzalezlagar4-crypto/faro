@@ -9,7 +9,10 @@ const lista = process.env.LISTA ? JSON.parse(fs.readFileSync(process.env.LISTA, 
 const R = lista || fs.readFileSync(path.join(__dirname, file), 'utf8').trim().split('\n').map(JSON.parse).filter(r => r.rend != null);
 R.filter((_, i) => i % partes === parte).forEach(r => {
   let d; try { d = diseno(r.fam, r.seed || seed, r.n); } catch (e) { return; }
-  d.ideal = false; d.air = true;
+  // con rozamiento de verdad; el aire, como lo tenga el aparato (la búsqueda era en vacío), salvo AIRE=1
+  d.ideal = false; if (process.env.AIRE === '1') d.air = true;
+  // muelles de verdad: con el frenado que el banco pone por defecto (en la búsqueda iban sin pérdidas)
+  d.parts.filter(p => p.kind === 'spring').forEach(p => { if (!(p.damp > 0)) p.damp = 0.5; });
   let info; try { info = P.build(d); } catch (e) { return; }
   const w = info.world, L = w.ledger, E0 = w.energy().E; let ref = null, exc = 0, Kmax = 0, sale = false, quieto = 0, escala = 0.01;
   // parado: lo dice el banco, o se mueve con menos de 0,1 mJ durante 2 s. Se sale: alguna pieza cae fuera de la mesa.
@@ -20,5 +23,5 @@ R.filter((_, i) => i % partes === parte).forEach(r => {
       if (w.bodies.some(q => !q.isStatic && q.y < -0.6)) { sale = true; break; } }
   }
   const b = w.balance();
-  console.log(JSON.stringify({ fam: r.fam, seed: r.seed || seed, n: r.n, ej: r.ej, dura: +w.t.toFixed(1), parado: w.isStopped() || quieto >= 2, sale, trampa: exc > 0.01 * escala, sobra_mJ: +(exc * 1000).toFixed(2), K_mJ: +(b.e.K * 1000).toFixed(1), Kmax_mJ: +(Kmax * 1000).toFixed(1), E0_J: +E0.toFixed(3) }));
+  console.log(JSON.stringify({ fam: r.fam, seed: r.seed || seed, n: r.n, ej: r.ej, dura: +w.t.toFixed(1), parado: w.isStopped() || quieto >= 2, sale, trampa: exc > 0.01 * escala, sobra_mJ: +(exc * 1000).toFixed(2), pila_mJ: +((L.battery + L.hand + L.gridIn) * 1000).toFixed(1), K_mJ: +(b.e.K * 1000).toFixed(1), Kmax_mJ: +(Kmax * 1000).toFixed(1), E0_J: +E0.toFixed(3) }));
 });
