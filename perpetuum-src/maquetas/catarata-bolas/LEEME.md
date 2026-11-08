@@ -224,3 +224,38 @@ subir (2,7 J con 247 g) ya no sirve para subirla más arriba: se gasta en frenar
 - **Bolas más pesadas:** empujan más en la fila, pero apenas asoman; con 450 g ya no sale ninguna por el borde.
 - **El agua que se pierde:** con el tanque a rebosar, cada bola que entra echa fuera medio litro de agua por
   arriba.
+
+## Bolas imantadas y un imán que tire de ellas hacia dentro
+
+`imanes.js` pone un disco de neodimio N52 de 2 cm dentro de cada bola de la noria y un imán fijo dentro del
+tanque, al fondo, enfrente del hueco, para que tire de las bolas hacia dentro. También lo prueba debajo del
+suelo, cerca del hueco.
+
+| Imán fijo | Bolas que entran | Bolas pegadas abajo | Vueltas de la noria | Electricidad |
+|---|---|---|---|---|
+| Ninguno | 0 | 0 | 4,0 | 0,95 J |
+| 4 a 10 cm, en la pared | 0 | 0 o 1 | 3,6 a 4,3 | 0,9 a 1,1 J |
+| 6 a 14 cm, bajo el suelo | 0 | 0 o 1 | 2,8 a 3,6 | 0,5 a 0,9 J |
+| 12 a 20 cm, en la pared (paso fino) | 0 | 2 | 0,8 a 1,4 | 0,15 a 0,3 J |
+
+- **El imán no sabe de qué bola tirar:** tira más fuerte de las que ya están dentro, porque las tiene más cerca,
+  y las sujeta abajo. La columna se queda sin las bolas que tenían que empujar, y la noria gira menos.
+- **Aunque tirara de la bola del hueco:** una vez dentro la tendría pegada. Para soltarla hay que vencer la
+  misma fuerza que la metió, y el agua solo la empuja hacia arriba con 2,7 N.
+- **Las bolas imantadas se pegan entre sí:** en la fila y en el montón de abajo.
+- **Imanes de más de 12 cm:** con el paso de cálculo normal, el banco suma hasta 2.800 J que no existen; la app lo
+  avisaría. Con un paso 8 veces más fino las cuentas cuadran, y son las filas de la tabla.
+
+## Un condensador que se cargue con la caída y use la descarga
+
+Un condensador es un acumulador que se descarga muy deprisa: no cambia la energía. Ya está probado con el
+acumulador (`descarga.js`): cada bola que entra le cuesta 8 J, y la noria devuelve unos 0,2 J.
+
+Con todo perfecto, una bola de 247 g que cae 1 m dentro de una bobina:
+
+- da como mucho 2,4 J;
+- con un generador del 85 % quedan 2,1 J en el condensador;
+- con una bobina que empuje con el 80 %, el golpe es de 1,6 J.
+
+Hacen falta 6 J de golpe, o 4,9 J empujando despacio. Aun sumando lo que da la bola al subir, todo perfecto
+(2,6 + 2,3 J) × 85 % × 80 % = 3,3 J, sigue sin llegar a 4,9 J.
