@@ -49,8 +49,9 @@ Ninguno es energía de verdad:
 
 - **El ejemplo del hámster (104,9 %)** es redondeo. Con un paso de cálculo 4 veces más fino da el 100,000 %.
 - **Los 20 péndulos** se apoyan unos contra otros en el mismo plano, y uno queda apretado entre su bisagra y el
-  otro péndulo. Ahí el banco les mete energía y la apunta como un golpe negativo, así que la alarma de las cuentas solo
-  salta en 6 de ellos.
+  otro péndulo. Se meten uno en otro hasta 9 mm, cuando el banco deja como mucho 2 mm. Al separarlos, el banco les
+  mete energía sin apuntarla. A la vez quita otra sin apuntarla, así que las cuentas pueden cuadrar igual, y la alarma
+  solo salta en 6 de ellos.
   - Con un paso más fino no cambia: no es redondeo.
   - Con cada péndulo en su propio plano, uno detrás de otro sin poder chocar (`empujones.jsonl`), dan del 100,005 %
     al 100,5 %. Queda una excepción: el nº 1759, con un 117 %.
@@ -72,7 +73,8 @@ Ninguno es energía de verdad:
 
 - **Piezas metidas entre 2 y 3 mm al empezar:** la alarma de piezas solapadas no las ve, y al separarlas el banco
   mete energía.
-- **Piezas apretadas entre bisagras:** el cálculo de los choques puede meter energía y la apunta como un golpe
-  negativo. Por eso las cuentas pueden cuadrar aunque se haya creado energía.
+- **Piezas apretadas entre bisagras:** cuando una pieza queda apretada y se mete en otra más de 2 mm, el banco la
+  separa metiendo energía sin apuntarla, y a veces quitando otra sin apuntarla. Por eso las cuentas pueden cuadrar
+  aunque se haya creado energía: la alarma solo saltó en 6 de los 20 péndulos.
 
-Los dos solo dan energía que no existe, nunca la quitan de donde sí la hay.
+Con ninguno de los dos se saca energía de verdad: son errores de cálculo del banco, no algo que pase en un aparato.
