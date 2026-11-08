@@ -259,3 +259,43 @@ Con todo perfecto, una bola de 247 g que cae 1 m dentro de una bobina:
 
 Hacen falta 6 J de golpe, o 4,9 J empujando despacio. Aun sumando lo que da la bola al subir, todo perfecto
 (2,6 + 2,3 J) × 85 % × 80 % = 3,3 J, sigue sin llegar a 4,9 J.
+
+## El condensador enciende un electroimán que atrae la bola hacia dentro
+
+`electroiman.js`: el generador de la noria carga un condensador, y cuando una bola espera en el hueco la
+descarga enciende un electroimán dentro del tanque. El banco cobra al condensador el calor de la bobina mientras
+está encendida, y lo que cambia la energía de los imanes al encenderla y apagarla. Al apagarse, la bola queda
+suelta y puede subir.
+
+| Electroimán | Bolas | Entran | Gasta el condensador | Devuelve la noria |
+|---|---|---|---|---|
+| Normal (40 A·m², 1 s), condensador de 100 J | acero | 0 | 100 J en 0,25 s | 1,1 J |
+| Hasta 200 A·m², en la pared o bajo el suelo | acero | 0 | 10.000 J | 1 J |
+| Bobina alrededor del paso, perfecta, hasta 1.000 A·m² | imán de 2 cm | 0 | — | 0,6 J |
+| Bobina alrededor del paso, perfecta (sin calor), 300 A·m² | imán de 4 cm | 13 | 1.586 J (122 J por bola) | 1,0 J |
+| La misma bobina, de verdad (con calor) | imán de 4 cm | 9 | 95.800 J (10.600 J por bola) | 0,9 J |
+
+- **Lejos del hueco**, el electroimán apenas tira: la fuerza de un imán cae muchísimo con la distancia.
+- **Con un imán de 2 cm en la bola**, la bobina tira con unos 30 N. El agua aprieta cada vez más según la bola
+  entra, y a los 15 mm la para.
+- **Con imanes de 4 cm** las bolas sí entran, pero la bobina tira de más: la bola llega disparada y esa energía
+  se pierde en el agua y en golpes. Cada bola cuesta 122 J con una bobina perfecta y más de 10.000 J con una de
+  verdad, y la noria devuelve en total 1 J.
+- **Con la bobina de 1.000 A·m² y bolas de 4 cm** el banco suma energía que no existe (de 190 a 6.500 J): esas
+  pruebas no valen.
+
+## Tanque y bolas con el mismo polo, para que se repelan
+
+`repulsion.js`: imanes bajo el suelo del tanque con el norte hacia arriba, y un imán en cada bola con el norte
+hacia abajo, para que el fondo empuje las bolas hacia arriba.
+
+| | Salen | Entran | Vueltas | En el hueco, el imán empuja la bola |
+|---|---|---|---|---|
+| Bolas libres | 4 | 0 | 3,4 a 3,5 | hacia dentro y hacia abajo (1,7 N y 0,9 N): se ha dado la vuelta |
+| Bolas que no pueden girar | 0 | 0 | 1,1 | hacia fuera (1,3 N) |
+
+- **Una bola libre no se deja repeler:** gira hasta que el imán atrae, igual que dos imanes en la mano.
+- **Si la bola no puede girar,** el imán del suelo repele también la bola que tiene que entrar: lo que ayuda a
+  subir en el fondo lo cobra en la entrada, porque la entrada también está en el fondo. Además las bolas ya no
+  ruedan, se arrastran, y la noria da menos vueltas.
+- **Las bolas imantadas, una encima de otra, se atraen** y forman cadenas.
