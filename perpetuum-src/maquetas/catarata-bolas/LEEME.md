@@ -54,3 +54,41 @@ que pesan lo mismo que el agua que apartan.
 
 La fila empuja como mucho dos tercios de lo que empuja el agua. Una esfera es dos tercios del cilindro en el
 que cabe, y una bola que flota pesa menos que su volumen de agua. Aquí serían 49 N contra 73 N.
+
+## Bolas más pesadas, el agua hasta arriba y la caída que haga falta
+
+`barrido.js` prueba la catarata cambiando cuatro cosas:
+
+- **Peso de las bolas:** 247, 350, 450 y 500 g. Todas flotan; una de 10 cm deja de flotar a partir de 524 g.
+- **Alto del agua:** 1, 2 y 3 m. Cuanto más alta, más alta es la caída.
+- **Agua hasta arriba:** la salida justo al nivel del agua, o 15 cm por encima.
+- **La fila de fuera:** 5 bolas, o ninguna para que la caída sea la máxima.
+
+Son 48 casos. **En ninguno entra la bola de abajo.**
+
+`umbral.js` busca el golpe mínimo, entero a la bola del hueco, que hace falta para meterla.
+
+En cada casilla está el golpe más fuerte que se consiguió y, detrás, el que hace falta:
+
+| Bola (cuánto asoma al flotar) | 1 m de agua | 2 m | 3 m |
+|---|---|---|---|
+| 247 g (53 %) | 2,2 J / 6,1 J | 4,4 / 12,4 | 6,7 / 18,6 |
+| 350 g (33 %) | 2,3 / 5,7 | 6,5 / 11,6 | 9,5 / 17,5 |
+| 450 g (14 %) | no sale ninguna / 5,5 | 7,7 / 11,3 | 12,6 / 16,9 |
+| 500 g (5 %) | no sale ninguna / 5,5 | no sale ninguna / 11,1 | 13,4 / 16,7 (sale una sola) |
+
+`450g-3m.png` muestra el caso de 450 g y 3 m. Las bolas salen de una en una y caen 3 m. A los 36 s hay 15
+bolas en la fila, 12 atascadas arriba del tanque, y la del hueco no ha entrado.
+
+Por qué no hay manera:
+
+- **Bola más pesada:** golpea más fuerte, pero el agua la sube con menos fuerza. Asoma menos, y las de debajo
+  apenas pueden sacarla del agua.
+- **Agua más alta:** la caída es mayor, pero el hueco queda más hondo y meter la bola cuesta más. Las dos
+  cosas crecen igual.
+- **El límite:** la caída da como mucho el peso de la bola por el alto del agua. Meterla cuesta el peso del
+  agua que aparta por esa misma altura. Para flotar, la bola tiene que pesar menos que esa agua, así que el
+  golpe siempre se queda corto.
+
+En tres casos con muchas bolas apiladas en el tubo (unas 30), el banco se equivocó a favor de la máquina y
+sumó energía que no existe: 2, 35 y 67 J. Aun así no entró ninguna bola.
