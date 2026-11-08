@@ -65,3 +65,50 @@ cuadra, así que no cambia nada de lo de arriba.
 
 `fotos-en-el-banco.png` tiene el banco igual que en la foto, el ángulo del palo y el mejor diseño paso a paso.
 `resumen.jsonl` tiene todas las pruebas y `mejores-300.jsonl` las 300 mejores con todos sus datos.
+
+## Segunda versión, medida otra vez (`real2.js`, `corre2.js`, `escena2.js`, `imagen2.js`)
+
+El usuario dijo que ninguna imagen se parecía al aparato del vídeo, y tenía razón. Al ampliar las fotos con una
+rejilla salieron varios errores:
+
+- **La canica es grande:** mide lo mismo que la rueda negra, unos 22 mm, no 16 mm. Eso cambia la escala de todo.
+- **La rueda negra está en la cara del palo**, centrada en la pletina, no colgando por debajo.
+- **El palo son dos pletinas de 21 mm de alto**, con un taco negro entre ellas en la punta izquierda.
+- **El contrapeso es un taco de arandelas** colgado de una anilla, muy cerca de la punta izquierda.
+- **El escalón es un bloque más alto y más corto**, al final de la bandeja.
+- **En la foto de la V** el palo baja unos 24° hasta que la rueda toca la tira negra, y la rampa sube unos 15°
+  hasta el bloque.
+
+El contrapeso cuelga en la foto 7,3 cm por debajo del palo. Aquí cuelga 5,8 cm para que la tabla no quede por
+debajo de la bandeja. Eso no cambia lo que pesa en el palo.
+
+Ahora el banco se puede poner exactamente como en cada una de las dos fotos y soltarlo desde ahí
+(`medido-otra-vez.png`, con 50 g de contrapeso y una canica de 14 g):
+
+- **Desde la foto de la V hace lo que explica el usuario:**
+  - El contrapeso gana y sube el palo.
+  - La V se pone recta y la canica corre hasta la punta; a los 0,3 s el palo está casi como en la foto recta.
+  - Luego la canica en la punta hace bajar el palo. La punta de la rampa cae en el bloque, y a los 3 s está quieto
+    a −5°.
+- **Desde la foto del palo recto:** baja hasta −5°, la punta de la rampa cae en el bloque y se queda ahí. La V no se
+  forma.
+- **Las dos fotos acaban en la misma postura**, a medio camino. De la V a la foto recta va solo; de la foto recta a
+  la V, no.
+
+**1.000 variantes** (`azar2.js`, `resultados2.jsonl`): contrapeso de 0 a 150 g, taco negro de 0 a 40 g, canica de 5 a
+30 g, escalón de 22 a 40 mm, rampa colgando de 4° a 14°, pesos del palo y de la rampa, y altura del eje de 62 a
+74 mm. Cada una se suelta desde las dos fotos. Se descartan 10 en las que la canica se cae; ninguna por sumar
+energía, y el error de las cuentas es como mucho de 1,5 mJ.
+
+| Contrapeso | De la foto recta llegan a la V | De la V vuelven a la foto recta |
+|---|---|---|
+| 0 a 10 g | 8 de 72 | 2 de 72 |
+| 10 a 20 g | 0 de 73 | 14 de 73 |
+| 20 a 30 g | 0 de 76 | 24 de 76 |
+| 30 a 50 g | 0 de 127 | 84 de 127 |
+| 50 a 80 g | 0 de 214 | 209 de 214 |
+| 80 a 150 g | 0 de 428 | 428 de 428 |
+
+- **Ninguna hace las dos mitades**, ni siquiera por separado.
+- Solo llegan a la V las que casi no tienen contrapeso (menos de 8 g), y esas no vuelven a subir.
+- Ninguna sigue moviéndose a los 20 s; la que más dura se para a los 5,9 s.
