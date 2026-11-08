@@ -16,8 +16,8 @@ function prueba(o, T) {
     const x = px(), y = py();
     if (++chk % 48 === 0) { const bl = w.balance(); minErr = Math.min(minErr, bl.error); escala = Math.max(escala, bl.e.K, bl.inflow, bl.outflow); }
     if (estado === 'rampa') { maxSube = Math.min(maxSube, x); if (x < huecoX + 10 && y > 900 - (1850 - x) * (523 / 890) + 20) { estado = 'cae'; caidas++; } }
-    else if (estado === 'cae' && x > 1600 && y < 960) { estado = 'gancho'; }
-    else if (estado === 'gancho' && x < 1750 && y < 900 - (1850 - x) * (523 / 890) + 5) { estado = 'rampa'; vueltas++; }
+    else if (estado === 'cae' && x > 1700 && y < 900) { estado = 'gancho'; }
+    else if (estado === 'gancho' && x < d._o.pie && y < 900 - (1850 - x) * (523 / 890) + 5) { estado = 'rampa'; vueltas++; }
     const v = Math.hypot(b.vx, b.vy); quieta = v < 0.005 ? quieta + w.dt : 0;
     if (quieta > 1) { pegada = x < huecoX + 80 && y < 400; break; }
     if (b.y < -0.3) break;

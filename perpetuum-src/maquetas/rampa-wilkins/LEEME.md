@@ -24,10 +24,25 @@ Comprueba que las cuentas de energía cuadren y usa un paso de cálculo de 1/1.9
 Cuando la bola sale con un empujón, como si viniera del gancho, ese empujón cuenta como energía que tiene al empezar.
 Y sale rodando, no resbalando.
 
+## Corregido con el dibujo del usuario
+
+En la primera versión, la rampa recta llegaba hasta dentro del gancho, y la bola chocaba con ella por debajo. El
+usuario lo dibujó como debe ser:
+
+- **La rampa recta** acaba antes del gancho.
+- **La curva** pasa por debajo de la rampa recta.
+- **El gancho** queda más allá del pie de la rampa recta. Sube, se curva hacia la izquierda y deja la bola justo encima
+  del pie (la punta del gancho está una bola por encima de él).
+
+Los resultados de abajo son con esta forma.
+
 ## Resultados
 
 **Como en la foto** (imán de ferrita, bola soltada donde está en la captura): el imán está demasiado lejos para subir
-una bola de acero de medio kilo por esa cuesta, y la bola rueda cuesta abajo.
+una bola de acero de medio kilo por esa cuesta. La bola rueda cuesta abajo, cae por el pie de la rampa y se queda en el
+fondo de la curva.
+
+**Con un empujón de 2 m/s al pie:** llega arriba, pero el imán la atrae y se queda pegada debajo de él.
 
 **2.000 variantes** (`barrido.js`, `barrido.jsonl`). Se cambia todo:
 
@@ -37,18 +52,18 @@ una bola de acero de medio kilo por esa cuesta, y la bola rueda cuesta abajo.
 - **La salida:** donde está en la foto, o al pie con un empujón de hasta 3 m/s.
 - **El rozamiento:** con y sin rozamiento.
 
-Se apartan 207 porque las cuentas no cuadran. Casi todas son una bola encajada en el rincón entre el gancho y el pie de
-la rampa, o pegada a un imán enorme. De las 1.793 que quedan:
+Se apartan 299 porque las cuentas no cuadran: bolas pegadas a imanes enormes o encajadas en un rincón. De las 1.701 que
+quedan:
 
 | Qué pasa | Variantes |
 |---|---|
-| No llega al agujero | 1.478 |
-| Cae por el agujero, baja y se queda en el fondo de la curva | 267 |
-| Se pega al imán, o cae y el imán la atrae y se queda pegada debajo | 40 |
-| Vuelve al pie de la rampa una vez, casi parada, y ahí se queda | 8 |
+| No llega al agujero | 1.514 |
+| Cae por el agujero, baja y se queda en el fondo de la curva | 99 |
+| Se pega al imán, o cae y el imán la atrae y se queda pegada debajo | 87 |
+| Vuelve al pie de la rampa una vez y ahí se queda | 1 |
 | Sube la rampa una segunda vez | 0 |
 
-Los 8 que vuelven al pie son bolas pequeñas a las que se dio un empujón de casi 3 m/s. Por ejemplo, el nº 684 (`vuelta.js`) sale con 91 mJ de movimiento y los pierde todos en golpes (93 mJ) antes de volver a subir.
+La que vuelve al pie es una bola de 1,7 cm, sin rozamiento y con un empujón de 2,1 m/s.
 
 Por qué no funciona:
 
@@ -57,5 +72,10 @@ Por qué no funciona:
 - **Al dar la vuelta:** la bola vuelve al mismo sitio, así que ni el imán ni el peso le han dado nada. Cada golpe y
   cada roce se llevan un poco.
 
-`video.js` hace `wilkins.mp4`: la rampa como en la foto, con un empujón y sin rozamiento, y con un imán enorme. Los tres
-van lado a lado, primero a cámara lenta.
+`video.js` hace `wilkins.mp4`, con tres casos lado a lado, primero a cámara lenta:
+
+- como en la foto;
+- con un empujón;
+- con el agujero más abajo, un imán mayor y sin rozamiento.
+
+`foto.js` dibuja fotogramas sueltos para comprobar la forma.
