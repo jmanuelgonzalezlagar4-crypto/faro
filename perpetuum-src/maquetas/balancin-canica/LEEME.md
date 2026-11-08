@@ -76,3 +76,32 @@ muelle del trampolín la sujeta recta hasta que llega la bola.
   alto del palo, que son 37 mJ con una bola de 20 g. Nada se los da: al subir, el palo se lleva la rampa vacía,
   no la bola.
 - **Con muelle, el palo ni siquiera se levanta:** el muelle que sujeta la rampa también tira del palo hacia abajo.
+
+### Con el escalón al final de la rampa
+
+Corrección del usuario: el escalón no está debajo del palo, sino al final de la rampa. El ciclo sería:
+
+1. **La bola empieza al final de la rampa:** su lado pesa más y baja.
+2. **El final de la rampa llega al escalón:** la rampa se dobla hacia arriba formando una V, y la bola rueda
+   hacia delante, hasta la bisagra.
+3. **La bisagra baja hasta el suelo:** la bola en la bisagra está más cerca del centro, la bobina pesa más y
+   levanta el palo.
+4. **Al subir, la rampa cuelga un poco:** la bola vuelve rodando hasta el final.
+
+En el modelo, la bisagra deja colgar la rampa (de 10° a 35°) y doblarla hacia arriba (hasta 40°). El contrapeso
+está entre lo que pesa la bola en la bisagra y lo que pesa en el final (58 a 68 g). Hay un escalón al final de
+la rampa, a varias alturas, y una base debajo de la bisagra.
+
+| Escalón | Pruebas | Se para a los | Vaivenes |
+|---|---|---|---|
+| Alto (18 cm) | 9 (3 contrapesos × 3 caídas de la rampa) | 1,7 a 2,4 s | 0 |
+| Más bajo (8 a 14 cm) | 6, más una con muelle y una sin roces | 1,9 a 2,7 s | 0 o 1 |
+
+`escalon-final.png`:
+
+- **Dónde se queda la bola:** al final de la rampa, apoyada en el escalón.
+- **Por qué no vuelve:** en cuanto el final de la rampa toca el escalón, el escalón aguanta el peso de la bola,
+  así que el palo ya no lo nota y deja de bajar (a los 2° o 10°). Para formar la V, la bisagra tendría que seguir
+  bajando, y eso solo pasa si el palo pesa más del lado de la bola; pero esa bola está en el escalón.
+- **Lo que pide la vuelta:** para que la bola vuelva a la bisagra y luego otra vez al final, el palo tendría que
+  pesar más de un lado y del otro a la vez, en la misma postura.

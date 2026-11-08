@@ -1,4 +1,5 @@
-// Uso: node corre-trampolin.js '{"k":5}' 30   (k: muelle del trampolín, 0 = sin muelle; lo: cuánto se dobla la rampa, en grados; mc: contrapeso en kg)
+// Uso: node corre-trampolin.js '{"k":5}' 30   (k: muelle del trampolín, 0 = sin muelle; lo y hi: cuánto se dobla la rampa hacia abajo y hacia arriba, en grados;
+//   mc: contrapeso en kg; final: el escalón al final de la rampa, con esc su altura y suelo la de la base bajo la bisagra)
 const A = require('path').join(__dirname, '../../app');
 const E = require(A + '/engine.js'); global.PerpetuumEngine = E;
 const P = require(A + '/build.js');

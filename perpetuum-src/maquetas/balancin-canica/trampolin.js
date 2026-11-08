@@ -14,7 +14,7 @@ module.exports = function (P, o) {
   const cp = P.makePin(d, XL + 0.01, PY, lever.id, cw.id); cp.mode = 'rigid'; d.parts.push(cp);
   // la rampa, colgada de una bisagra en la punta derecha: se dobla hacia abajo, no hacia arriba de la recta
   const ramp = P.makeBar(d, XH, PY, XE, PY); ramp.m = o.mr || 0.02; ramp.th = 0.006; d.parts.push(ramp);
-  const hin = P.makePin(d, XH, PY, lever.id, ramp.id); hin.mode = 'limits'; hin.lo = o.lo || -80; hin.hi = 0; hin.bearing = o.eje || 'bolas'; d.parts.push(hin);
+  const hin = P.makePin(d, XH, PY, lever.id, ramp.id); hin.mode = 'limits'; hin.lo = o.lo != null ? o.lo : -80; hin.hi = o.hi != null ? o.hi : 0; hin.bearing = o.eje || 'bolas'; d.parts.push(hin);
   // el muelle del trampolín: un mástil en la punta del palo tira de la rampa hacia arriba (la bisagra no deja pasar de la recta)
   if (o.k !== 0) {
   const mast = P.makeBar(d, XH, PY, XH, PY + 0.08); mast.m = 0.005; mast.th = 0.004; mast.plane = 1; d.parts.push(mast);
@@ -29,7 +29,11 @@ module.exports = function (P, o) {
   const pad = (x1, y1, x2, y2, mat) => { const r = P.makeRamp(d, x1, y1, x2, y2); r.mat = mat || 'madera'; d.parts.push(r); };
   pad(-0.35, 0.0, 1.0, 0.0);                          // la tabla
   pad(1.0, 0.0, 1.0, 0.1);                            // una pared al final de la tabla
-  pad(0.16, o.esc || 0.15, 0.27, o.esc || 0.15, 'goma');   // el escalón
+  if (o.final) {
+    // el escalón al final de la rampa, y el suelo (la base) debajo de la bisagra
+    pad(XE - 0.05, o.esc || 0.178, XE + 0.05, o.esc || 0.178, 'goma');
+    pad(0.20, o.suelo || 0.10, 0.36, o.suelo || 0.10, 'goma');
+  } else pad(0.16, o.esc || 0.15, 0.27, o.esc || 0.15, 'goma');   // el escalón
   pad(-0.31, 0.12, -0.19, 0.12, 'goma');              // el tope del contrapeso
   if (o.ideal) d.ideal = true;
   d._ids = { lever: lever.id, ramp: ramp.id, ball: ball.id };
