@@ -1,3 +1,5 @@
 trozo-*.jsonl
 trozo3-*.jsonl
 trozo-dura-*.jsonl
+*.log
+videos/*-f/
