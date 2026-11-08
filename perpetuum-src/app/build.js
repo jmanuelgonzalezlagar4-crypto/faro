@@ -85,6 +85,10 @@
   function makePin(d, x, y, a, b) {
     return { id: uid(d), kind: 'pin', x: x, y: y, a: a, b: b, mode: 'free', lo: -45, hi: 45, bearing: 'bronce', gen: 0 };
   }
+  // tanque de agua: rectángulo del fondo (x1, y1) a la superficie (x2, y2)
+  function makeTank(d, x1, y1, x2, y2) {
+    return { id: uid(d), kind: 'tank', x1: x1, y1: y1, x2: x2, y2: y2, rho: 1000 };
+  }
   function makeSpring(d, x1, y1, x2, y2, a, b) {
     return { id: uid(d), kind: 'spring', x1: x1, y1: y1, x2: x2, y2: y2, a: a, b: b, k: 200, rest: null, damp: 0.5 };
   }
@@ -259,6 +263,13 @@
       info.partsOfBody.set(body, arr.concat(list));
     });
 
+    // tanques de agua (rectángulo hasta el nivel del agua; las paredes, si hacen falta, son rampas aparte)
+    parts.forEach(function (p) {
+      if (p.kind !== 'tank') return;
+      w.addTank(p.x1, p.y1, p.x2, p.y2, p.rho || 1000);
+      info.bodyOf[p.id] = w.ground;
+    });
+
     // rampas al suelo
     parts.forEach(function (p) {
       if (p.kind !== 'ramp') return;
@@ -294,6 +305,13 @@
         var l = b.toLocal(p.x, p.y);
         st.lx = l.x; st.ly = l.y;
       }
+    });
+
+    // 4b. bolas en el agua: cada bola es una esfera que el agua empuja y frena
+    if (w.tanks.length) parts.forEach(function (p) {
+      if (p.kind !== 'ball') return;
+      var b = bodyFor(p.id);
+      if (!b.isStatic) w.addFloat(b, p.x, p.y, p.r, 0.47);
     });
 
     // 5. ejes de las ruedas
@@ -860,6 +878,67 @@
     return d;
   }
 
+  // Noria de bolas flotantes (el prototipo del usuario): bolas de acero huecas que suben solas por una columna
+  // de agua de 1 m, salen por arriba (un deflector las desvía a un canal), caen en una noria de paletas con
+  // generador y vuelven rodando por otro canal hasta un hueco en el fondo de la columna, por donde tienen que
+  // volver a entrar. El hueco deja pasar las bolas pero no el agua (el mejor cierre posible, sin roce).
+  function exampleBuoyBalls(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'flotadores';
+    var YB = 0.05, YS = 1.05, X0 = 0, X1 = 0.13, R = 0.05;
+    d.parts.push(makeTank(d, X0, YB, X1, YS));
+    function wall(x1, y1, x2, y2, mat) { var r = makeRamp(d, x1, y1, x2, y2); r.mat = mat || 'madera'; d.parts.push(r); return r; }
+    wall(-0.05, YB - RAMP_R, X1 + 0.03, YB - RAMP_R);                 // fondo
+    // la columna sigue por encima del agua: las bolas que van dentro empujan hacia arriba a las que ya han salido,
+    // y un techo inclinado empuja la de arriba hacia una salida al lado, por encima del agua
+    var TOP = opts.top || 1.20;
+    wall(X0 - RAMP_R, YB - RAMP_R, X0 - RAMP_R, TOP + 0.2);                // pared izquierda
+    wall(X1 + RAMP_R, YB + 2 * R + 0.02, X1 + RAMP_R, TOP - RAMP_R);       // pared derecha: hueco abajo y salida arriba
+    wall(X0 - 0.02, TOP + 0.115, X1 + 0.05, TOP + 0.16);                    // techo inclinado
+    wall(X1 + 0.035, TOP - 0.03, 0.40, 1.02);                               // canal hacia la noria
+    wall(0.98, 0.42, X1 + 0.06, YB + R + 0.005);                            // canal de vuelta al hueco del fondo
+    wall(1.0, 0.40, 1.0, 1.05);                                             // tope del canal de vuelta
+    // la noria: un buje con 6 paletas finas, en un rodamiento de bolas y con generador
+    var NX = 0.66, NY = 0.78, NR = 0.24;
+    var hub = makeWheel(d, NX, NY, 0.035); hub.m = 0.4; hub.spokes = 6; hub.bearing = 'bolas'; hub.rpm = 0; hub.gen = opts.gen != null ? opts.gen : 0.01; hub.gdest = 'bus';
+    d.parts.push(hub);
+    for (var k = 0; k < 6; k++) {
+      var a = k * Math.PI / 3 + 0.2, pb = makeBar(d, NX + 0.035 * Math.cos(a), NY + 0.035 * Math.sin(a), NX + NR * Math.cos(a), NY + NR * Math.sin(a));
+      pb.m = 0.05; pb.th = 0.006; d.parts.push(pb);
+      var pw = makePin(d, NX + 0.035 * Math.cos(a), NY + 0.035 * Math.sin(a), hub.id, pb.id); pw.mode = 'rigid'; d.parts.push(pw);
+    }
+    // las bolas: diez llenando la columna, una en cada canal y una esperando en el hueco de abajo
+    var spots = [];
+    for (var kb = 0; kb < 10; kb++) spots.push([kb % 2 ? 0.08 : 0.05, 0.11 + 0.095 * kb]);   // la columna llena, en zigzag
+    spots.push([0.30, 1.12], [0.55, 0.32], [X1 + 0.12, 0.14]);
+    spots.forEach(function (q) { var b = makeBall(d, q[0], q[1]); b.r = R; b.m = opts.m || 0.247; b.mat = 'acero'; d.parts.push(b); });
+    return d;
+  }
+
+  // La rueda de flotadores (la idea clásica): una rueda con 8 bolas huecas en el borde; la mitad derecha va
+  // dentro de un tanque de agua y la izquierda fuera, y las bolas cruzan la pared por unos cierres perfectos.
+  // A la derecha el agua empuja las bolas hacia arriba; a la izquierda su peso tira hacia abajo: las dos cosas
+  // hacen girar la rueda hacia el mismo lado. Pero abajo cada bola tiene que entrar en el agua por la pared.
+  function exampleBuoyWheel(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'ruedaflot';
+    var CX = 0, CY = 0.5, RR = 0.35, R = 0.05;
+    d.parts.push(makeTank(d, 0, 0.05, 0.6, 1.0));
+    var base = makeRamp(d, -0.5, 0.038, 0.62, 0.038); base.mat = 'madera'; d.parts.push(base);
+    var wh = makeWheel(d, CX, CY, 0.06); wh.m = 0.5; wh.spokes = 8; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : -40; wh.gen = opts.gen || 0; wh.gdest = 'bus';
+    d.parts.push(wh);
+    for (var k = 0; k < 8; k++) {
+      var a = k * Math.PI / 4 + Math.PI / 8;
+      var arm = makeBar(d, CX + 0.06 * Math.cos(a), CY + 0.06 * Math.sin(a), CX + (RR - R) * Math.cos(a), CY + (RR - R) * Math.sin(a)); arm.m = 0.03; arm.th = 0.006; arm.plane = 1; d.parts.push(arm);
+      var aw = makePin(d, CX + 0.06 * Math.cos(a), CY + 0.06 * Math.sin(a), wh.id, arm.id); aw.mode = 'rigid'; d.parts.push(aw);
+      var b = makeBall(d, CX + RR * Math.cos(a), CY + RR * Math.sin(a)); b.r = R; b.m = opts.m || 0.247; b.mat = 'acero'; b.plane = 1; d.parts.push(b);
+      var bw = makePin(d, CX + RR * Math.cos(a), CY + RR * Math.sin(a), arm.id, b.id); bw.mode = 'rigid'; d.parts.push(bw);
+    }
+    return d;
+  }
+
   var EXAMPLES = {
     mazos: { title: T('Rueda de mazos'), make: exampleMallets },
     bolas: { title: T('Rueda de bolas'), make: exampleBalls },
@@ -876,13 +955,15 @@
     flechas2: { title: T('Rodillo de flechas mejorado'), make: exampleArrowsBetter },
     flechas3: { title: T('Rodillo de flechas flotante'), make: exampleArrowsFloating },
     flotante: { title: T('Volante flotante'), make: exampleFloating },
-    vacio: { title: T('Volante de vacío'), make: exampleVacuum }
+    vacio: { title: T('Volante de vacío'), make: exampleVacuum },
+    flotadores: { title: T('Noria de bolas flotantes'), make: exampleBuoyBalls },
+    ruedaflot: { title: T('Rueda de flotadores'), make: exampleBuoyWheel }
   };
 
   root.PerpetuumBuild = {
     build: build, emptyDesign: emptyDesign, find: find, isBodyPart: isBodyPart, ringGeometry: ringGeometry, ringSlots: ringSlots,
     makeWheel: makeWheel, makeCam: makeCam, camProfile: camProfile, makeBall: makeBall, makeBar: makeBar, makeRamp: makeRamp, makePin: makePin,
-    makeSpring: makeSpring, makeMagnet: makeMagnet, partMass: partMass, magSize: magSize, barR: barR, camShape: camShape,
+    makeSpring: makeSpring, makeTank: makeTank, makeMagnet: makeMagnet, partMass: partMass, magSize: magSize, barR: barR, camShape: camShape,
     magnetModel: magnetModel, electroPower: electroPower, GRADES: GRADES, MAG_SHAPES: MAG_SHAPES,
     BEARINGS: BEARINGS, MATERIALS: MATERIALS, GRAVITY: GRAVITY, EXAMPLES: EXAMPLES,
     CAM_DROP: CAM_DROP, exampleArrows: exampleArrows, BAR_R: BAR_R, RAMP_R: RAMP_R, MAG_R: MAG_R, RIM_R: RIM_R, DIV_R: DIV_R, CAM_R: CAM_R

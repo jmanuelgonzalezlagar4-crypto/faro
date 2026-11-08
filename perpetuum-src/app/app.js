@@ -67,6 +67,7 @@
     bar: '<path d="M5 18L19 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="5" cy="18" r="2.4" fill="var(--panel)" stroke="currentColor" stroke-width="1.4"/><circle cx="19" cy="6" r="2.4" fill="var(--panel)" stroke="currentColor" stroke-width="1.4"/>',
     cam: '<path d="M12 4.5c3.6 0 6.5 3.4 6.5 7.6 0 4-2.9 7.4-6.5 7.4s-6-2.9-6-6.6c0-4.3 2.4-8.4 6-8.4z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="13" r="1.6" fill="currentColor"/><path d="M3 3.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="3.5" r="1.6" fill="var(--panel)" stroke="currentColor" stroke-width="1.2"/>',
     ball: '<circle cx="12" cy="13" r="6.5" fill="currentColor"/><path d="M9.5 6.5L12 4l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+    tank: '<path d="M4 4v15a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 10c2-1.2 3.5 1.2 5.3 0s3.4-1.2 5.3 0 3.5 1.2 5.4 0V19H4z" fill="currentColor" opacity=".35"/><circle cx="12" cy="15" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/>',
     ramp: '<path d="M3 17L21 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M5 18.5l-1.5 2.5M9 16.5l-1.5 2.5M13 14.5l-1.5 2.5M17 12.5l-1.5 2.5" stroke="currentColor" stroke-width="1.2"/>',
     spring: '<path d="M3 12h3l1.5-5 3 10 3-10 3 10 1.5-5h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
     'mag-bar': '<rect x="3" y="8" width="9" height="8" fill="var(--south)"/><rect x="12" y="8" width="9" height="8" fill="var(--north)"/><rect x="3" y="8" width="18" height="8" fill="none" stroke="currentColor" stroke-width="1.4"/>',
@@ -94,6 +95,7 @@
       { id: 'bar', name: T('Brazo'), desc: T('Barra rígida. Arrastra de punta a punta.') },
       { id: 'ball', name: T('Pesa'), desc: T('Bola de plomo, acero, madera o goma.') },
       { id: 'ramp', name: T('Rampa'), desc: T('Suelo o rampa fija.') },
+      { id: 'tank', name: T('Tanque de agua'), desc: T('Arrastra de una esquina a otra: el agua llega hasta arriba. Empuja hacia arriba las bolas que metas dentro.') },
       { id: 'spring', name: T('Muelle'), desc: T('Arrastra entre dos piezas.') },
       { id: 'cam', name: T('Leva con brazo'), desc: T('Va en el eje de una rueda y mueve un brazo.') }
     ] },
@@ -203,6 +205,16 @@
       what: T('El mismo cilindro de latón y el mismo empujón, pero sin imanes que tiren de él, sin leva y sin nada que lo toque: flota en dos cojinetes magnéticos y solo una punta de aguja lo aguanta a lo largo del eje. Lo único que lo frena es el aire y esa punta.'),
       why: T('Es la máquina que más aguanta: a los 10 minutos todavía gira a unas 140 rpm, y tarda una media hora en pararse (en una campana de vacío, casi una hora). Pero no se mueve sola: solo guarda el empujón y lo suelta muy despacio. Ponle un generador (toca el cilindro, «Generador») y devuelve el 84 % del empujón como electricidad; más no se puede, porque el propio generador pierde un 15 % en calor. Nunca devuelve más de lo que le das.')
     },
+    flotadores: {
+      title: T('Noria de bolas flotantes'), era: T('El prototipo de un usuario de la app: bolas huecas que suben solas por el agua.'),
+      what: T('Una columna de agua de 1 m llena de bolas de acero huecas de 10 cm. El agua las empuja hacia arriba; las que van dentro empujan a las de encima, que salen por arriba y caen por un canal a una noria de paletas con generador. Luego bajan rodando por otro canal hasta un hueco en el fondo de la columna, por donde tienen que volver a entrar. El hueco deja pasar las bolas pero no el agua: el mejor cierre posible, sin roce.'),
+      why: T('Las bolas suben, la noria gira casi dos vueltas y se para, porque abajo las bolas no pueden entrar. En el fondo el agua aprieta con casi 10.000 Pa: para meter una bola hay que empujarla con hasta 72 N, y la fila de bolas del canal empuja con unos 5 N. Meter una bola cuesta 5 J, justo lo que da al subir y al bajar. Además, de lo que tenía, el agua se come una parte frenando las bolas y otra se va en golpes.')
+    },
+    ruedaflot: {
+      title: T('Rueda de flotadores'), era: T('La idea clásica de las bolas que flotan, en una rueda.'),
+      what: T('Una rueda con 8 bolas huecas en el borde: la mitad derecha va dentro de un tanque de agua y la izquierda fuera, y las bolas cruzan la pared por unos cierres perfectos, sin roce y sin perder agua. A la derecha el agua empuja las bolas hacia arriba; a la izquierda su peso tira hacia abajo: las dos cosas empujan la rueda hacia el mismo lado.'),
+      why: T('Abajo, cada bola tiene que entrar en el agua contra la presión, y eso frena la rueda lo mismo que la empujan las demás. Si sumas la energía de la rueda en una vuelta entera, sale exactamente cero: sube y baja 1,2 J según dónde estén las bolas y vuelve al mismo valor. Por eso, la empujes como la empujes, avanza un poco y se queda en un punto de equilibrio; y cuanto más deprisa va, más la frena el agua.')
+    },
     vacio: {
       title: T('Volante de vacío'), era: T('La propuesta de Claude para llegar por lo menos al 99 %.'),
       what: T('Un disco de acero de 20 cm y 12 kg dentro de una cámara de vacío, flotando en dos cojinetes magnéticos más fuertes (en cada punta, 16 imanes en el eje dentro de 24 fijos), empujado hasta 3.000 rpm. No lo toca nada salvo una punta de aguja que lo aguanta a lo largo del eje, y no hay aire que lo frene.'),
@@ -257,7 +269,7 @@
     store(KEYS.current, { libId: S.libId, libName: S.libName });
   }
 
-  var KINDS = { wheel: 1, ball: 1, bar: 1, ramp: 1, pin: 1, spring: 1, magnet: 1 };
+  var KINDS = { wheel: 1, ball: 1, bar: 1, ramp: 1, pin: 1, spring: 1, magnet: 1, tank: 1 };
   function sanitize(d) {
     if (!d || typeof d !== 'object' || !Array.isArray(d.parts)) return null;
     var out = P.emptyDesign();
@@ -327,6 +339,7 @@
       case 'bar': return segDist(x, y, p.x1, p.y1, p.x2, p.y2) <= P.barR(p) + tol;
       case 'wheel': return Math.hypot(x - p.x, y - p.y) <= p.r + tol * 0.3;
       case 'ramp': return segDist(x, y, p.x1, p.y1, p.x2, p.y2) <= P.RAMP_R + tol;
+      case 'tank': return [[p.x1, p.y1, p.x2, p.y1], [p.x2, p.y1, p.x2, p.y2], [p.x1, p.y2, p.x2, p.y2], [p.x1, p.y1, p.x1, p.y2]].some(function (e) { return segDist(x, y, e[0], e[1], e[2], e[3]) <= tol; });
     }
     return false;
   }
@@ -448,6 +461,10 @@
       d.parts.push(made);
     } else if (kind === 'ball') {
       made = P.makeBall(d, a.x, a.y); d.parts.push(made);
+    } else if (kind === 'tank') {
+      // arrastrando: de una esquina a la otra; tocando: uno de 40 × 60 cm con la esquina de abajo aquí
+      var bx = dragged ? b.x : a.x + 0.4, by = dragged ? b.y : a.y + 0.6;
+      made = P.makeTank(d, Math.min(a.x, bx), Math.min(a.y, by), Math.max(a.x, bx), Math.max(a.y, by)); d.parts.push(made);
     } else if (kind === 'bar' || kind === 'ramp' || kind === 'spring' || kind === 'arm') {
       if (!dragged) { toast(T('Arrastra el dedo para dibujar la pieza.')); return; }
       if (kind === 'ramp') { made = P.makeRamp(d, a.x, a.y, b.x, b.y); d.parts.push(made); }
@@ -646,7 +663,7 @@
     var w = S.info.world, last = S.hist[S.hist.length - 1];
     if (!force && last && w.t - last.t < 0.05) return;
     var b = w.balance();
-    var lost = b.axle + b.hits + b.rub + b.air + b.springs + b.heat;
+    var lost = b.axle + b.hits + b.rub + b.air + (b.water || 0) + b.springs + b.heat;
     S.hist.push({ t: w.t, K: b.e.K, lost: lost, gen: b.gen, bat: b.battery, hand: b.hand });
     if (b.e.K > S.maxK) S.maxK = b.e.K;
     if (S.hist.length > 2400) S.hist = S.hist.filter(function (_, i) { return i % 2 === 0 || i === S.hist.length - 1; });
@@ -747,9 +764,9 @@
     ctx.fillStyle = C.paper; ctx.fillRect(0, 0, S.vw, S.vh);
     drawPhoto();
     drawGrid();
-    var fns = { ramp: drawRamp, wheel: drawWheel, spring: drawSpring, bar: drawBar, ball: drawBall, magnet: drawMagnet, pin: drawPin };
+    var fns = { tank: drawTank, ramp: drawRamp, wheel: drawWheel, spring: drawSpring, bar: drawBar, ball: drawBall, magnet: drawMagnet, pin: drawPin };
     [0, 1, 2].forEach(function (plane) {   // los cojinetes de las puntas del eje, delante de todo
-      ['ramp', 'wheel', 'spring', 'bar', 'ball', 'magnet', 'pin'].forEach(function (k) {
+      ['tank', 'ramp', 'wheel', 'spring', 'bar', 'ball', 'magnet', 'pin'].forEach(function (k) {
         parts().forEach(function (p) { if (p.kind === k && planeOf(p) === plane) fns[k](p); });
       });
     });
@@ -792,6 +809,15 @@
     ctx.beginPath(); ctx.moveTo(x - 12, y + 13); ctx.lineTo(x + 12, y + 13); ctx.stroke();
     ctx.lineWidth = 1; ctx.strokeStyle = C['ink-2'];
     hatch(x - 12, y + 13, x + 12, y + 13, -1, 6);
+  }
+  function drawTank(p) {
+    var a = W2S(p.x1, p.y2), b = W2S(p.x2, p.y1), w = b.x - a.x, h = b.y - a.y;
+    ctx.fillStyle = '#7fc0e8'; ctx.globalAlpha = 0.35; ctx.fillRect(a.x, a.y, w, h); ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#3d8fc4'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y);
+    for (var x = 0; x <= w; x += 8) ctx.lineTo(a.x + x, a.y + Math.sin(x / 8 * Math.PI) * 1.5);
+    ctx.stroke();
+    ctx.setLineDash([5, 4]); ctx.lineWidth = 1; ctx.strokeRect(a.x, a.y, w, h); ctx.setLineDash([]);
   }
   function drawRamp(p) {
     var a = W2S(p.x1, p.y1), b = W2S(p.x2, p.y2);
@@ -1197,6 +1223,7 @@
       { k: 'hits', name: T('Golpes y choques'), v: b.hits, c: 's2' },
       { k: 'rub', name: T('Roce y rodadura entre piezas'), v: b.rub, c: 's3' },
       { k: 'air', name: T('Resistencia del aire'), v: b.air, c: 's4' },
+      { k: 'water', name: T('Frenado en el agua'), v: b.water || 0, c: 's8' },
       { k: 'springs', name: T('Muelles (amortiguación)'), v: b.springs, c: 's5' },
       { k: 'heat', name: T('Calor en motores, generadores y bobinas'), v: b.heat, c: 's6' },
       { k: 'bus', name: T('Electricidad útil (guardada o vertida a la red)'), v: b.bus + (b.gridOut || 0), c: 's7' }
@@ -1211,12 +1238,12 @@
   }
   function hasElectric() { return parts().some(function (p) { return p.gen > 0 || p.motor || (p.kind === 'magnet' && p.shape === 'electro'); }); }
   function joinEs(arr) { return arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + T(' y ') + arr[arr.length - 1]; }
-  var LOSS_NAMES = { axle: T('el rozamiento de los ejes'), hits: T('los golpes'), rub: T('el roce entre piezas'), air: T('el aire'), springs: T('los muelles'), heat: T('el calor de motores, generadores y bobinas') };
+  var LOSS_NAMES = { axle: T('el rozamiento de los ejes'), hits: T('los golpes'), rub: T('el roce entre piezas'), air: T('el aire'), water: T('el agua, que frena'), springs: T('los muelles'), heat: T('el calor de motores, generadores y bobinas') };
 
   function verdictData() {
     var w = S.info.world, b = w.balance();
     var tone = 'design', state = T('Diseño'), title = '', text = '', warn = '';
-    var losses = b.axle + b.hits + b.rub + b.air + b.springs + b.heat, inflow = b.reserve + b.hand + b.battery + b.gridIn;
+    var losses = b.axle + b.hits + b.rub + b.air + (b.water || 0) + b.springs + b.heat, inflow = b.reserve + b.hand + b.battery + b.gridIn;
     var usefulOut = b.bus + b.gridOut;
     if (S.mode === 'design') {
       if (!parts().length) { title = T('El banco está vacío'); text = T('Pulsa «Añadir» para elegir una pieza, o carga uno de los ejemplos.'); }
@@ -1416,7 +1443,7 @@
   var GRADE_OPTS = Object.keys(P.GRADES).map(function (k) { return [k, P.GRADES[k].name]; });
   var SHAPE_OPTS = Object.keys(P.MAG_SHAPES).map(function (k) { return [k, P.MAG_SHAPES[k]]; });
   var DENS = { plomo: 11340, acero: 7850, madera: 700, goma: 1100 };
-  var NAMES = { wheel: T('Rueda'), ball: T('Pesa'), bar: T('Brazo'), ramp: T('Rampa'), pin: T('Bisagra'), spring: T('Muelle'), magnet: T('Imán') };
+  var NAMES = { wheel: T('Rueda'), ball: T('Pesa'), bar: T('Brazo'), ramp: T('Rampa'), pin: T('Bisagra'), spring: T('Muelle'), magnet: T('Imán'), tank: T('Tanque de agua') };
   function partName(p) { return p.kind === 'magnet' ? P.MAG_SHAPES[p.shape || 'bar'] : (p.kind === 'wheel' && p.style === 'ring' ? T('Rueda de compartimentos') : (p.kind === 'wheel' && p.style === 'cam' ? T('Leva') : (p.kind === 'wheel' && p.style === 'rim' ? T('Aro o polea') : NAMES[p.kind]))); }
 
   function renderInspector() {
@@ -1484,6 +1511,10 @@
         var spr = S.info.springOf[p.id];
         if (spr && spr.limited) h += T('<p class="note field wide">Para piezas tan ligeras, el banco solo puede simular este muelle con ') + fmt(spr.k, 0) + T(' N/m y ') + fmt(spr.c, 1) + T(' N·s/m. Más rígido vibraría más rápido de lo que el cálculo puede seguir.</p>');
       }
+    } else if (p.kind === 'tank') {
+      h += numField(T('Esquina de abajo X'), 'n_x', p.x1 * 100, 'cm', 1) + numField(T('Esquina de abajo Y'), 'n_y', p.y1 * 100, 'cm', 1);
+      h += numField(T('Ancho'), 'n_tw', (p.x2 - p.x1) * 100, 'cm', 1) + numField(T('Alto del agua'), 'n_th', (p.y2 - p.y1) * 100, 'cm', 1);
+      h += '<p class="note field wide">' + T('El agua empuja hacia arriba las bolas que estén dentro (más cuanto más grandes y huecas) y las frena al moverse. Para meter una bola por el fondo hay que vencer la presión del agua. Las paredes, si las quieres, son rampas.') + '</p>';
     } else if (p.kind === 'pin') {
       h += segField(T('Tipo'), 'f_mode', [['free', T('Gira libre')], ['limits', T('Con topes')], ['guia', T('Guía')], ['rigid', T('Soldada')]], p.mode, true);
       if (p.mode === 'guia') h += numField(T('Dirección de la guía'), 'n_sang', p.sang != null ? p.sang : 90, '°', 5);
@@ -1602,6 +1633,8 @@
       n_ang: function (v) { var L = Math.hypot(p.x2 - p.x1, p.y2 - p.y1); moveEnd(p, 1, p.x1 + L * Math.cos(v * DEG), p.y1 + L * Math.sin(v * DEG)); },
       n_lo: function (v) { p.lo = Math.max(-180, Math.min(0, v)); },
       n_sang: function (v) { p.sang = ((v % 360) + 360) % 360; },
+      n_tw: function (v) { p.x2 = p.x1 + Math.max(0.05, v / 100); },
+      n_th: function (v) { p.y2 = p.y1 + Math.max(0.05, v / 100); },
       n_hi: function (v) { p.hi = Math.max(0, Math.min(180, v)); },
       n_dir: function (v) { p.ang = ((v % 360) + 360) % 360; },
       n_size: function (v) { p.size = Math.max(0.005, Math.min(0.5, v / 100)); if (p.shape !== 'electro') p.mu = P.magnetModel(p).mu; },
@@ -2553,7 +2586,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam', flechas3: 'mag-disc', flotante: 'wheel', vacio: 'wheel' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam', flechas3: 'mag-disc', flotante: 'wheel', vacio: 'wheel', flotadores: 'tank', ruedaflot: 'tank' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();

@@ -326,12 +326,14 @@
     this.springs = [];
     this.magnets = [];
     this.steel = [];
+    this.tanks = [];    // agua: rectángulos con su nivel
+    this.floats = [];   // bolas que el agua empuja (esferas)
     this.hand = null;
     this.t = 0;
     this.contacts = [];
     this.nextId = 1;
     this.ledger = {
-      E0: 0, axle: 0, rub: 0, hits: 0, air: 0, springs: 0, gen: 0, hand: 0,
+      E0: 0, axle: 0, rub: 0, hits: 0, air: 0, water: 0, springs: 0, gen: 0, hand: 0,
       battery: 0,   // energía que ponen las baterías (motores y electroimanes)
       heat: 0,      // calor en motores, generadores y bobinas
       bus: 0,       // energía eléctrica guardada (lo que producen los generadores y no se gasta)
@@ -460,7 +462,7 @@
         this._ePow[e.src] += e.power;
       }
     }
-    if (changed) { this.updateMagnetPoses(); this.computeMagnetForces(); }
+    if (changed) { this.updateMagnetPoses(); this.computeMagnetForces(); if (this.floats.length) this.computeFloatForces(); }
   };
 
   World.prototype.addSteel = function (body, radius) {
@@ -626,6 +628,70 @@
     }
   };
 
+  // --- Agua ---
+  // Un tanque es un rectángulo de agua (x0..x1, del fondo yb a la superficie ys) que no se vacía.
+  // Una bola dentro aparta agua: la energía de esa agua apartada es ρ·g·∫(profundidad)·dV sobre la parte de la bola
+  // que está en el agua. De esa energía sale todo: el empuje hacia arriba (Arquímedes) y la presión que empuja
+  // hacia fuera a una bola que intenta entrar por un lado o por abajo. Es conservativa y entra en las cuentas.
+  // Lo que el agua frena al moverse dentro va a «water».
+  var GLX = [-0.9894009349916499, -0.9445750230732326, -0.8656312023878318, -0.7554044083550030, -0.6178762444026438, -0.4580167776572274, -0.2816035507792589, -0.0950125098376374,
+    0.0950125098376374, 0.2816035507792589, 0.4580167776572274, 0.6178762444026438, 0.7554044083550030, 0.8656312023878318, 0.9445750230732326, 0.9894009349916499];
+  var GLW = [0.0271524594117541, 0.0622535239386479, 0.0951585116824928, 0.1246289712555339, 0.1495959888165767, 0.1691565193950025, 0.1826034150449236, 0.1894506104550685,
+    0.1894506104550685, 0.1826034150449236, 0.1691565193950025, 0.1495959888165767, 0.1246289712555339, 0.0951585116824928, 0.0622535239386479, 0.0271524594117541];
+  // área del círculo de radio q (corte horizontal de la bola) que cae entre x = a y x = b
+  function discCut(q, a, b) {
+    if (q <= 0) return 0;
+    function S(u) { if (u <= -q) return 0; if (u >= q) return Math.PI * q * q; return q * q * Math.acos(-u / q) + u * Math.sqrt(q * q - u * u); }
+    return S(b) - S(a);
+  }
+  // parte de una esfera (centro cx, cy, radio r) dentro de un tanque: volumen y energía del agua apartada
+  function sphereInTank(cx, cy, r, T, g) {
+    var lo = Math.max(cy - r, T.yb), hi = Math.min(cy + r, T.ys);
+    if (hi <= lo || cx + r <= T.x0 || cx - r >= T.x1) return { V: 0, U: 0 };
+    var half = (hi - lo) / 2, mid = (hi + lo) / 2, V = 0, D = 0;
+    for (var k = 0; k < 16; k++) {
+      var y = mid + half * GLX[k], dy = y - cy, q = Math.sqrt(Math.max(0, r * r - dy * dy));
+      var A = discCut(q, T.x0 - cx, T.x1 - cx) * GLW[k] * half;
+      V += A; D += A * (T.ys - y);
+    }
+    return { V: V, U: T.rho * g * D };
+  }
+  var WAVE_DAMP = 7.5;   // 1/s: lo que frenan las olas a una bola que cabecea en la superficie
+  World.prototype.addTank = function (x0, yb, x1, ys, rho) {
+    var t = { x0: Math.min(x0, x1), x1: Math.max(x0, x1), yb: Math.min(yb, ys), ys: Math.max(yb, ys), rho: rho || 1000 };
+    this.tanks.push(t);
+    return t;
+  };
+  World.prototype.addFloat = function (body, wx, wy, r, cd) {
+    var l = body.toLocal(wx, wy);
+    var f = { body: body, lx: l.x, ly: l.y, r: r, V: 4 / 3 * Math.PI * r * r * r, cd: cd != null ? cd : 0.47, wx: wx, wy: wy, fx: 0, fy: 0, sub: 0, rho: 0, _dx: 0, _dy: 0 };
+    this.floats.push(f);
+    return f;
+  };
+  World.prototype._floatU = function (f, x, y, out) {
+    var U = 0, V = 0, rho = 0;
+    for (var i = 0; i < this.tanks.length; i++) { var q = sphereInTank(x, y, f.r, this.tanks[i], this.g); U += q.U; V += q.V; if (q.V > 0) rho = this.tanks[i].rho; }
+    if (out) { out.V = V; out.rho = rho; }
+    return U;
+  };
+  World.prototype.computeFloatForces = function () {
+    var F = this.floats, h = 1e-6, o = { V: 0, rho: 0 };
+    for (var i = 0; i < F.length; i++) {
+      var f = F[i], p = f.body.toWorld(f.lx, f.ly);
+      f.wx = p.x; f.wy = p.y;
+      this._floatU(f, p.x, p.y, o);
+      f.sub = o.V / f.V; f.rho = o.rho;
+      if (f.sub <= 0) { f.fx = 0; f.fy = 0; continue; }
+      f.fx = -(this._floatU(f, p.x + h, p.y) - this._floatU(f, p.x - h, p.y)) / (2 * h);
+      f.fy = -(this._floatU(f, p.x, p.y + h) - this._floatU(f, p.x, p.y - h)) / (2 * h);
+    }
+  };
+  World.prototype.waterEnergy = function () {
+    var U = 0;
+    for (var i = 0; i < this.floats.length; i++) { var f = this.floats[i], p = f.body.toWorld(f.lx, f.ly); U += this._floatU(f, p.x, p.y); }
+    return U;
+  };
+
   // --- Energía ---
   World.prototype.kinetic = function () {
     var K = 0;
@@ -656,8 +722,8 @@
   };
   World.prototype.energy = function () {
     this.updateMagnetPoses();
-    var K = this.kinetic(), Pg = this.gravityPE(), Ps = this.springPE(), Pm = this.magnetEnergy();
-    return { K: K, Pg: Pg, Ps: Ps, Pm: Pm, E: K + Pg + Ps + Pm };
+    var K = this.kinetic(), Pg = this.gravityPE(), Ps = this.springPE(), Pm = this.magnetEnergy(), Pw = this.floats.length ? this.waterEnergy() : 0;
+    return { K: K, Pg: Pg, Ps: Ps, Pm: Pm, Pw: Pw, E: K + Pg + Ps + Pm + Pw };
   };
 
   // Antes de empezar: separar piezas que se solapan y cerrar bisagras abiertas.
@@ -722,6 +788,21 @@
       b._dft = -rho * b.dragRot * Math.abs(b.w) * b.w;
       b.fx += b._dfx; b.fy += b._dfy; b.ft += b._dft;
     }
+    // agua: empuje y presión (calculados con las posiciones) y el frenado, que depende de la velocidad
+    for (i = 0; i < this.floats.length; i++) {
+      var fl = this.floats[i], fb = fl.body;
+      fl._dx = 0; fl._dy = 0;
+      if (fb.isStatic || fl.sub <= 0) continue;
+      var fv = fb.pointVel(fl.wx, fl.wy), fsp = Math.hypot(fv.x, fv.y), kd = 0.5 * fl.rho * fl.cd * Math.PI * fl.r * fl.r * fl.sub;
+      // en la superficie, además, las olas que levanta al cabecear (máximo con media bola dentro)
+      // (las olas frenan el cabeceo lento; a la velocidad de una bola que sale disparada casi no cuentan)
+      var kw = WAVE_DAMP * fl.rho * fl.V * 4 * fl.sub * (1 - fl.sub) / (1 + fsp * fsp / 0.09);
+      // semi-implícito: el frenado de un paso no puede dar la vuelta a la velocidad (si no, a mucha velocidad el cálculo se descontrola)
+      var rx = fl.wx - fb.x, ry = fl.wy - fb.y, imE = fb.im + fb.iI * (rx * rx + ry * ry), kt = kd * fsp + kw;
+      kt = kt / (1 + kt * this.dt * imE);
+      fl._dx = -kt * fv.x; fl._dy = -kt * fv.y;
+      applyForce(fb, fl.fx + fl._dx, fl.fy + fl._dy, fl.wx, fl.wy);
+    }
     // generadores y motores
     for (k = 0; k < J.length; k++) {
       j = J[k];
@@ -777,6 +858,12 @@
       var b = B[i];
       if (b.isStatic || this.airRho <= 0) continue;
       L.air -= (b._dfx * b.vx + b._dfy * b.vy + b._dft * b.w) * h;
+    }
+    for (i = 0; i < this.floats.length; i++) {
+      var fl = this.floats[i];
+      if (!fl._dx && !fl._dy) continue;
+      var fv = fl.body.pointVel(fl.wx, fl.wy);
+      L.water -= (fl._dx * fv.x + fl._dy * fv.y) * h;
     }
     for (i = 0; i < this.springs.length; i++) {
       var s = this.springs[i];
@@ -1042,7 +1129,7 @@
     var dt = this.dt, B = this.bodies, J = this.joints, L = this.ledger, i, b;
     if (!this._contacts) {
       for (i = 0; i < B.length; i++) B[i].updateWorld();
-      this.updateMagnetPoses(); this.computeMagnetForces();
+      this.updateMagnetPoses(); this.computeMagnetForces(); if (this.floats.length) this.computeFloatForces();
       this._contacts = this.findContacts();
     }
     for (i = 0; i < J.length; i++) {
@@ -1078,7 +1165,7 @@
     }
 
     // fase B
-    this.updateMagnetPoses(); this.computeMagnetForces();
+    this.updateMagnetPoses(); this.computeMagnetForces(); if (this.floats.length) this.computeFloatForces();
     C = this._contacts = this.findContacts();
     this._forces();
     this._kick(0.5 * dt);
@@ -1272,7 +1359,7 @@
     }
     curMargin = saved;
     if (hit) { shift(-1); this.updateMagnetPoses(); return false; }
-    this.updateMagnetPoses(); this.computeMagnetForces();
+    this.updateMagnetPoses(); this.computeMagnetForces(); if (this.floats.length) this.computeFloatForces();
     this.ledger.hand += this.magnetEnergy() - U0;
     this.stillTime = 0;
     return true;
@@ -1283,10 +1370,10 @@
     var e = this.energy(), L = this.ledger;
     var reserve = L.E0 - e.E;              // lo que la máquina ha gastado de lo que tenía
     var inflow = reserve + L.hand + L.battery + L.gridIn;          // entradas
-    var out = L.axle + L.rub + L.hits + L.air + L.springs + L.heat + L.bus + L.gridOut;
+    var out = L.axle + L.rub + L.hits + L.air + L.water + L.springs + L.heat + L.bus + L.gridOut;
     return {
       e: e, reserve: reserve, hand: L.hand, battery: L.battery, gridIn: L.gridIn, gridOut: L.gridOut,
-      axle: L.axle, rub: L.rub, hits: L.hits, air: L.air, springs: L.springs,
+      axle: L.axle, rub: L.rub, hits: L.hits, air: L.air, water: L.water, springs: L.springs,
       heat: L.heat, bus: L.bus, gen: L.gen, busUsed: L.busUsed,
       inflow: inflow, outflow: out, error: inflow - out
     };

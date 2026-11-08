@@ -320,6 +320,14 @@
           m.position.set((a1.x + a2.x) / 2, (a1.y + a2.y) / 2, zb(b)); m.rotation.z = Math.atan2(a2.y - a1.y, a2.x - a1.x);
         } else m = segCyl(a1.x, a1.y, a2.x, a2.y, P.barR(p), mat(colors['ink-2'], 0.35, 0.75), zb(b));
         g.add(addPick(m, p.id));
+      } else if (p.kind === 'tank') {
+        // agua: un bloque azul transparente, con la superficie un poco más marcada
+        var tw = p.x2 - p.x1, th = p.y2 - p.y1, td = 0.24;
+        var wm = new THREE.MeshStandardMaterial({ color: col('#5fb0e0'), transparent: true, opacity: 0.28, roughness: 0.1, metalness: 0, depthWrite: false });
+        m = box(tw, th, td, wm); m.position.set((p.x1 + p.x2) / 2, (p.y1 + p.y2) / 2, 0); m.renderOrder = 2;
+        machine.add(addPick(m, p.id));
+        var sm = new THREE.Mesh(new THREE.PlaneGeometry(tw, td), new THREE.MeshStandardMaterial({ color: col('#9fd6f2'), transparent: true, opacity: 0.55, roughness: 0.05, side: THREE.DoubleSide, depthWrite: false }));
+        sm.rotation.x = -Math.PI / 2; sm.position.set((p.x1 + p.x2) / 2, p.y2, 0); sm.renderOrder = 3; machine.add(sm);
       } else if (p.kind === 'ramp') {
         var L = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
         m = box(L + 2 * P.RAMP_R, 2 * P.RAMP_R, 0.2, mat(p.mat === 'acero' ? colors.steel : (p.mat === 'goma' ? colors.rubber : colors.wood), 0.75, p.mat === 'acero' ? 0.8 : 0));
