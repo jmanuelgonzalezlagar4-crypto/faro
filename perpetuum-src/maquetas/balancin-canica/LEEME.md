@@ -179,3 +179,31 @@ Resultados:
   2. La bobina sube el palo y la bola rueda hasta la V.
   3. La bobina se apoya en la mesa, y la bola se balancea en la V hasta quedarse quieta.
 - **La bobina apoyada hace de tope:** el palo ya no se mueve, y nada sube la bola otra vez hasta la punta.
+
+### Cuarto dibujo: la bobina en la punta del palo (`dibujo2.js`, `corre-dibujo2.js`)
+
+En este dibujo cambian tres cosas:
+
+- **La bobina:** va pegada a la punta izquierda del palo, no colgando hasta la mesa.
+- **El fondo de la V:** con el palo abajo, se apoya en la almohadilla de abajo.
+- **La rampa:** sube empinada desde la V hasta un poste, y después sigue un tramo plano por encima del escalón. La
+  bola empieza junto al poste.
+
+El barrido (`dibujo2-barrido.jsonl`) prueba 48 casos con una bobina de 40 a 90 g, la rampa colgando de 15° a 45°,
+dos alturas de escalón y dos de suelo. Todos se paran entre 3 y 10 s, y el palo no vuelve a bajar nunca después de
+la primera vez.
+
+| Bobina | Qué pasa |
+|---|---|
+| 40 g (`dibujo2.png`) | la bola baja a la V y ese lado baja hasta apoyar la V abajo, como en el dibujo; la bobina no puede levantar el palo con la bola en la V |
+| 55 a 90 g | la bobina sube el palo; la bola se queda en la V, o junto al poste si el escalón aguanta la rampa, y el palo no vuelve a bajar |
+
+En 8 casos la bola sube un poco por la rampa al balancearse dentro de la V, pero no vuelve al poste con el palo
+abajo.
+
+La cuenta es la de siempre:
+
+- **Los dos lados no pueden ganar a la vez:** si la bobina pesa menos que la bola en la V, no puede levantar el
+  palo; si pesa más, el palo se queda arriba.
+- **Volver al poste cuesta energía:** de la V al poste la bola tiene que subir, y eso cuesta lo mismo que dio al
+  bajar.
