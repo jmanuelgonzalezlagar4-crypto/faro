@@ -21,10 +21,10 @@ a 22 cm.
 
 | Arranque | Se para a los | Cómo queda |
 |---|---|---|
-| Canica junto al eje | 2,3 s | baja la izquierda, la canica junto al eje |
-| Canica en el punto de equilibrio | 2,8 s | baja la derecha, la canica en la punta |
-| Canica junto al eje y un empujón al palo | 3,8 a 4,5 s, tras 4 vaivenes | una de las dos posturas |
-| Lo mismo sin roces | 3,7 s | igual |
+| Canica junto al eje | 2,1 s | baja la izquierda (8,8°), la canica junto al eje |
+| Canica en el punto de equilibrio | 2,8 s | baja la derecha (8,5°), la canica en la punta |
+| Canica junto al eje y un empujón al palo | 3,1 a 4,1 s, tras 4 a 6 vaivenes | una de las dos posturas |
+| Lo mismo sin roces | 3,1 a 4,4 s | igual |
 
 El balancín tiene dos posturas de reposo:
 
