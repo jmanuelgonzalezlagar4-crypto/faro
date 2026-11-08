@@ -215,6 +215,11 @@
       what: T('Una rueda con 8 bolas huecas en el borde: la mitad derecha va dentro de un tanque de agua y la izquierda fuera, y las bolas cruzan la pared por unos cierres perfectos, sin roce y sin perder agua. A la derecha el agua empuja las bolas hacia arriba; a la izquierda su peso tira hacia abajo: las dos cosas empujan la rueda hacia el mismo lado.'),
       why: T('Abajo, cada bola tiene que entrar en el agua contra la presión, y eso frena la rueda lo mismo que la empujan las demás. Si sumas la energía de la rueda en una vuelta entera, sale exactamente cero: sube y baja 1,2 J según dónde estén las bolas y vuelve al mismo valor. Por eso, la empujes como la empujes, avanza un poco y se queda en un punto de equilibrio; y cuanto más deprisa va, más la frena el agua.')
     },
+    catarata: {
+      title: T('Catarata de bolas'), era: T('Otra idea del mismo usuario: que el golpe de las bolas que caen meta en el agua la de abajo.'),
+      what: T('La misma columna de agua de 1 m con bolas de acero huecas de 10 cm. Fuera, una fila de bolas en un tubo baja hasta un codo y empuja de lado la de abajo, que tapa el hueco del fondo. Las bolas de dentro suben flotando, un techo inclinado las saca por arriba y caen como una catarata encima de la fila: el golpe tendría que meter en el tanque la bola del hueco, y así una y otra vez.'),
+      why: T('Caen tres bolas, cada una con un golpe de 0,5 a 0,85 J, y la bola del hueco casi no se mueve: la fila la tiene metida 6 mm de sus 10 cm, y los golpes la empujan medio milímetro más. Para meterla hay que apartar medio litro de agua a casi 1 m de hondo: 4,9 J empujando despacio, y de un solo golpe 6 J, porque el agua frena mucho una bola rápida. Y lo más que puede dar cada bola en una vuelta, lo que el agua la empuja al subir más lo que da al caer, es justo lo que cuesta meterla: no sobra nada, y el agua y los golpes se comen una parte.')
+    },
     vacio: {
       title: T('Volante de vacío'), era: T('La propuesta de Claude para llegar por lo menos al 99 %.'),
       what: T('Un disco de acero de 20 cm y 12 kg dentro de una cámara de vacío, flotando en dos cojinetes magnéticos más fuertes (en cada punta, 16 imanes en el eje dentro de 24 fijos), empujado hasta 3.000 rpm. No lo toca nada salvo una punta de aguja que lo aguanta a lo largo del eje, y no hay aire que lo frene.'),
@@ -277,6 +282,7 @@
     out.ideal = !!d.ideal; out.air = d.air !== false; out.example = STORIES[d.example] ? d.example : null;
     if (isFinite(d.price)) out.price = d.price;
     if (isFinite(d.dt) && d.dt > 0) out.dt = d.dt;   // paso de cálculo más fino (imanes muy juntos)
+    if (isFinite(d.iters) && d.iters > 0) out.iters = d.iters;   // más vueltas para los contactos (filas largas de bolas)
     if (d.photo && typeof d.photo.id === 'string' && ['x', 'y', 'w'].every(function (k) { return isFinite(d.photo[k]); })) out.photo = { id: d.photo.id, x: d.photo.x, y: d.photo.y, w: d.photo.w, rot: isFinite(d.photo.rot) ? d.photo.rot : 0, op: isFinite(d.photo.op) ? d.photo.op : 0.6 };
     var maxId = 0;
     d.parts.forEach(function (p) {
@@ -2587,7 +2593,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam', flechas3: 'mag-disc', flotante: 'wheel', vacio: 'wheel', flotadores: 'tank', ruedaflot: 'tank' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam', flechas3: 'mag-disc', flotante: 'wheel', vacio: 'wheel', flotadores: 'tank', ruedaflot: 'tank', catarata: 'tank' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();

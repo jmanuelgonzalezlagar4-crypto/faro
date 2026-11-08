@@ -205,7 +205,9 @@
   function build(d) {
     var ideal = !!d.ideal;
     // d.dt: paso de cálculo más fino para máquinas con imanes muy juntos (por defecto 1/480 s)
-    var w = new E.World({ g: GRAVITY[d.gravity] || 9.81, airRho: (d.air && !ideal) ? 1.2 : 0, dt: d.dt > 0 ? Math.max(1 / 3840, Math.min(1 / 240, d.dt)) : undefined });
+    // d.iters: más vueltas al calcular los contactos, para filas largas de bolas apretadas (por defecto 24)
+    var w = new E.World({ g: GRAVITY[d.gravity] || 9.81, airRho: (d.air && !ideal) ? 1.2 : 0, dt: d.dt > 0 ? Math.max(1 / 3840, Math.min(1 / 240, d.dt)) : undefined,
+      iters: d.iters > 0 ? Math.round(Math.max(8, Math.min(200, d.iters))) : undefined });
     var parts = d.parts;
     var info = { world: w, bodyOf: {}, partsOfBody: new Map(), jointOf: {}, springOf: {}, magnetOf: {}, wheelJoint: {}, warnings: [] };
 
@@ -947,6 +949,36 @@
     return d;
   }
 
+  // La catarata de bolas (idea de un usuario): fuera del tanque, una fila de bolas en un tubo baja hasta un
+  // codo a 45° y empuja de lado la de abajo, que tapa el hueco del fondo. Las bolas de dentro suben flotando,
+  // salen por arriba y caen como una catarata encima de la fila: ese golpe tendría que meter la del hueco.
+  function exampleWaterfall(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'catarata';
+    d.iters = 60;   // una fila larga de bolas apretadas: con menos vueltas se quedan girando en su sitio
+    var YB = 0.05, YS = 1.05, X0 = 0, X1 = 0.11, R = 0.05, TOP = 1.20, M = opts.m || 0.247;
+    d.parts.push(makeTank(d, X0, YB, X1, YS));
+    function wall(x1, y1, x2, y2) { var r = makeRamp(d, x1, y1, x2, y2); r.mat = 'madera'; d.parts.push(r); return r; }
+    var YC = YB + R, XH = X1 + R - 0.006, XT = XH + 2 * R;
+    var c = XT - YC + Math.SQRT2 * (R + RAMP_R), xf = c + YB - RAMP_R, half = R + 0.006 + RAMP_R, HT = 1.06;
+    wall(-0.05, YB - RAMP_R, xf, YB - RAMP_R);                          // fondo, hasta el codo
+    wall(xf, YB - RAMP_R, xf + 0.15, YB - RAMP_R + 0.15);               // codo a 45°: la fila empuja de lado la bola del hueco
+    wall(X0 - RAMP_R, YB - RAMP_R, X0 - RAMP_R, TOP + 0.25);            // pared izquierda del tanque
+    wall(X1 + RAMP_R, YB + 2 * R + 0.02, X1 + RAMP_R, TOP - RAMP_R);    // pared derecha: hueco abajo y salida arriba
+    var tx = 0.055 - 0.5 * (R + RAMP_R), ty = TOP + 0.02 + 0.866 * (R + RAMP_R), t30 = Math.tan(Math.PI / 6);
+    wall(-0.03, ty + (-0.03 - tx) * t30, X1 + 0.07, ty + (X1 + 0.07 - tx) * t30);   // techo a 30°: echa la de arriba hacia la salida
+    wall(X1 + 0.035, TOP - 0.03, XT - half, HT);                        // la catarata, hasta el borde del tubo
+    wall(XT - half, YB + 2 * R + 0.02, XT - half, HT);                  // tubo de la fila
+    wall(XT + half, XT + half - c, XT + half, TOP + 0.1);
+    var spots = [], k;
+    for (k = 0; k < 8; k++) spots.push([0.055, TOP + 0.02 - 2 * R * k - 0.0005 * k]);   // la columna del tanque, contra el techo
+    spots.push([XH, YC], [XT, YC]);                                     // la que tapa el hueco y la del codo
+    for (k = 1; k <= 5; k++) spots.push([XT, YC + 2 * R * k + 0.0005 * k]);             // la fila
+    spots.forEach(function (q) { var b = makeBall(d, q[0], q[1]); b.r = R; b.m = M; b.mat = 'acero'; d.parts.push(b); });
+    return d;
+  }
+
   var EXAMPLES = {
     mazos: { title: T('Rueda de mazos'), make: exampleMallets },
     bolas: { title: T('Rueda de bolas'), make: exampleBalls },
@@ -965,7 +997,8 @@
     flotante: { title: T('Volante flotante'), make: exampleFloating },
     vacio: { title: T('Volante de vacío'), make: exampleVacuum },
     flotadores: { title: T('Noria de bolas flotantes'), make: exampleBuoyBalls },
-    ruedaflot: { title: T('Rueda de flotadores'), make: exampleBuoyWheel }
+    ruedaflot: { title: T('Rueda de flotadores'), make: exampleBuoyWheel },
+    catarata: { title: T('Catarata de bolas'), make: exampleWaterfall }
   };
 
   root.PerpetuumBuild = {
