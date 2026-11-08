@@ -48,3 +48,31 @@ transistor y una pila en la base. El banco apunta como gastado de la pila cada j
   cable USB, siempre.
 - Con un empujón más débil (0,035 o 0,05 N·m), o si solo da un toque corto, la canica no llega a hacer el viaje:
   el palo vuelve antes de que pase el punto de equilibrio.
+
+## Como un trampolín (`trampolin.js`, `corre-trampolin.js`)
+
+La explicación del usuario: el palo hace de trampolín.
+
+1. El lado de la bola pesa más y baja.
+2. Debajo hay un escalón; el palo se apoya en él y la bola rueda hacia delante, hasta una bisagra.
+3. La rampa que cuelga de la bisagra se dobla hasta el suelo.
+4. Como la bola ya no carga sobre la punta del palo, el lado de la bobina vuelve a pesar más y levanta la rampa.
+
+El modelo: el mismo palo, con un escalón de goma debajo y una rampa de 18 cm colgada de una bisagra en la punta.
+La bisagra deja doblar la rampa hacia abajo, pero no subir de la recta, y la rampa tiene un tope al final. El
+muelle del trampolín la sujeta recta hasta que llega la bola.
+
+| Versión | Se para a los | Cómo queda |
+|---|---|---|
+| Con muelle (`trampolin-muelle.png`) | 2,7 s | la bola en la punta de la rampa doblada, casi en el suelo; el palo sigue abajo |
+| Sin muelle, la rampa llega al suelo (`trampolin.png`) | 8,9 s | el palo se levanta; la bola sale rodando por la mesa |
+| Sin muelle, la rampa se dobla 40° o 60° | 2,8 a 3 s | la bola en la punta de la rampa doblada; el palo sigue abajo |
+| Contrapeso un poco mayor (50 g) | 2,4 a 2,8 s | la bola no llega a salir: vuelve junto al eje |
+| Sin roces | 2,7 a 3 s | igual |
+
+- **Lo que sí pasa:** la primera mitad de la idea. La bola baja, rueda hasta la bisagra, la rampa se dobla y, sin
+  muelle, la bobina levanta el palo.
+- **Lo que no pasa:** la bola se queda abajo. Para volver a empezar tiene que subir otra vez unos 19 cm hasta lo
+  alto del palo, que son 37 mJ con una bola de 20 g. Nada se los da: al subir, el palo se lleva la rampa vacía,
+  no la bola.
+- **Con muelle, el palo ni siquiera se levanta:** el muelle que sujeta la rampa también tira del palo hacia abajo.
