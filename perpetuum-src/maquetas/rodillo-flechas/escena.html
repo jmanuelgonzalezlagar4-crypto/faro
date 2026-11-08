@@ -1,0 +1,218 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:#eef1ea;font-family:"DejaVu Sans",system-ui,sans-serif}
+#wrap{display:flex;width:1600px;height:900px}
+#izq{position:relative;width:900px;height:900px}
+#gl{width:900px;height:900px;display:block}
+#rot{position:absolute;left:0;top:0;width:900px;height:900px}
+#plano{width:700px;height:900px}
+</style></head><body><div id="wrap"><div id="izq"><canvas id="gl" width="1800" height="1800"></canvas><svg id="rot" viewBox="0 0 900 900"></svg></div><svg id="plano" viewBox="0 0 700 900"></svg></div>
+<script src="../../lib3/package/build/three.min.js"></script>
+<script>
+// --- el dibujo: 2 flechas por vuelta; en cada una, 9 pares de imanes que se abren de menos a más ---
+const FLECHAS = 2, PASOS = 9, PASO = 360 / FLECHAS / PASOS, R = 1, LARGO = 2.6, MIN = 0.1, MAX = 1.0;
+const imanes = [];
+for (let f = 0; f < FLECHAS; f++) for (let k = 0; k < PASOS; k++) {
+  const th = f * 360 / FLECHAS + k * PASO, abre = MIN + (MAX - MIN) * k / (PASOS - 1);
+  imanes.push({ th, x: -abre }, { th, x: +abre });
+}
+// leva en rampa: sube poco a poco durante toda la flecha y cae de golpe justo después de lo más alto,
+// cuando el primer par cerrado de la flecha siguiente ya ha pasado por debajo del imán
+const CAE = PASO / 4;   // la caída, un cuarto de paso después del primer par cerrado
+const subida = th => ((((th - CAE) % 180) + 180) % 180) / 180;   // 0 justo después de caer, 1 justo antes
+const RB = 0.62, LIFT = 0.33, RR = 0.07, AHORA = CAE - 3;   // AHORA: el ángulo que hay debajo del imán de arriba en el dibujo
+// --- 3D ---
+const cv = document.getElementById('gl');
+const ren = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+ren.setPixelRatio(1); ren.setSize(1800, 1800, false);
+ren.outputEncoding = THREE.sRGBEncoding; ren.shadowMap.enabled = true;
+const sc = new THREE.Scene(); sc.background = new THREE.Color('#eef1ea');
+const cam = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+cam.position.set(...(window.CAMP || [9.0, 6.4, 10.3])); cam.lookAt(...(window.CAML || [0.1, 0.85, 0]));
+sc.add(new THREE.HemisphereLight(0xffffff, 0x9a8a70, 0.9));
+const relleno = new THREE.DirectionalLight(0xffffff, 0.35); relleno.position.set(-5, 3, 4); sc.add(relleno);
+const sol = new THREE.DirectionalLight(0xffffff, 0.95); sol.position.set(4, 9, 6); sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048); Object.assign(sol.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 }); sc.add(sol);
+const M = (c, rough, metal) => new THREE.MeshStandardMaterial({ color: new THREE.Color(c).convertSRGBToLinear(), roughness: rough, metalness: metal });
+const laton = M('#d8ad4a', 0.38, 0.35), madera = M('#8f5a37', 0.8, 0), palo = M('#d8b98a', 0.6, 0), acero = M('#9aa2ab', 0.35, 0.5);
+const norte = M('#d23b33', 0.45, 0.15), sur = M('#2f5fc4', 0.45, 0.15), blanco = M('#f3f1ea', 0.5, 0), azul = M('#2639a6', 0.5, 0.1), gris = M('#b3bcc7', 0.35, 0.45);
+const malla = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); m.castShadow = true; return m; };
+const caja = (w, h, d, mat, x, y, z) => malla(new THREE.BoxGeometry(w, h, d), mat, x, y, z);
+const Y = 1.85;   // altura del eje
+const rot = new THREE.Group(); sc.add(rot); rot.position.y = Y; rot.rotation.x = -AHORA * Math.PI / 180;
+const cil = malla(new THREE.CylinderGeometry(R, R, LARGO, 96, 1), laton); cil.rotation.z = Math.PI / 2; rot.add(cil);
+[-1, 1].forEach(s => { const t = malla(new THREE.CylinderGeometry(R * 1.01, R * 1.01, 0.03, 96), M('#b98f33', 0.4, 0.35), s * LARGO / 2); t.rotation.z = Math.PI / 2; rot.add(t); });
+imanes.forEach(m => {
+  const g = new THREE.Group();
+  g.add(malla(new THREE.CylinderGeometry(0.11, 0.11, 0.07, 32), sur, 0, R + 0.035));
+  g.add(malla(new THREE.CylinderGeometry(0.11, 0.11, 0.035, 32), norte, 0, R + 0.087));
+  g.position.x = m.x; g.rotation.x = m.th * Math.PI / 180; rot.add(g);
+});
+// una leva igual en cada lado, en fase, para que el palo suba por igual de los dos lados
+const GL = 0.12, XL = LARGO / 2 + 0.04, XC = XL + GL / 2;
+const forma = new THREE.Shape();
+for (let i = 0; i <= 720; i++) { const th = i / 2, t = th * Math.PI / 180, r = RB + LIFT * subida(th - 0.01); const sx = -r * Math.sin(t), sy = r * Math.cos(t); i ? forma.lineTo(sx, sy) : forma.moveTo(sx, sy); }
+[-1, 1].forEach(s => {
+  const lv = malla(new THREE.ExtrudeGeometry(forma, { depth: GL, bevelEnabled: false, curveSegments: 4 }), gris, s > 0 ? XL : -XL - GL);
+  lv.rotation.y = Math.PI / 2; rot.add(lv);
+  const bj = malla(new THREE.CylinderGeometry(0.2, 0.2, GL + 0.06, 32), M('#6d7680', 0.4, 0.5), s * XC); bj.rotation.z = Math.PI / 2; rot.add(bj);
+});
+// base, postes con guía (dos largueros por poste: los palos suben y bajan entre ellos) y eje
+const XP = LARGO / 2 + 0.45, ALTO = Y + 1.36 + LIFT + 0.25;
+const tabla = caja(5.0, 0.1, 1.6, madera, 0, -0.05); tabla.receiveShadow = true; sc.add(tabla);
+[-1, 1].forEach(s => {
+  [-1, 1].forEach(z => sc.add(caja(0.2, ALTO, 0.08, madera, s * XP, ALTO / 2, z * 0.11)));
+  sc.add(caja(0.2, 0.1, 0.3, madera, s * XP, ALTO + 0.05));
+  sc.add(caja(0.2, 0.24, 0.14, M('#6d4426', 0.8, 0), s * XP, Y));
+});
+const eje = malla(new THREE.CylinderGeometry(0.05, 0.05, 2 * XP + 0.3, 24), acero, 0, Y); eje.rotation.z = Math.PI / 2; sc.add(eje);
+// los dos palos: arriba con el imán del ancho del cilindro (norte abajo), abajo igual (norte arriba)
+const lv0 = LIFT * subida(AHORA);   // lo que tiene levantado la leva ahora (igual arriba y abajo: la leva es simétrica)
+const CF = 1.36 - RB - RR, LP = 2 * XP + 0.64;
+function palos(s) {   // s = +1 arriba, -1 abajo
+  const g = new THREE.Group(); g.position.y = Y + s * (1.36 + lv0); sc.add(g);
+  g.add(caja(LP, 0.1, 0.12, palo, 0, 0));
+  g.add(caja(LARGO, 0.085, 0.3, blanco, 0, -s * 0.0925));
+  g.add(caja(LARGO, 0.04, 0.3, norte, 0, -s * 0.155));
+  [-1, 1].forEach(x => {
+    g.add(caja(0.04, CF + 0.02, 0.05, acero, x * (XC + 0.08), -s * (CF + 0.02) / 2));
+    const r = malla(new THREE.CylinderGeometry(RR, RR, 0.08, 32), M('#1e2224', 0.6, 0.2), x * XC, -s * CF); r.rotation.z = Math.PI / 2; g.add(r);
+  });
+  return g;
+}
+const arriba = palos(1), abajo = palos(-1);
+// un muelle en cada punta: une los dos palos y los aprieta contra las levas
+const muelles = [];
+[-1, 1].forEach(s => {
+  const x = s * (XP + 0.22), y0 = abajo.position.y, y1 = arriba.position.y, pts = [], vueltas = 26;
+  for (let i = 0; i <= vueltas * 24; i++) { const t = i / (vueltas * 24), a = t * vueltas * 2 * Math.PI; pts.push(new THREE.Vector3(x + 0.06 * Math.cos(a), y0 + 0.08 + (y1 - y0 - 0.16) * t, 0.06 * Math.sin(a))); }
+  sc.add(malla(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), vueltas * 24, 0.012, 6, false), acero));
+  [y0 + 0.05, y1 - 0.05].forEach(y => sc.add(caja(0.02, 0.06, 0.02, acero, x, y)));
+  muelles.push(new THREE.Vector3(x, (y0 + y1) / 2 + 0.6, 0.06));
+});
+// flecha de giro junto a la tapa izquierda: por delante el cilindro sube hacia el imán de arriba
+{
+  const rr = R * 1.24, xs = -LARGO / 2 + 0.06, pts = [];
+  for (let a = 140; a >= 45; a -= 5) { const t = a * Math.PI / 180; pts.push(new THREE.Vector3(xs, Y + rr * Math.cos(t), rr * Math.sin(t))); }
+  sc.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.04, 12, false), azul));
+  const p1 = pts[pts.length - 1], dir = p1.clone().sub(pts[pts.length - 2]).normalize();
+  const punta = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 24), azul);
+  punta.position.copy(p1).addScaledVector(dir, 0.1); punta.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); sc.add(punta);
+}
+const suelo = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.18 })); suelo.rotation.x = -Math.PI / 2; suelo.position.y = -0.1; suelo.receiveShadow = true; sc.add(suelo);
+ren.render(sc, cam);
+// --- rótulos sobre la vista 3D ---
+sc.updateMatrixWorld(); cam.updateMatrixWorld();
+const NS = 'http://www.w3.org/2000/svg';
+function mk(svg) { return (t, a, txt) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt) e.textContent = txt; svg.appendChild(e); return e; }; }
+const r3 = mk(document.getElementById('rot'));
+const pant = v => { const p = v.clone().project(cam); return [(p.x + 1) / 2 * 900, (1 - p.y) / 2 * 900]; };
+const W3 = (obj, x, y, z) => obj.localToWorld(new THREE.Vector3(x, y, z));
+const PUNTOS = {
+  arriba: W3(arriba, -0.5, -0.155, 0.15), abajo: W3(abajo, -0.3, 0.155, 0.15),
+  leva: W3(rot, XL + GL, -0.2, 0.62), rod: W3(arriba, XC, -CF, 0),
+  guia: new THREE.Vector3(XP, ALTO - 0.3, 0.15), muelle: muelles[1],
+};
+window.P = Object.fromEntries(Object.entries(PUNTOS).map(([k, v]) => [k, pant(v).map(Math.round)]));
+const LAB = window.LAB || {};
+function rotulo(n, tx, ty, lineas, ancla, lx, ly) {
+  [tx, ty, lineas, ancla, lx, ly] = LAB[n] || [tx, ty, lineas, ancla, lx, ly];
+  const [px, py] = pant(PUNTOS[n]);
+  r3('line', { x1: lx, y1: ly, x2: px, y2: py, stroke: '#1b2926', 'stroke-width': 1.6 });
+  r3('circle', { cx: px, cy: py, r: 4, fill: '#1b2926' });
+  lineas.forEach((l, i) => r3('text', { x: tx, y: ty + i * 21, 'text-anchor': ancla, 'font-size': 18, 'font-weight': i ? 400 : 700, fill: '#1b2926', stroke: '#eef1ea', 'stroke-width': 5, 'paint-order': 'stroke' }, l));
+}
+r3('text', { x: 30, y: 52, 'font-size': 28, 'font-weight': 700, fill: '#1b2926' }, 'Rodillo de 2 flechas, imán arriba y abajo');
+rotulo('arriba', 30, 100, ['imán de arriba, todo el largo', 'norte hacia abajo'], 'start', 120, 126);
+rotulo('abajo', 30, 560, ['imán de abajo, igual', 'norte hacia arriba'], 'start', 120, 542);
+rotulo('leva', 880, 478, ['una leva en cada lado'], 'end', 662, 472);
+rotulo('rod', 880, 100, ['los dos lados suben por igual', 'un rodillo sobre cada leva'], 'end', 760, 126);
+rotulo('muelle', 880, 300, ['muelle: aprieta', 'los palos', 'contra las levas'], 'end', 722, 294);
+// recuadro: la leva vista de lado, en el mismo momento del dibujo
+{
+  const BX = 20, BY = 652, BW = 860, BH = 236, cx = 160, cy = BY + 118, k = 74;
+  r3('rect', { x: BX, y: BY, width: BW, height: BH, rx: 14, fill: '#f8f9f5', stroke: '#c9cfc6', 'stroke-width': 2 });
+  // vista desde la derecha: la cara de delante del cilindro queda a la izquierda y gira en el sentido del reloj
+  const P2 = (r, w) => [cx - k * r * Math.sin(w * Math.PI / 180), cy - k * r * Math.cos(w * Math.PI / 180)];
+  let dd = '';
+  for (let i = 0; i <= 720; i++) { const th = i / 2, [x, y] = P2(RB + LIFT * subida(th - 0.01), th - AHORA); dd += (i ? ' L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1); }
+  r3('path', { d: dd + ' Z', fill: '#c3cad3', stroke: '#4b5560', 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
+  r3('circle', { cx, cy, r: k * RB, fill: 'none', stroke: '#4b5560', 'stroke-width': 1.2, 'stroke-dasharray': '4 4' });
+  r3('circle', { cx, cy, r: 11, fill: '#6d7680' }); r3('circle', { cx, cy, r: 4, fill: '#2b3137' });
+  const rt = RB + LIFT * subida(AHORA), rb = RB + LIFT * subida(AHORA + 180);
+  [[-1, rt, 'palo de arriba'], [1, rb, 'palo de abajo']].forEach(([s, r, t]) => {
+    const yr = cy + s * k * (r + RR), yp = yr + s * 22;
+    r3('line', { x1: cx + 8, y1: yr, x2: cx + 8, y2: yp, stroke: '#6d7680', 'stroke-width': 4 });
+    r3('rect', { x: cx - 62, y: s < 0 ? yp - 8 : yp, width: 124, height: 8, rx: 2, fill: '#d8b98a', stroke: '#8f6a3a', 'stroke-width': 1.5 });
+    r3('circle', { cx, cy: yr, r: Math.max(6, k * RR), fill: '#1e2224' });
+    r3("text", { x: cx + 68, y: (s < 0 ? yp - 8 : yp) + 8, 'font-size': 13, fill: '#485a54' }, t);
+  });
+  // sentido de giro, alrededor de la leva
+  let ar = ''; for (let w = 205; w <= 300; w += 4) { const [x, y] = P2(RB + LIFT + 0.3, -w); ar += (w > 205 ? ' L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1); }
+  r3('defs', {}).innerHTML = '<marker id="pa" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2639a6"/></marker>';
+  r3('path', { d: ar, fill: 'none', stroke: '#2639a6', 'stroke-width': 4, 'marker-end': 'url(#pa)' });
+  const nota = (px, py, tx, ty, t) => { r3('line', { x1: tx, y1: ty, x2: px, y2: py, stroke: '#1b2926', 'stroke-width': 1.4 }); r3('circle', { cx: px, cy: py, r: 3, fill: '#1b2926' }); r3('text', { x: tx + 4, y: ty + 5, 'font-size': 14, 'font-weight': 700, fill: '#1b2926' }, t); };
+  const [ex, ey] = P2(RB + LIFT * 0.5, CAE - AHORA), [rx, ry] = P2(RB + LIFT * 0.6, 290);
+  nota(ex, ey, cx + 84, BY + 52, 'escalón');
+  nota(rx, ry, cx + 100, cy + 2, 'rampa');
+  r3('text', { x: 340, y: BY + 36, 'font-size': 20, 'font-weight': 700, fill: '#1b2926' }, 'La leva vista de lado');
+  const txt = [
+    ['1.', 'La leva gira con el cilindro. El rodillo sube por la rampa'],
+    ['', 'poco a poco: el palo sube despacio, sin golpes.'],
+    ['2.', 'Justo después de lo más alto está el escalón: ahí el palo cae.'],
+    ['3.', 'En el dibujo el palo está arriba del todo, a punto de caer:'],
+    ['', 'el primer par cerrado ya está debajo del imán.'],
+    ['4.', 'Abajo pasa lo mismo a la vez: hay dos rampas iguales,'],
+    ['', 'una enfrente de la otra.'],
+  ];
+  txt.forEach(([n, t], i) => { r3('text', { x: 340, y: BY + 68 + i * 24, 'font-size': 15, 'font-weight': 700, fill: '#2639a6' }, n); r3('text', { x: 362, y: BY + 68 + i * 24, 'font-size': 15, fill: '#1b2926' }, t); });
+}
+// --- plano: el cilindro desenrollado, con lo que levanta la leva al lado ---
+const el = mk(document.getElementById('plano'));
+el('text', { x: 350, y: 52, 'text-anchor': 'middle', 'font-size': 30, 'font-weight': 700, fill: '#1b2926' }, 'El cilindro desenrollado');
+el('text', { x: 350, y: 84, 'text-anchor': 'middle', 'font-size': 18, fill: '#485a54' }, 'una vuelta entera, de arriba abajo');
+const X0 = 175, X1 = 545, Y0 = 150, Y1 = 830, W = X1 - X0, H = Y1 - Y0, XM = X0 + W / 2, IN = PASO / 2;
+const yDe = th => Y0 + (th + IN) / 360 * H;   // el plano empieza medio paso antes de la primera flecha
+el('rect', { x: X0, y: Y0, width: W, height: H, rx: 10, fill: '#e3c470', stroke: '#9b7a22', 'stroke-width': 3 });
+el('line', { x1: XM, y1: Y0, x2: XM, y2: Y1, stroke: '#7a5e14', 'stroke-width': 2, 'stroke-dasharray': '8 8' });
+for (let f = 0; f < FLECHAS; f++) {
+  const ya = yDe(f * 180 - IN), yb = yDe(f * 180 + 180 - IN);
+  if (f) el('line', { x1: X0, y1: ya, x2: X1, y2: ya, stroke: '#9b7a22', 'stroke-width': 1.5, 'stroke-dasharray': '4 6' });
+  [-1, 1].forEach(s => {
+    const pts = [];
+    for (let k = 0; k < PASOS; k++) pts.push([XM + s * (MIN + (MAX - MIN) * k / (PASOS - 1)) * (W / 2 - 22), yDe(f * 180 + k * PASO)]);
+    el('polyline', { points: pts.map(q => q.join(',')).join(' '), fill: 'none', stroke: '#7d1d18', 'stroke-width': 2, opacity: 0.45 });
+    pts.forEach(([x, y]) => { el('circle', { cx: x, cy: y, r: 14, fill: '#d23b33', stroke: '#7d1d18', 'stroke-width': 2 }); el('text', { x, y: y + 5, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: '#fff' }, 'N'); });
+  });
+  el('text', { x: X1 + 16, y: ya + 26, 'font-size': 17, fill: '#1b2926' }, 'empieza');
+  el('text', { x: X1 + 16, y: ya + 46, 'font-size': 17, fill: '#1b2926' }, 'cerrada');
+  el('text', { x: X1 + 16, y: yb - 26, 'font-size': 17, fill: '#1b2926' }, 'acaba');
+  el('text', { x: X1 + 16, y: yb - 6, 'font-size': 17, fill: '#1b2926' }, 'abierta');
+}
+// los dos imanes, del ancho del cilindro: en el dibujo están justo sobre el primer par cerrado de cada flecha
+[[AHORA, 'imán de arriba'], [AHORA + 180, 'imán de abajo']].forEach(([th, t]) => {
+  const y = yDe(th);
+  el('rect', { x: X0 - 6, y: y - 7, width: W + 12, height: 14, rx: 3, fill: '#f3f1ea', 'fill-opacity': 0.55, stroke: '#1b2926', 'stroke-width': 2 });
+  el('rect', { x: X0 - 6, y: y + 3, width: W + 12, height: 4, fill: '#d23b33', opacity: 0.8 });
+  el('text', { x: X0 + 10, y: y + 30, 'font-size': 15, 'font-weight': 700, fill: '#1b2926', stroke: '#e3c470', 'stroke-width': 4, 'paint-order': 'stroke' }, t);
+});
+// columna de la leva: sube en rampa y cae justo después de lo más alto
+const LX = 100, LW = 52;
+el('text', { x: LX + LW / 2 - 4, y: 132, 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 700, fill: '#2639a6' }, 'leva');
+let d = `M${LX},${Y0}`;
+for (let i = 0; i <= 720; i++) { const th = -IN + i / 2; d += ` L${(LX + LW * subida(th - 0.01)).toFixed(1)},${yDe(th).toFixed(1)}`; }
+d += ` L${LX},${Y1} Z`;
+el('path', { d, fill: '#c9d1f2', stroke: '#2639a6', 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
+el('line', { x1: LX, y1: Y0, x2: LX, y2: Y1, stroke: '#2639a6', 'stroke-width': 2 });
+[0, 180].forEach(c => {
+  const y = yDe(c + CAE);
+  el('text', { x: LX + 4, y: y + 18, 'font-size': 13, 'font-weight': 700, fill: '#1b2475' }, 'cae');
+  const ym = yDe(c + CAE + 110);
+  el('text', { x: LX + 12, y: ym, 'font-size': 13, 'font-weight': 700, fill: '#1b2475', transform: `rotate(-90 ${LX + 12} ${ym})`, 'text-anchor': 'middle' }, 'sube poco a poco');
+});
+// sentido de giro
+el('defs', {}).innerHTML = '<marker id="pt" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2639a6"/></marker>';
+el('line', { x1: 45, y1: Y1 - 20, x2: 45, y2: Y0 + 30, stroke: '#2639a6', 'stroke-width': 5, 'marker-end': 'url(#pt)' });
+el('text', { x: 28, y: (Y0 + Y1) / 2, 'text-anchor': 'middle', 'font-size': 19, 'font-weight': 700, fill: '#2639a6', transform: `rotate(-90 28 ${(Y0 + Y1) / 2})` }, 'así gira: pasan primero los cerrados');
+el('text', { x: 350, y: 866, 'text-anchor': 'middle', 'font-size': 17, fill: '#485a54' }, 'los dos imanes están a media vuelta: a los dos les toca el salto a la vez');
+window.listo = true;
+</script></body></html>

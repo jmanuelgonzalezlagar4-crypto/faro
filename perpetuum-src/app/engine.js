@@ -42,7 +42,7 @@
     var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
     for (var i = 0; i < this.shapes.length; i++) {
       var sh = this.shapes[i], w = this.ws[i];
-      if (!w) { w = this.ws[i] = { t: sh.t, r: sh.r, x: 0, y: 0, ax: 0, ay: 0, bx: 0, by: 0, R: sh.R, lift: sh.lift, lob: sh.lobes, ph: sh.ph, ang: 0,
+      if (!w) { w = this.ws[i] = { t: sh.t, r: sh.r, x: 0, y: 0, ax: 0, ay: 0, bx: 0, by: 0, R: sh.R, lift: sh.lift, lob: sh.lobes, ph: sh.ph, ang: 0, prof: sh.prof || 'cos', sg: sh.sg || 1, dr: sh.dr || 0.06,
           mu: sh.mu != null ? sh.mu : this.mu, e: sh.e != null ? sh.e : this.e, crr: sh.crr != null ? sh.crr : this.crr, solid: sh.solid !== false, pl: sh.plane || 0 }; }
       if (sh.t === 'k') {
         // leva: curva lisa ρ(θ) alrededor de su centro, que gira con el cuerpo
@@ -120,14 +120,42 @@
     out.push({ nx: nx, ny: ny, px: pax + nx * (ra + sep * 0.5), py: pay + ny * (ra + sep * 0.5), sep: sep, rc: 0 });
   }
 
-  // --- Leva lisa: ρ(θ) = R − lift + lift·(1 + cos(L·(θ − fase)))/2, con θ medido desde el cuerpo ---
-  function camRho(w, th) { var L = w.lob || 1; return w.R - w.lift + w.lift * (1 + Math.cos(L * (th - w.ang - w.ph))) / 2; }
+  // --- Leva: curva ρ(θ) = R − lift + lift·s(θ), con θ medido desde el cuerpo.
+  // Perfil «cos» (liso): s = (1 + cos(L·(θ − fase)))/2. Perfil «rampa»: en cada vuelta de cada punta sube
+  // en línea recta de 0 a 1 y cae de golpe (en una fracción «dr» de la vuelta) justo después de lo más alto;
+  // «sg» dice hacia qué lado sube. Devuelve ρ y sus dos derivadas respecto de θ.
+  var TAU = 2 * Math.PI;
+  function camProf(w, th, out) {
+    var L = w.lob || 1, u = L * (th - w.ang - w.ph), s, d1, d2;
+    if (w.prof === 'rampa') {
+      var sg = w.sg < 0 ? -1 : 1, v = ((sg * u) % TAU + TAU) % TAU, dr = w.dr, P1 = TAU * (1 - dr);
+      if (v <= P1) { s = v / P1; d1 = 1 / P1; d2 = 0; }
+      else { var a = 1 / (2 * dr), x = a * (v - P1); s = (1 + Math.cos(x)) / 2; d1 = -a * Math.sin(x) / 2; d2 = -a * a * Math.cos(x) / 2; }
+      d1 *= sg * L; d2 *= L * L;
+    } else {
+      s = (1 + Math.cos(u)) / 2; d1 = -L * Math.sin(u) / 2; d2 = -L * L * Math.cos(u) / 2;
+    }
+    out.rho = w.R - w.lift + w.lift * s; out.d1 = w.lift * d1; out.d2 = w.lift * d2;
+    return out;
+  }
+  var CP = { rho: 0, d1: 0, d2: 0 };
+  function camRho(w, th) { return camProf(w, th, CP).rho; }
   // punto de la curva más cercano a (px, py), por Newton desde el ángulo del punto
-  function camClosest(w, px, py) {
-    var L = w.lob || 1, th = Math.atan2(py - w.y, px - w.x), Cx = 0, Cy = 0, Tx = 0, Ty = 0;
+  // (en la rampa se empieza por el mejor de unos cuantos ángulos cercanos, por el escalón)
+  function camClosest(w, px, py, th0) {
+    var th = th0 != null ? th0 : Math.atan2(py - w.y, px - w.x), Cx = 0, Cy = 0, Tx = 0, Ty = 0, q = CP;
+    if (w.prof === 'rampa' && th0 == null) {
+      var best = th, bd = Infinity;
+      for (var k = -4; k <= 4; k++) {
+        var tk = th + k * 0.05, rk = camProf(w, tk, q).rho, ex = w.x + rk * Math.cos(tk) - px, ey = w.y + rk * Math.sin(tk) - py, dk = ex * ex + ey * ey;
+        if (dk < bd) { bd = dk; best = tk; }
+      }
+      th = best;
+    }
     for (var it = 0; it < 8; it++) {
-      var u = L * (th - w.ang - w.ph), co = Math.cos(th), si = Math.sin(th);
-      var rho = w.R - w.lift + w.lift * (1 + Math.cos(u)) / 2, d1 = -w.lift * L * Math.sin(u) / 2, d2 = -w.lift * L * L * Math.cos(u) / 2;
+      var co = Math.cos(th), si = Math.sin(th);
+      camProf(w, th, q);
+      var rho = q.rho, d1 = q.d1, d2 = q.d2;
       Cx = w.x + rho * co; Cy = w.y + rho * si;
       Tx = d1 * co - rho * si; Ty = d1 * si + rho * co;
       var T2x = d2 * co - 2 * d1 * si - rho * co, T2y = d2 * si + 2 * d1 * co - rho * si;
@@ -138,16 +166,39 @@
       th -= step;
       if (Math.abs(step) < 1e-10) break;
     }
-    var u2 = L * (th - w.ang - w.ph), c2 = Math.cos(th), s2 = Math.sin(th);
-    var rho2 = w.R - w.lift + w.lift * (1 + Math.cos(u2)) / 2, e1 = -w.lift * L * Math.sin(u2) / 2;
-    Cx = w.x + rho2 * c2; Cy = w.y + rho2 * s2; Tx = e1 * c2 - rho2 * s2; Ty = e1 * s2 + rho2 * c2;
+    var c2 = Math.cos(th), s2 = Math.sin(th);
+    camProf(w, th, q);
+    Cx = w.x + q.rho * c2; Cy = w.y + q.rho * s2; Tx = q.d1 * c2 - q.rho * s2; Ty = q.d1 * s2 + q.rho * c2;
     var tl = Math.sqrt(Tx * Tx + Ty * Ty) || 1;
-    return { x: Cx, y: Cy, nx: Ty / tl, ny: -Tx / tl };   // normal hacia fuera
+    return { x: Cx, y: Cy, nx: Ty / tl, ny: -Tx / tl, th: th };   // normal hacia fuera
   }
   // contacto entre la leva K y un círculo de centro (px, py) y radio pr; flip: la leva es B y no A
   function camVsCircle(K, px, py, pr, flip, out) {
+    if (K.prof === 'rampa') {
+      // junto al escalón el círculo puede tocar dos caras a la vez (la que cae y la de abajo): se buscan
+      // los puntos más cercanos desde varios ángulos y se guardan hasta dos distintos
+      var th = Math.atan2(py - K.y, px - K.x), found = [];
+      // ¿el centro del círculo está fuera de la curva? Entonces no puede haber puntos «metidos» en ella:
+      // son caras del otro lado del escalón que la búsqueda ha encontrado por error
+      var outside = Math.hypot(px - K.x, py - K.y) >= camRho(K, th);
+      for (var k = -4; k <= 4; k++) {
+        var qk = camClosest(K, px, py, th + k * 0.06), sdk = (px - qk.x) * qk.nx + (py - qk.y) * qk.ny, sk = sdk - K.r - pr;
+        if (sk > curMargin) continue;
+        if (outside && sdk < 0) continue;
+        if (Math.hypot(px - qk.x, py - qk.y) > Math.abs(sdk) + 0.2 * (K.r + pr) + 1e-4) continue;   // Newton no acabó en el punto más cercano
+        var dup = false;
+        for (var f = 0; f < found.length; f++) if (Math.abs(found[f].q.th - qk.th) < 0.03) { dup = true; if (sk < found[f].sep) found[f] = { q: qk, sep: sk }; }
+        if (!dup) found.push({ q: qk, sep: sk });
+      }
+      found.sort(function (u, v) { return u.sep - v.sep; });
+      for (var g = 0; g < Math.min(2, found.length); g++) pushCam(K, found[g].q, found[g].sep, pr, flip, out);
+      return;
+    }
     var q = camClosest(K, px, py), sd = (px - q.x) * q.nx + (py - q.y) * q.ny, sep = sd - K.r - pr;
     if (sep > curMargin) return;
+    pushCam(K, q, sep, pr, flip, out);
+  }
+  function pushCam(K, q, sep, pr, flip, out) {
     var nx = flip ? -q.nx : q.nx, ny = flip ? -q.ny : q.ny, mx = q.x + q.nx * (K.r + sep * 0.5), my = q.y + q.ny * (K.r + sep * 0.5);
     out.push({ nx: nx, ny: ny, px: mx, py: my, sep: sep, rc: pr });
   }
@@ -303,11 +354,17 @@
     return b;
   };
 
-  // Bisagra: ancla en coordenadas del mundo
+  // Bisagra: ancla en coordenadas del mundo.
+  // Con opt.slide (ángulo de la recta, en el mundo) es una guía: b se desliza por esa recta de a sin girar.
+  // Su rozamiento es una fuerza a lo largo de la guía: sfc·carga + sf0.
   World.prototype.addJoint = function (a, b, wx, wy, opt) {
     opt = opt || {};
     var la = a.toLocal(wx, wy), lb = b.toLocal(wx, wy);
+    var sl = opt.slide != null, sa = sl ? opt.slide - a.a : 0;
+    if (sl) { opt.limit = true; opt.lo = 0; opt.hi = 0; opt.fc = 0; opt.ft0 = 0; }
     var j = {
+      slide: sl, sax: Math.cos(sa), say: Math.sin(sa), sfc: opt.sfc || 0, sf0: opt.sf0 || 0, js: 0,
+      nx: 0, ny: 0, tx: 0, ty: 0, kn: 0, kt: 0, maxSF: 0,
       a: a, b: b, lax: la.x, lay: la.y, lbx: lb.x, lby: lb.y,
       ref: b.a - a.a,
       limit: !!opt.limit, lo: opt.lo || 0, hi: opt.hi || 0, le: opt.le != null ? opt.le : 0.2,
@@ -346,9 +403,18 @@
     return s;
   };
 
-  World.prototype.addMagnet = function (body, wx, wy, ang, mu, tag) {
+  // z: dónde va el imán a lo largo del eje (fuera del plano del dibujo). Dos imanes separados en z se
+  // sienten menos; las fuerzas a lo largo del eje las aguantan los ejes y no mueven nada.
+  // soft: radio de suavizado (el tamaño del imán): a menos distancia que eso un dipolo deja de parecerse
+  // a un imán de verdad. Sin decirlo, 2 cm entre dos imanes, como siempre.
+  // poles: distancia entre el polo norte y el sur (el grueso del imán). Si dos imanes la tienen, entre ellos se
+  // cuentan los polos (una carga en cada cara) y no un dipolo: de cerca es mucho más fiel (un norte frente a un
+  // norte siempre empuja). Sin ella, dipolo como siempre.
+  // wz: un imán con polos puede ser largo a lo largo del eje (sus caras son dos líneas cargadas de ese largo)
+  World.prototype.addMagnet = function (body, wx, wy, ang, mu, tag, z, soft, poles, wz) {
     var l = body.toLocal(wx, wy);
-    var m = { body: body, lx: l.x, ly: l.y, la: ang - body.a, mu: mu, mu0: mu, on: true, wx: 0, wy: 0, dx: 0, dy: 0, fx: 0, fy: 0, tq: 0, tag: tag || null };
+    var m = { body: body, lx: l.x, ly: l.y, la: ang - body.a, mu: mu, mu0: mu, on: true, wx: 0, wy: 0, z: z || 0, s2: soft > 0 ? soft * soft : MAG_SOFT2 / 2, d: poles > 0 ? poles : 0, wz: poles > 0 && wz > 0 ? wz : 0,
+      dx: 0, dy: 0, fx: 0, fy: 0, tq: 0, tag: tag || null };
     this.magnets.push(m);
     return m;
   };
@@ -417,19 +483,45 @@
     }
   };
 
-  function Upair(ax, ay, adx, ady, amu, bx, by, bdx, bdy, bmu) {
+  // energía entre dos imanes con polos: cargas ±μ/d en cada cara, que se empujan como cargas eléctricas.
+  // Una cara de un imán largo (wz) es una línea cargada a lo largo del eje: con un punto se integra exacto.
+  // potencial de una línea de carga 1 por metro, de z = u1 a u2 respecto del punto, a distancia rho en el plano
+  function lineG(rho, u1, u2) { return Math.asinh(u2 / rho) - Math.asinh(u1 / rho); }
+  function poleG(ex, ey, dz, s2, awz, bwz) {
+    var rho2 = ex * ex + ey * ey + s2;
+    if (!awz && !bwz) return 1 / Math.sqrt(rho2 + dz * dz);
+    var rho = Math.sqrt(rho2);
+    if (!awz) return lineG(rho, dz - bwz / 2, dz + bwz / 2) / bwz;      // punto a, línea b (por unidad de carga)
+    if (!bwz) return lineG(rho, -dz - awz / 2, -dz + awz / 2) / awz;    // línea a, punto b
+    var n = 8, g = 0;                                                     // dos líneas: trozos de a contra la línea b
+    for (var j = 0; j < n; j++) { var za = -awz / 2 + (j + 0.5) * awz / n; g += lineG(rho, dz - za - bwz / 2, dz - za + bwz / 2); }
+    return g / n / bwz;
+  }
+  function Upoles(ax, ay, adx, ady, amu, ad, bx, by, bdx, bdy, bmu, bd, dz, s2, awz, bwz) {
+    var qa = amu / ad, qb = bmu / bd, ha = ad / 2, hb = bd / 2, U = 0;
+    for (var i = -1; i <= 1; i += 2) {
+      var px = ax + i * ha * adx, py = ay + i * ha * ady;
+      for (var k = -1; k <= 1; k += 2) U += i * k * poleG(bx + k * hb * bdx - px, by + k * hb * bdy - py, dz, s2, awz, bwz);
+    }
+    return KMAG * qa * qb * U;
+  }
+  function Upair(ax, ay, adx, ady, amu, bx, by, bdx, bdy, bmu, dz, s2, ad, bd, awz, bwz) {
+    if (ad > 0 && bd > 0) return Upoles(ax, ay, adx, ady, amu, ad, bx, by, bdx, bdy, bmu, bd, dz || 0, s2 != null ? s2 : MAG_SOFT2, awz || 0, bwz || 0);
     var rx = bx - ax, ry = by - ay;
-    var R2 = rx * rx + ry * ry + MAG_SOFT2, R = Math.sqrt(R2), R5 = R2 * R2 * R;
+    var R2 = rx * rx + ry * ry + (dz ? dz * dz : 0) + (s2 != null ? s2 : MAG_SOFT2), R = Math.sqrt(R2), R5 = R2 * R2 * R;
     return KMAG * amu * bmu / R5 * (R2 * (adx * bdx + ady * bdy) - 3 * (adx * rx + ady * ry) * (bdx * rx + bdy * ry));
   }
 
-  function Bdip(mx, my, mdx, mdy, mu, px, py, out, soft2) {
+  // campo de un dipolo en el punto p; dz = z del punto − z del imán (el momento siempre va en el plano)
+  function Bdip(mx, my, mdx, mdy, mu, px, py, out, soft2, dz) {
     var rx = px - mx, ry = py - my;
-    var R2 = rx * rx + ry * ry + (soft2 || MAG_SOFT2), R = Math.sqrt(R2), R5 = R2 * R2 * R;
+    var R2 = rx * rx + ry * ry + (dz ? dz * dz : 0) + (soft2 || MAG_SOFT2), R = Math.sqrt(R2), R5 = R2 * R2 * R;
     var dot = mdx * rx + mdy * ry, f = KMAG * mu / R5;
     out.x += f * (3 * dot * rx - R2 * mdx);
     out.y += f * (3 * dot * ry - R2 * mdy);
+    if (dz) out.z = (out.z || 0) + f * 3 * dot * dz;
   }
+  function B2(B) { return B.x * B.x + B.y * B.y + (B.z ? B.z * B.z : 0); }
 
   World.prototype.fieldAt = function (px, py, skip, soft2, skipBody) {
     var B = { x: 0, y: 0 };
@@ -437,7 +529,7 @@
       if (i === skip) continue;
       var m = this.magnets[i];
       if (skipBody && m.body === skipBody) continue;
-      Bdip(m.wx, m.wy, m.dx, m.dy, m.mu, px, py, B, soft2);
+      Bdip(m.wx, m.wy, m.dx, m.dy, m.mu, px, py, B, soft2, -m.z);
     }
     return B;
   };
@@ -449,12 +541,12 @@
       for (j = i + 1; j < M.length; j++) {
         b = M[j];
         if (a.body === b.body) continue;
-        U += Upair(a.wx, a.wy, a.dx, a.dy, a.mu, b.wx, b.wy, b.dx, b.dy, b.mu);
+        U += Upair(a.wx, a.wy, a.dx, a.dy, a.mu, b.wx, b.wy, b.dx, b.dy, b.mu, b.z - a.z, a.s2 + b.s2, a.d, b.d, a.wz, b.wz);
       }
     }
     for (i = 0; i < this.steel.length; i++) {
       var s = this.steel[i], B = this.fieldAt(s.wx, s.wy, -1, s.soft2, s.body);
-      U -= s.alpha * (B.x * B.x + B.y * B.y);
+      U -= s.alpha * B2(B);
     }
     return U;
   };
@@ -466,15 +558,15 @@
       if (j === i) continue;
       b = M[j];
       if (b.body === a.body) continue;
-      U += Upair(x, y, dx, dy, a.mu, b.wx, b.wy, b.dx, b.dy, b.mu);
+      U += Upair(x, y, dx, dy, a.mu, b.wx, b.wy, b.dx, b.dy, b.mu, b.z - a.z, a.s2 + b.s2, a.d, b.d, a.wz, b.wz);
     }
     for (j = 0; j < this.steel.length; j++) {
       var s = this.steel[j];
       if (s.body === a.body) continue;
       var B = this._steelB[j];
-      var Bi = { x: B.x - this._steelBi[j][i].x, y: B.y - this._steelBi[j][i].y };
-      Bdip(x, y, dx, dy, a.mu, s.wx, s.wy, Bi, s.soft2);
-      U -= s.alpha * (Bi.x * Bi.x + Bi.y * Bi.y);
+      var Bi = { x: B.x - this._steelBi[j][i].x, y: B.y - this._steelBi[j][i].y, z: (B.z || 0) - (this._steelBi[j][i].z || 0) };
+      Bdip(x, y, dx, dy, a.mu, s.wx, s.wy, Bi, s.soft2, -a.z);
+      U -= s.alpha * B2(Bi);
     }
     return U;
   };
@@ -486,11 +578,11 @@
     // campo en cada bola de acero, con la aportación de cada imán por separado
     this._steelB = []; this._steelBi = [];
     for (j = 0; j < S.length; j++) {
-      var tot = { x: 0, y: 0 }, parts = [];
+      var tot = { x: 0, y: 0, z: 0 }, parts = [];
       for (i = 0; i < M.length; i++) {
-        var p = { x: 0, y: 0 };
-        if (M[i].body !== S[j].body) Bdip(M[i].wx, M[i].wy, M[i].dx, M[i].dy, M[i].mu, S[j].wx, S[j].wy, p, S[j].soft2);
-        parts.push(p); tot.x += p.x; tot.y += p.y;
+        var p = { x: 0, y: 0, z: 0 };
+        if (M[i].body !== S[j].body) Bdip(M[i].wx, M[i].wy, M[i].dx, M[i].dy, M[i].mu, S[j].wx, S[j].wy, p, S[j].soft2, -M[i].z);
+        parts.push(p); tot.x += p.x; tot.y += p.y; tot.z += p.z;
       }
       this._steelB.push(tot); this._steelBi.push(parts);
     }
@@ -515,12 +607,12 @@
       if (s.body.isStatic) continue;
       var self = this;
       var Us = function (x, y) {
-        var B = { x: 0, y: 0 };
+        var B = { x: 0, y: 0, z: 0 };
         for (var k = 0; k < M.length; k++) {
           if (M[k].body === s.body) continue;
-          Bdip(M[k].wx, M[k].wy, M[k].dx, M[k].dy, M[k].mu, x, y, B, s.soft2);
+          Bdip(M[k].wx, M[k].wy, M[k].dx, M[k].dy, M[k].mu, x, y, B, s.soft2, -M[k].z);
         }
-        return -s.alpha * (B.x * B.x + B.y * B.y);
+        return -s.alpha * B2(B);
       };
       s.fx = -(Us(s.wx + h, s.wy) - Us(s.wx - h, s.wy)) / (2 * h);
       s.fy = -(Us(s.wx, s.wy + h) - Us(s.wx, s.wy - h)) / (2 * h);
@@ -755,13 +847,21 @@
       j.det = j.k11 * j.k22 - j.k12 * j.k12;
       j.kAng = iA + iB;
       j.maxFric = (j.fc * j.load + j.ft0) * dt * 0.5;
-      j.jf = 0; j.jl = 0;
+      j.jf = 0; j.jl = 0; j.js = 0;
+      if (j.slide) {
+        // eje de la guía (t) y su perpendicular (n), girados con la pieza a
+        j.tx = ca * j.sax - sa * j.say; j.ty = sa * j.sax + ca * j.say; j.nx = -j.ty; j.ny = j.tx;
+        j.kn = j.k11 * j.nx * j.nx + 2 * j.k12 * j.nx * j.ny + j.k22 * j.ny * j.ny;
+        j.kt = j.k11 * j.tx * j.tx + 2 * j.k12 * j.tx * j.ty + j.k22 * j.ty * j.ty;
+        j.maxSF = (j.sfc * j.load + j.sf0) * dt * 0.5;
+      }
       var ang = this.jointAngle(j), wr = bb.w - a.w, nxt = ang + wr * dt, wr0 = bb.pw - a.pw;
       j.lowA = j.limit && (ang <= j.lo + ANG_SLOP || nxt < j.lo);
       j.upA = j.limit && (ang >= j.hi - ANG_SLOP || nxt > j.hi);
       j.lowT = -Math.max(ang - j.lo, 0) / dt;   // puede acercarse hasta el tope
       j.upT = Math.max(j.hi - ang, 0) / dt;
-      if (j.lowA && nxt < j.lo) {
+      if (j.slide) { j.lowA = j.upA = true; }   // en una guía la pieza no gira nunca: no es un tope contra el que se choca
+      else if (j.lowA && nxt < j.lo) {
         if (wr0 < -IMPACT_W) impact = true;
         if (wr < -BOUNCE_W) j.lowT = -j.le * wr;
       }
@@ -772,6 +872,7 @@
       j.phaseA = phaseA;
       // arranque en caliente con el impulso de la misma fase del paso anterior
       var wpx = (phaseA ? j.pAx : j.pBx) * 0.9, wpy = (phaseA ? j.pAy : j.pBy) * 0.9;
+      if (j.slide) { wpx = 0; wpy = 0; }   // en las guías el arranque en caliente mete energía cuando algo se atasca contra ellas
       j.px = wpx; j.py = wpy;
       applyImpulse(a, -wpx, -wpy, j.rax, j.ray);
       applyImpulse(bb, wpx, wpy, j.rbx, j.rby);
@@ -785,6 +886,7 @@
       for (k = 0; k < J.length; k++) {
         j = J[k];
         var aa = j.a, b2 = j.b;
+        if (j.slide) { this._solveSlide(j, phaseA); continue; }
         if (j.kAng > 0) {
           if (j.maxFric > 0) {
             var lf = -(b2.w - aa.w) / j.kAng, old = j.jf;
@@ -808,13 +910,32 @@
         var vax = aa.vx - aa.w * j.ray, vay = aa.vy + aa.w * j.rax;
         var vbx = b2.vx - b2.w * j.rby, vby = b2.vy + b2.w * j.rbx;
         var cx = vbx - vax, cy = vby - vay;
+        var h = 0.5 * dt;
         if (phaseA) {
           // que el punto común siga unido al final del paso (término centrípeto)
-          var h = 0.5 * dt;
           cx -= h * (b2.w * b2.w * j.rbx - aa.w * aa.w * j.rax);
           cy -= h * (b2.w * b2.w * j.rby - aa.w * aa.w * j.ray);
         }
-        if (j.det > 1e-14) {
+        if (j.slide) {
+          // rozamiento a lo largo de la guía y luego que no se salga de ella
+          if (j.maxSF > 0 && j.kt > 0) {
+            var ls = -(cx * j.tx + cy * j.ty) / j.kt, olds = j.js;
+            j.js = clamp(olds + ls, -j.maxSF, j.maxSF); ls = j.js - olds;
+            applyImpulse(aa, -ls * j.tx, -ls * j.ty, j.rax, j.ray);
+            applyImpulse(b2, ls * j.tx, ls * j.ty, j.rbx, j.rby);
+            vax = aa.vx - aa.w * j.ray; vay = aa.vy + aa.w * j.rax;
+            vbx = b2.vx - b2.w * j.rby; vby = b2.vy + b2.w * j.rbx;
+            var cx2 = vbx - vax, cy2 = vby - vay;
+            if (phaseA) { cx2 -= h * (b2.w * b2.w * j.rbx - aa.w * aa.w * j.rax); cy2 -= h * (b2.w * b2.w * j.rby - aa.w * aa.w * j.ray); }
+            cx = cx2; cy = cy2;
+          }
+          if (j.kn > 1e-14) {
+            var ln2 = -(cx * j.nx + cy * j.ny) / j.kn;
+            j.px += ln2 * j.nx; j.py += ln2 * j.ny;
+            applyImpulse(aa, -ln2 * j.nx, -ln2 * j.ny, j.rax, j.ray);
+            applyImpulse(b2, ln2 * j.nx, ln2 * j.ny, j.rbx, j.rby);
+          }
+        } else if (j.det > 1e-14) {
           var ix = -(j.k22 * cx - j.k12 * cy) / j.det;
           var iy = -(-j.k12 * cx + j.k11 * cy) / j.det;
           j.px += ix; j.py += iy;
@@ -844,11 +965,42 @@
         applyImpulse(QB, ln * q.nx, ln * q.ny, q.rbx, q.rby);
       }
     }
+    // las guías, una vez más al final: que ninguna pieza guiada se quede girando
+    for (k = 0; k < J.length; k++) if (J[k].slide) this._solveSlide(J[k], phaseA);
     // guardar impulsos para el arranque en caliente
     for (k = 0; k < J.length; k++) {
       j = J[k];
       if (phaseA) { j.pAx = j.px; j.pAy = j.py; } else { j.pBx = j.px; j.pBy = j.py; }
     }
+  };
+
+  // Guía: que no gire y que no se salga de la recta se resuelven a la vez (un sistema de 2×2),
+  // y antes el rozamiento a lo largo de la guía. Así no queda un giro de sobra que nunca se para.
+  World.prototype._solveSlide = function (j, phaseA) {
+    var aa = j.a, b2 = j.b, h = 0.5 * this.dt;
+    function relV() {
+      var cx = (b2.vx - b2.w * j.rby) - (aa.vx - aa.w * j.ray), cy = (b2.vy + b2.w * j.rbx) - (aa.vy + aa.w * j.rax);
+      if (phaseA) { cx -= h * (b2.w * b2.w * j.rbx - aa.w * aa.w * j.rax); cy -= h * (b2.w * b2.w * j.rby - aa.w * aa.w * j.ray); }
+      return { x: cx, y: cy };
+    }
+    var v;
+    if (j.maxSF > 0 && j.kt > 0) {
+      v = relV();
+      var ls = -(v.x * j.tx + v.y * j.ty) / j.kt, olds = j.js;
+      j.js = clamp(olds + ls, -j.maxSF, j.maxSF); ls = j.js - olds;
+      applyImpulse(aa, -ls * j.tx, -ls * j.ty, j.rax, j.ray);
+      applyImpulse(b2, ls * j.tx, ls * j.ty, j.rbx, j.rby);
+    }
+    v = relV();
+    var c1 = b2.w - aa.w, c2 = v.x * j.nx + v.y * j.ny;
+    var rna = j.rax * j.ny - j.ray * j.nx, rnb = j.rbx * j.ny - j.rby * j.nx;
+    var K11 = aa.iI + b2.iI, K12 = aa.iI * rna + b2.iI * rnb, K22 = j.kn, det = K11 * K22 - K12 * K12;
+    if (det <= 1e-18) return;
+    var l1 = -(K22 * c1 - K12 * c2) / det, l2 = -(-K12 * c1 + K11 * c2) / det;
+    aa.w -= aa.iI * l1; b2.w += b2.iI * l1; j.jl += l1;
+    j.px += l2 * j.nx; j.py += l2 * j.ny;
+    applyImpulse(aa, -l2 * j.nx, -l2 * j.ny, j.rax, j.ray);
+    applyImpulse(b2, l2 * j.nx, l2 * j.ny, j.rbx, j.rby);
   };
 
   // energía disipada por rozamiento en la fase recién resuelta
@@ -857,6 +1009,10 @@
     for (i = 0; i < J.length; i++) {
       var j = J[i];
       if (j.maxFric > 0) axle -= j.jf * (j.b.w - j.a.w);
+      if (j.slide && j.js) {
+        var sv = (j.b.vx - j.b.w * j.rby - j.a.vx + j.a.w * j.ray) * j.tx + (j.b.vy + j.b.w * j.rbx - j.a.vy - j.a.w * j.rax) * j.ty;
+        axle -= j.js * sv;
+      }
     }
     for (i = 0; i < C.length; i++) {
       var q = C[i], v = relVel(q.A, q.B, q);
@@ -921,13 +1077,23 @@
 
     this.t += dt;
     var H = this.hand, moving = false;
+    // cada cuarto de segundo se mira cuánto se ha movido cada pieza de verdad: una pieza apretada contra
+    // otra puede quedarse con un poco de velocidad que no la lleva a ninguna parte
+    var snap = !this._snapT || this.t - this._snapT >= 0.25;
     for (i = 0; i < B.length; i++) {
       b = B[i];
       if (b.isStatic) continue;
       // una pieza pequeña que solo se mece un poco (una bola en un hueco) cuenta como parada: se mide la velocidad del borde
       var ext = Math.min(Math.max(0.5 * Math.hypot(b.maxx - b.minx, b.maxy - b.miny), 0.05), 0.333);
-      if (Math.abs(b.vx) > 0.004 || Math.abs(b.vy) > 0.004 || Math.abs(b.w) * ext > 0.004) { moving = true; break; }
+      if (snap) {
+        // su tamaño de verdad; un rodillo redondo que gira en su sitio no mueve nada
+        var ext0 = b.shapes.length === 1 && b.shapes[0].t === 'c' ? 0 : 0.5 * Math.hypot(b.maxx - b.minx, b.maxy - b.miny);
+        b._still = b._sx != null && Math.hypot(b.x - b._sx, b.y - b._sy) < 0.0003 && Math.abs(b.a - b._sa) * ext0 < 0.0003;
+        b._sx = b.x; b._sy = b.y; b._sa = b.a;
+      }
+      if ((Math.abs(b.vx) > 0.004 || Math.abs(b.vy) > 0.004 || Math.abs(b.w) * ext > 0.004) && !b._still) moving = true;
     }
+    if (snap) this._snapT = this.t;
     if (moving || (H && H.body)) this.stillTime = 0; else this.stillTime += dt;
     this.contacts = C;
   };
@@ -937,13 +1103,14 @@
     var ca = Math.cos(a.a), sa = Math.sin(a.a), cb = Math.cos(b.a), sb = Math.sin(b.a);
     var rax = ca * j.lax - sa * j.lay, ray = sa * j.lax + ca * j.lay;
     var rbx = cb * j.lbx - sb * j.lby, rby = sb * j.lbx + cb * j.lby;
-    // topes
+    // topes (en una guía, el giro se corrige del todo)
     if (j.limit && (a.iI + b.iI) > 0) {
       var ang = b.a - a.a - j.ref, Cang = 0;
-      if (ang < j.lo - ANG_SLOP) Cang = ang - j.lo + ANG_SLOP;
+      if (j.slide) Cang = Math.abs(ang) > 1e-9 ? ang : 0;
+      else if (ang < j.lo - ANG_SLOP) Cang = ang - j.lo + ANG_SLOP;
       else if (ang > j.hi + ANG_SLOP) Cang = ang - j.hi - ANG_SLOP;
       if (Cang) {
-        Cang = clamp(Cang * 0.5, -0.1, 0.1);
+        Cang = clamp(j.slide ? Cang : Cang * 0.5, -0.1, 0.1);
         var li = -Cang / (a.iI + b.iI);
         a.a -= a.iI * li; b.a += b.iI * li;
         ca = Math.cos(a.a); sa = Math.sin(a.a); cb = Math.cos(b.a); sb = Math.sin(b.a);
@@ -952,6 +1119,20 @@
       }
     }
     var cx = (b.x + rbx) - (a.x + rax), cy = (b.y + rby) - (a.y + ray);
+    if (j.slide) {
+      // en una guía solo se corrige lo que se ha salido de la recta, empujando en perpendicular a ella
+      var gnx = -(sa * j.sax + ca * j.say), gny = ca * j.sax - sa * j.say, gn = gnx * cx + gny * cy;
+      if (Math.abs(gn) < 1e-7) return;
+      var rna = rax * gny - ray * gnx, rnb = rbx * gny - rby * gnx;
+      var kn = a.im + b.im + a.iI * rna * rna + b.iI * rnb * rnb;
+      if (kn <= 0) return;
+      var li2 = -this.jointBeta * gn / kn;
+      a.x -= a.im * li2 * gnx; a.y -= a.im * li2 * gny; a.a -= a.iI * li2 * rna;
+      b.x += b.im * li2 * gnx; b.y += b.im * li2 * gny; b.a += b.iI * li2 * rnb;
+      if (!a.isStatic) a.updateWorld();
+      if (!b.isStatic) b.updateWorld();
+      return;
+    }
     if (cx * cx + cy * cy < 1e-12) return;
     var mA = a.im, mB = b.im, iA = a.iI, iB = b.iI;
     var k11 = mA + mB + iA * ray * ray + iB * rby * rby;

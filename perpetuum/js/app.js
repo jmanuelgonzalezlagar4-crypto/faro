@@ -183,6 +183,16 @@
       what: T('Una polea (solo el aro, que gira sobre su eje) con una bola de hierro suelta dentro. Al acercar un imán por fuera, la bola sube por el aro hacia el imán y el aro gira, como la rueda de un hámster.'),
       why: T('El imán tira de la bola hasta que su fuerza y el peso de la bola se igualan. La bola sube un poco, el aro gira un poco, y se paran: la energía que da el imán es la que tenía guardada al acercarlo, y se gasta en el roce. Para que el aro siguiera girando habría que ir moviendo el imán, y esa energía la pondría tu mano. Prueba: pulsa «Diseñar», arrastra el imán a otro sitio y vuelve a probar, o empuja la bola con el dedo durante la prueba y mira «Tus empujones» en el libro de cuentas.')
     },
+    flechas: {
+      title: T('Rodillo de flechas'), era: T('La maqueta de un usuario de la app, montada a partir de su dibujo.'),
+      what: T('Un cilindro de latón con dos filas de imanes en forma de flecha: dos flechas por vuelta y en cada una nueve pares que se abren de menos a más; donde acaba abierta empieza cerrada la otra. Arriba, un palo con un imán de todo el largo del cilindro, y abajo otro igual. Los dos palos suben y bajan por guías, empujados por una leva en rampa a cada lado del cilindro: sube poco a poco y cae de golpe justo después de que pase el primer par cerrado. Un muelle en cada punta aprieta los palos contra las levas. Visto desde un lado, mirando al eje.'),
+      why: T('Cada vez que la leva levanta los palos gasta energía del giro, contra el tirón de los imanes y de los muelles, y cuando caen de golpe esa energía se pierde en el golpe. Con un empujón de 300 rpm da unas 4 vueltas; el mismo cilindro solo, sin imanes ni leva, da 35. Mira el «Rodillo de flechas mejorado» para ver hasta dónde se puede llegar.')
+    },
+    flechas2: {
+      title: T('Rodillo de flechas mejorado'), era: T('El rodillo de flechas con las mejoras que propone Claude.'),
+      what: T('El mismo cilindro, los mismos imanes y los mismos palos con sus guías. Cambian cuatro cosas: la leva es lisa (sube y baja poco a poco, con lo más alto justo en el salto de una flecha a la otra), levanta solo 8 mm, los rodillos son grandes (16 mm) y los muelles más suaves.'),
+      why: T('Con la leva lisa, lo que cuesta subir los palos se devuelve al bajarlos, y sin escalón no hay golpe; los rodillos grandes giran más despacio y gastan menos en su eje. Con el mismo empujón da unas 13 vueltas en vez de 4. Aun así no se mueve sola: el cilindro sin imanes ni leva da 35. Los imanes no aportan energía; lo mejor que se puede hacer es que gasten poco.')
+    },
     eficiente: {
       title: T('La más eficiente'), era: T('Diseñada por el taller a partir del cilindro de imanes.'),
       what: T('Lo que queda del cilindro de imanes al quitar todo lo que gasta o no aporta: un cilindro de latón que gira en un rodamiento de bolas, con un generador en el eje. Sin leva, sin barra y sin imanes.'),
@@ -239,6 +249,7 @@
     out.gravity = P.GRAVITY[d.gravity] ? d.gravity : 'tierra';
     out.ideal = !!d.ideal; out.air = d.air !== false; out.example = STORIES[d.example] ? d.example : null;
     if (isFinite(d.price)) out.price = d.price;
+    if (isFinite(d.dt) && d.dt > 0) out.dt = d.dt;   // paso de cálculo más fino (imanes muy juntos)
     if (d.photo && typeof d.photo.id === 'string' && ['x', 'y', 'w'].every(function (k) { return isFinite(d.photo[k]); })) out.photo = { id: d.photo.id, x: d.photo.x, y: d.photo.y, w: d.photo.w, rot: isFinite(d.photo.rot) ? d.photo.rot : 0, op: isFinite(d.photo.op) ? d.photo.op : 0.6 };
     var maxId = 0;
     d.parts.forEach(function (p) {
@@ -252,6 +263,7 @@
         if (p.plane == null) p.plane = 1;
       }
       if (p.plane != null) p.plane = p.plane ? 1 : 0;
+      ['z', 'wz', 'wide', 'soft', 'th', 'len', 'sang', 'drop'].forEach(function (k) { if (k in p && !isFinite(p[k])) delete p[k]; });
       out.parts.push(p);
       var n = parseInt(String(p.id).replace(/\D/g, ''), 10);
       if (n > maxId) maxId = n;
@@ -297,7 +309,7 @@
         });
       case 'spring': return segDist(x, y, p.x1, p.y1, p.x2, p.y2) <= tol;
       case 'ball': return Math.hypot(x - p.x, y - p.y) <= p.r + tol * 0.4;
-      case 'bar': return segDist(x, y, p.x1, p.y1, p.x2, p.y2) <= P.BAR_R + tol;
+      case 'bar': return segDist(x, y, p.x1, p.y1, p.x2, p.y2) <= P.barR(p) + tol;
       case 'wheel': return Math.hypot(x - p.x, y - p.y) <= p.r + tol * 0.3;
       case 'ramp': return segDist(x, y, p.x1, p.y1, p.x2, p.y2) <= P.RAMP_R + tol;
     }
@@ -830,7 +842,7 @@
   }
   function drawBar(p) {
     var b = bodyOf(p.id), a1 = sp(b, p.x1, p.y1), a2 = sp(b, p.x2, p.y2);
-    ctx.strokeStyle = C['ink-2']; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(3.5, 2 * P.BAR_R * S.cam.s);
+    ctx.strokeStyle = C['ink-2']; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(p.th > 0 ? 2 : 3.5, 2 * P.barR(p) * S.cam.s);
     ctx.beginPath(); ctx.moveTo(a1.x, a1.y); ctx.lineTo(a2.x, a2.y); ctx.stroke();
   }
   var MAT_COLOR = { plomo: 'lead', acero: 'steel', madera: 'wood', goma: 'rubber' };
@@ -900,8 +912,13 @@
       for (var x = -L * 0.36 + 4; x < L * 0.36; x += 4) { ctx.moveTo(x, -wb / 2); ctx.lineTo(x, wb / 2); }
       ctx.stroke(); ctx.strokeStyle = C.ink; ctx.strokeRect(-L * 0.36, -wb / 2, L * 0.72, wb);
       if (on) { ctx.fillStyle = C.north; ctx.fillRect(L / 2 - 4, -wb * 0.3, 4, wb * 0.6); }
+    } else if (p.wide > 0) {
+      // imán plano: grueso (de sur a norte) y ancho a lo largo del dibujo
+      var Lt = Math.max(8, model.size * S.cam.s), Wd = Math.max(Lt, p.wide * S.cam.s);
+      split(-Lt / 2, -Wd / 2, Lt, Wd);
+      L = Lt;
     } else split(-L / 2, -L / 4, L, L / 2);
-    if (model.shape === 'bar' || model.shape === 'disc') {
+    if ((model.shape === 'bar' || model.shape === 'disc') && L >= 14) {
       ctx.fillStyle = '#ffffff'; ctx.font = '600 ' + Math.max(9, Math.round(L * 0.32)) + 'px ' + F.display;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.save(); ctx.translate(L / 4, 0); ctx.rotate(ang); ctx.fillText('N', 0, 1); ctx.restore();
@@ -913,6 +930,19 @@
     var j = S.info.jointOf[p.id], c;
     if (j) { var wa = j.a.toWorld(j.lax, j.lay); c = W2S(wa.x, wa.y); } else c = sp(bodyOf(p.b), p.x, p.y);
     if (p.mode === 'rigid') { ctx.fillStyle = C.ink; ctx.fillRect(c.x - 3, c.y - 3, 6, 6); return; }
+    if (p.mode === 'guia') {
+      // la guía: un carril por el que la pieza sube y baja (o corre) sin girar
+      var ga = (p.sang != null ? p.sang : 90) * DEG, gx = Math.cos(ga), gy = -Math.sin(ga), gl = 34;
+      var g0 = p.a ? c : W2S(p.x, p.y);
+      ctx.strokeStyle = C['ink-3']; ctx.lineWidth = 6; ctx.lineCap = 'butt'; ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.moveTo(g0.x - gx * gl, g0.y - gy * gl); ctx.lineTo(g0.x + gx * gl, g0.y + gy * gl); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.beginPath();
+      [-1, 1].forEach(function (sd) { ctx.moveTo(g0.x - gx * gl - gy * 3 * sd, g0.y - gy * gl + gx * 3 * sd); ctx.lineTo(g0.x + gx * gl - gy * 3 * sd, g0.y + gy * gl + gx * 3 * sd); });
+      ctx.stroke();
+      ctx.fillStyle = C.part; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5;
+      ctx.fillRect(c.x - 5, c.y - 5, 10, 10); ctx.strokeRect(c.x - 5, c.y - 5, 10, 10);
+      return;
+    }
     if (!p.a) groundSymbol(c.x, c.y);
     if (p.mode === 'limits' && (S.mode === 'design' || S.sel === p.id)) drawLimitArc(p, c);
     ctx.fillStyle = C.part; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5;
@@ -1378,6 +1408,8 @@
       h += numField(T('Radio en la punta'), 'n_r', p.r * 100, 'cm', 0.5) + numField(T('Subida'), 'n_lift', (p.lift || 0) * 100, 'cm', 0.5);
       h += field(T('Puntas'), 'f_lobes', 1, 6, 1, p.lobes || 1, '', T('Cuántas veces empuja el brazo en cada vuelta.'), 0);
       h += numField(T('Ángulo de la primera punta'), 'n_phase', p.phase || 0, '°', 5);
+      h += segField(T('Forma'), 'f_prof', [['lisa', T('Lisa: sube y baja suave')], ['rampa', T('Rampa: sube poco a poco y cae de golpe')]], p.prof === 'rampa' ? 'rampa' : 'lisa', true);
+      if (p.prof === 'rampa') h += segField(T('La rampa sube al girar'), 'f_sg', [['1', T('Como las agujas del reloj')], ['-1', T('Al revés')]], String(p.sg < 0 ? -1 : 1), true);
       h += field(T('Masa de la leva'), 'f_m', 0.01, 2, 0.01, p.m, 'kg', null, 2);
       var welded = parts().some(function (q) { return q.kind === 'pin' && q.mode === 'rigid' && (q.a === p.id || q.b === p.id); });
       h += '<p class="note field wide">' + (welded ? T('Va soldada en el eje de la rueda y gira con ella. Está delante de la rueda: solo la toca lo que también va delante, como el rodillo de su brazo.') :
@@ -1396,7 +1428,7 @@
       h += segField(T('Eje'), 'f_axle', [['fixed', T('Fijo a la pared')], ['free', T('Suelto')]], p.axle, true);
       if (p.axle === 'fixed') {
         h += selectField(T('Calidad del eje'), 'f_bearing', BEAR_OPTS, p.bearing);
-        h += field(T('Giro inicial'), 'f_rpm', -120, 120, 1, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
+        h += field(T('Giro inicial'), 'f_rpm', -600, 600, 1, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
         h += deviceFields(p);
       }
     } else if (p.kind === 'ball') {
@@ -1420,13 +1452,15 @@
         if (spr && spr.limited) h += T('<p class="note field wide">Para piezas tan ligeras, el banco solo puede simular este muelle con ') + fmt(spr.k, 0) + T(' N/m y ') + fmt(spr.c, 1) + T(' N·s/m. Más rígido vibraría más rápido de lo que el cálculo puede seguir.</p>');
       }
     } else if (p.kind === 'pin') {
-      h += segField(T('Tipo'), 'f_mode', [['free', T('Gira libre')], ['limits', T('Con topes')], ['rigid', T('Soldada')]], p.mode, true);
+      h += segField(T('Tipo'), 'f_mode', [['free', T('Gira libre')], ['limits', T('Con topes')], ['guia', T('Guía')], ['rigid', T('Soldada')]], p.mode, true);
+      if (p.mode === 'guia') h += numField(T('Dirección de la guía'), 'n_sang', p.sang != null ? p.sang : 90, '°', 5);
       if (p.mode === 'limits') {
         h += numField(T('Tope en un sentido'), 'n_lo', Math.min(0, p.lo), '°', 5);
         h += numField(T('Tope en el otro'), 'n_hi', Math.max(0, p.hi), '°', 5);
       }
       if (p.mode !== 'rigid') { h += selectField(T('Calidad de la bisagra'), 'f_bearing', BEAR_OPTS, p.bearing); h += deviceFields(p); }
-      h += '<p class="note field wide">' + (p.a && find(p.a) ? T('Une ') + partName(find(p.a)).toLowerCase() + T(' y ') + partName(find(p.b)).toLowerCase() + '.' : T('Clavada a la pared.')) + (p.mode === 'limits' ? T(' Los ángulos se miden desde la posición dibujada; la zona azul de la vista plana muestra hasta dónde puede girar.') : '') + '</p>';
+      h += '<p class="note field wide">' + (p.a && find(p.a) ? T('Une ') + partName(find(p.a)).toLowerCase() + T(' y ') + partName(find(p.b)).toLowerCase() + '.' : T('Clavada a la pared.')) + (p.mode === 'limits' ? T(' Los ángulos se miden desde la posición dibujada; la zona azul de la vista plana muestra hasta dónde puede girar.') : '') +
+        (p.mode === 'guia' ? T(' En una guía la pieza no gira: solo se desliza por el carril (90° es de arriba abajo).') : '') + '</p>';
     } else if (p.kind === 'magnet') {
       var model = P.magnetModel(p);
       h += selectField(T('Tipo de imán'), 'f_shape', SHAPE_OPTS, p.shape || 'bar');
@@ -1519,7 +1553,9 @@
     seg('f_gdest', function (v) { p.gdest = v; });
     seg('f_esrc', function (v) { p.esrc = v; });
     seg('f_emode', function (v) { p.emode = v; });
-    seg('f_mode', function (v) { p.mode = v; if (v === 'limits' && !p.lo && !p.hi) { p.lo = -45; p.hi = 45; } });
+    seg('f_mode', function (v) { p.mode = v; if (v === 'limits' && !p.lo && !p.hi) { p.lo = -45; p.hi = 45; } if (v === 'guia' && p.sang == null) p.sang = 90; });
+    seg('f_prof', function (v) { p.prof = v; if (v === 'rampa' && !p.sg) p.sg = 1; });
+    seg('f_sg', function (v) { p.sg = +v; });
     var mt = $('f_motor');
     if (mt) mt.addEventListener('change', function () { var b = snapshot(); p.motor = mt.checked; if (p.motor) { p.mrpm = p.mrpm || 30; p.mtorque = p.mtorque || 0.5; p.msrc = p.msrc || 'battery'; } commit(b); });
     var setters = {
@@ -1532,6 +1568,7 @@
       n_len: function (v) { var a = Math.atan2(p.y2 - p.y1, p.x2 - p.x1), L = Math.max(0.01, v / 100); moveEnd(p, 1, p.x1 + L * Math.cos(a), p.y1 + L * Math.sin(a)); },
       n_ang: function (v) { var L = Math.hypot(p.x2 - p.x1, p.y2 - p.y1); moveEnd(p, 1, p.x1 + L * Math.cos(v * DEG), p.y1 + L * Math.sin(v * DEG)); },
       n_lo: function (v) { p.lo = Math.max(-180, Math.min(0, v)); },
+      n_sang: function (v) { p.sang = ((v % 360) + 360) % 360; },
       n_hi: function (v) { p.hi = Math.max(0, Math.min(180, v)); },
       n_dir: function (v) { p.ang = ((v % 360) + 360) % 360; },
       n_size: function (v) { p.size = Math.max(0.005, Math.min(0.5, v / 100)); if (p.shape !== 'electro') p.mu = P.magnetModel(p).mu; },
@@ -2483,7 +2520,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();
@@ -2496,7 +2533,7 @@
     for (var i = 0; i < w.steel.length; i++) {
       var s = w.steel[i], b = s.body;
       if (Math.hypot(b.vx, b.vy) > 0.03) continue;
-      var B = w.fieldAt(s.wx, s.wy, -1, s.soft2, b), U = -s.alpha * (B.x * B.x + B.y * B.y);
+      var B = w.fieldAt(s.wx, s.wy, -1, s.soft2, b), U = -s.alpha * (B.x * B.x + B.y * B.y + (B.z || 0) * (B.z || 0));
       if (U < -0.02) return true;
     }
     return false;

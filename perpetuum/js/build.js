@@ -9,10 +9,11 @@
 
   // Calidad del eje. par de rozamiento = fc·carga + ft0  (fc = coeficiente × radio del eje)
   var BEARINGS = {
-    ideal:  { name: T('Sin rozamiento'), note: T('No existe en la realidad'), axle: [0, 0], pin: [0, 0] },
-    bolas:  { name: T('Rodamiento de bolas'), note: T('El mejor eje que puedes comprar'), axle: [0.0015 * 0.01, 0.002], pin: [0.0015 * 0.004, 0.0004] },
-    bronce: { name: T('Casquillo de bronce engrasado'), note: T('Típico de un taller'), axle: [0.08 * 0.01, 0], pin: [0.08 * 0.004, 0] },
-    madera: { name: T('Eje de madera'), note: T('Como en las ruedas antiguas'), axle: [0.3 * 0.015, 0], pin: [0.3 * 0.006, 0] }
+    // slide: rozamiento de una guía (fuerza = coeficiente × carga + fuerza fija)
+    ideal:  { name: T('Sin rozamiento'), note: T('No existe en la realidad'), axle: [0, 0], pin: [0, 0], slide: [0, 0] },
+    bolas:  { name: T('Rodamiento de bolas'), note: T('El mejor eje que puedes comprar'), axle: [0.0015 * 0.01, 0.002], pin: [0.0015 * 0.004, 0.0004], slide: [0.003, 0.002] },
+    bronce: { name: T('Casquillo de bronce engrasado'), note: T('Típico de un taller'), axle: [0.08 * 0.01, 0], pin: [0.08 * 0.004, 0], slide: [0.08, 0.005] },
+    madera: { name: T('Eje de madera'), note: T('Como en las ruedas antiguas'), axle: [0.3 * 0.015, 0], pin: [0.3 * 0.006, 0], slide: [0.3, 0.02] }
   };
 
   var MATERIALS = {
@@ -31,6 +32,8 @@
     return null;
   }
 
+  // grosor (radio) de una barra: el de siempre, o el suyo si es más fina o más gorda
+  function barR(p) { return p.th > 0 ? p.th : BAR_R; }
   function isBodyPart(p) { return p.kind === 'wheel' || p.kind === 'ball' || p.kind === 'bar'; }
 
   // ---- partes con valores por defecto ----
@@ -44,12 +47,26 @@
     p.style = 'cam'; p.m = 0.1; p.lift = Math.round(p.r * 0.4 * 1000) / 1000; p.lobes = 1; p.phase = 90; p.plane = 1; p.spokes = 0;
     return p;
   }
+  // Forma de la leva entre 0 (valle) y 1 (punta), con u = puntas·(ángulo − fase). La lisa sube y baja
+  // suave; la «rampa» sube poco a poco y cae de golpe justo después de lo más alto (sg: hacia qué lado sube).
+  // Es la misma fórmula que usa el motor.
+  var CAM_DROP = 0.04;   // la caída de la rampa ocupa este trozo de cada punta
+  function camShape(p, u) {
+    if (p.prof !== 'rampa') return (1 + Math.cos(u)) / 2;
+    var dr = camDrop(p), v = (((p.sg < 0 ? -1 : 1) * u) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI), P1 = 2 * Math.PI * (1 - dr);
+    return v <= P1 ? v / P1 : (1 + Math.cos((v - P1) / (2 * dr))) / 2;
+  }
+  // grueso del borde de la leva (lo que toca el rodillo está a esta distancia de la curva)
+  function camRim(p) { return p.th > 0 ? p.th : CAM_R; }
+  function camDrop(p) { return p.drop > 0 ? Math.min(0.5, p.drop) : CAM_DROP; }
+  function camLift(p) { return Math.max(0, Math.min(p.r * 0.6, p.lift || 0)); }
   // contorno de la leva respecto de su centro: radio mayor p.r en cada punta, p.r - p.lift en los valles
   function camProfile(p, n) {
     n = n || 72;
-    var out = [], L = Math.max(1, Math.round(p.lobes || 1)), lift = Math.max(0, Math.min(p.r * 0.6, p.lift || 0)), ph = (p.phase || 0) * DEG;
+    var out = [], L = Math.max(1, Math.round(p.lobes || 1)), lift = camLift(p), ph = (p.phase || 0) * DEG;
+    if (p.prof === 'rampa') n = Math.max(n, 90 * L);   // el escalón se ve bien
     for (var i = 0; i < n; i++) {
-      var t = i / n * 2 * Math.PI, rho = p.r - lift + lift * (1 + Math.cos(L * (t - ph))) / 2;
+      var t = i / n * 2 * Math.PI, rho = p.r - lift + lift * camShape(p, L * (t - ph));
       out.push([rho * Math.cos(t), rho * Math.sin(t)]);
     }
     return out;
@@ -121,10 +138,35 @@
         add(p.x + fx * off, p.y + fy * off, a + k * Math.PI / 2, mCube);
       }
       cap(p.x - fx * (L / 2 - c / 2), p.y - fy * (L / 2 - c / 2), p.x + fx * (L / 2 - c / 2), p.y + fy * (L / 2 - c / 2), c / 2);
+    } else if (shape === 'bar' && p.wide > 0) {
+      // imán plano: grueso L (de sur a norte) y ancho «wide» en el dibujo; de fondo, wz (o lo mismo que de ancho)
+      var W = p.wide, depth = p.wz > 0 ? p.wz : W, nw = 3, mw = (legacy ? (p.mu || 8) : mPerV * L * W * depth) / nw;
+      for (var kw = 0; kw < nw; kw++) { var ow = (kw - (nw - 1) / 2) * W / nw; add(p.x + qx * ow, p.y + qy * ow, a, mw); }
+      var hw = Math.max(0, W / 2 - L / 2);
+      cap(p.x - qx * hw, p.y - qy * hw, p.x + qx * hw, p.y + qy * hw, L / 2);
     } else {
       var wb = shape === 'electro' ? 0.45 * L : L / 2;
       add(p.x, p.y, a, (legacy || shape === 'electro') ? (p.mu || 8) : mPerV * L * wb * wb);
       cap(p.x - fx * (L / 2 - wb / 2), p.y - fy * (L / 2 - wb / 2), p.x + fx * (L / 2 - wb / 2), p.y + fy * (L / 2 - wb / 2), wb / 2);
+    }
+    // A lo largo del eje (fuera del dibujo): todos los dipolos van a la altura z del imán.
+    // Con «poles» se cuentan sus dos caras (norte y sur), separadas por su grueso.
+    var z0 = +p.z || 0, thick = p.poles ? (shape === 'disc' ? L / 2 : (shape === 'bar' ? L : 0)) : 0;
+    dip.forEach(function (dp) { dp.z = z0; dp.soft = p.soft > 0 ? p.soft : 0; dp.poles = thick; });
+    if (shape === 'bar' && p.wz > 0) {
+      // un imán de barra largo a lo largo del eje (wz): tiene más imán (si no es plano, su fondo era L/2)
+      var more = p.wide > 0 ? 1 : p.wz / (L / 2);
+      if (thick) dip.forEach(function (dp) { dp.mu *= more; dp.wz = p.wz; });   // con polos sus caras son líneas de ese largo
+      else {
+        // como dipolos: se reparte en trozos iguales a lo largo del eje
+        var nz = Math.max(1, Math.min(9, Math.round(p.wz / 0.015))), old = dip;
+        dip = [];
+        old.forEach(function (d0) {
+          for (var kz = 0; kz < nz; kz++) dip.push({ x: d0.x, y: d0.y, ang: d0.ang, mu: d0.mu * more / nz, z: z0 + (kz - (nz - 1) / 2) * p.wz / nz,
+            soft: p.soft > 0 ? Math.max(p.soft, p.wz / nz / 2) : 0, poles: 0 });
+        });
+      }
+      muTot = 0; dip.forEach(function (dp) { muTot += Math.abs(dp.mu); });
     }
     return { dipoles: dip, shapes: shp, mu: muTot, size: L, shape: shape };
   }
@@ -155,7 +197,8 @@
   // ---- construcción del mundo ----
   function build(d) {
     var ideal = !!d.ideal;
-    var w = new E.World({ g: GRAVITY[d.gravity] || 9.81, airRho: (d.air && !ideal) ? 1.2 : 0 });
+    // d.dt: paso de cálculo más fino para máquinas con imanes muy juntos (por defecto 1/480 s)
+    var w = new E.World({ g: GRAVITY[d.gravity] || 9.81, airRho: (d.air && !ideal) ? 1.2 : 0, dt: d.dt > 0 ? Math.max(1 / 3840, Math.min(1 / 240, d.dt)) : undefined });
     var parts = d.parts;
     var info = { world: w, bodyOf: {}, partsOfBody: new Map(), jointOf: {}, springOf: {}, magnetOf: {}, wheelJoint: {}, warnings: [] };
 
@@ -234,7 +277,7 @@
         else { var la = host.toLocal(sh.ax, sh.ay), lb = host.toLocal(sh.bx, sh.by); o.ax = la.x; o.ay = la.y; o.bx = lb.x; o.by = lb.y; }
         host.shapes.push(o);
       });
-      info.magnetOf[p.id] = model.dipoles.map(function (dp) { return w.addMagnet(host, dp.x, dp.y, dp.ang, dp.mu, p.id); });
+      info.magnetOf[p.id] = model.dipoles.map(function (dp) { return w.addMagnet(host, dp.x, dp.y, dp.ang, dp.mu, p.id, dp.z, dp.soft, dp.poles, dp.wz); });
       if (p.shape === 'electro') electroParts.push(p);
     });
 
@@ -270,6 +313,10 @@
       var br = BEARINGS[ideal ? 'ideal' : p.bearing] || BEARINGS.bronce;
       var flip = bodyFor(p.a) !== A ? -1 : 1;
       var opt = { fc: br.pin[0], ft0: br.pin[1], gen: p.gen || 0, genDest: p.gdest, motor: motorOf(p, flip), tag: p.id };
+      if (p.mode === 'guia') {
+        // guía: la pieza se desliza por una recta (ángulo sang, vertical si no se dice) sin girar
+        opt.slide = (p.sang != null ? p.sang : 90) * DEG; opt.sfc = br.slide[0]; opt.sf0 = br.slide[1];
+      }
       if (p.mode === 'limits') {
         opt.limit = true;
         var lo = Math.min(p.lo, 0), hi = Math.max(p.hi, 0);
@@ -366,8 +413,9 @@
       var mu = 0.45, e = 0.3;
       if (p.style === 'cam') {
         // la leva es una curva lisa (en el motor, forma 'k'), para que lo que se apoya en ella ruede sin tropezar
-        var pl = p.plane == null ? 1 : p.plane, liftK = Math.max(0, Math.min(p.r * 0.6, p.lift || 0));
-        body.shapes.push({ t: 'k', x: p.x - ox, y: p.y - oy, r: CAM_R, R: p.r, lift: liftK, lobes: Math.max(1, Math.round(p.lobes || 1)), ph: (p.phase || 0) * DEG, mu: 0.3, e: 0.1, crr: 0.002, part: p.id, plane: pl });
+        var pl = p.plane == null ? 1 : p.plane, liftK = camLift(p);
+        body.shapes.push({ t: 'k', x: p.x - ox, y: p.y - oy, r: camRim(p), R: p.r, lift: liftK, lobes: Math.max(1, Math.round(p.lobes || 1)), ph: (p.phase || 0) * DEG,
+          prof: p.prof === 'rampa' ? 'rampa' : 'cos', sg: p.sg < 0 ? -1 : 1, dr: camDrop(p), mu: 0.3, e: 0.1, crr: 0.002, part: p.id, plane: pl });
         body.shapes.push({ t: 'c', x: p.x - ox, y: p.y - oy, r: Math.max(0.005, (p.r - liftK) * 0.6), mu: 0.3, e: 0.1, part: p.id, plane: pl });
       } else if (p.style === 'rim') {
         // aro o polea: solo el aro choca; el buje y los radios van detrás, donde no llega lo de dentro
@@ -384,7 +432,7 @@
       var mat = MATERIALS[p.mat] || MATERIALS.plomo;
       body.shapes.push({ t: 'c', x: p.x - ox, y: p.y - oy, r: p.r, mu: mat.mu, e: mat.e, crr: mat.crr, part: p.id, plane: p.plane || 0 });
     } else if (p.kind === 'bar') {
-      body.shapes.push({ t: 's', ax: p.x1 - ox, ay: p.y1 - oy, bx: p.x2 - ox, by: p.y2 - oy, r: BAR_R, mu: 0.45, e: 0.3, part: p.id, plane: p.plane || 0 });
+      body.shapes.push({ t: 's', ax: p.x1 - ox, ay: p.y1 - oy, bx: p.x2 - ox, by: p.y2 - oy, r: barR(p), mu: 0.45, e: 0.3, part: p.id, plane: p.plane || 0 });
     }
   }
 
@@ -647,6 +695,93 @@
     return d;
   }
 
+  // Rodillo de flechas (la maqueta del usuario). Cilindro de latón con dos filas de imanes en forma de flecha:
+  // 2 flechas por vuelta y en cada una 9 pares que se abren de menos a más (a lo largo del eje); donde acaba
+  // abierta empieza cerrada la siguiente. Arriba un palo con un imán de todo el largo del cilindro (norte abajo)
+  // y abajo otro igual (norte arriba). Los dos palos van en guías y apoyan un rodillo en la leva de cada lado
+  // del cilindro: sube poco a poco y cae de golpe justo después de que el primer par cerrado pase por debajo.
+  // Un muelle en cada punta une los dos palos y los aprieta contra las levas. Visto desde un lado, mirando al eje.
+  function exampleArrows(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = opts.example || 'flechas';
+    d.dt = opts.dt || 1 / 960;   // imanes a milímetros: paso de cálculo más fino
+    var cx = 0, cy = 0.13, R = 0.05, LEN = 0.13;
+    var FL = 2, PASOS = 9, PASO = 360 / FL / PASOS, MIN = 0.006, MAX = 0.05;
+    var TH0 = opts.th0 != null ? opts.th0 : 40;   // ángulo del cilindro que está debajo del imán de arriba al empezar
+    var alpha = function (th) { return (90 + th - TH0) * DEG; };   // ángulo del cilindro → ángulo en el dibujo
+    var base = makeRamp(d, -0.11, 0.012, 0.11, 0.012); base.mat = 'madera'; d.parts.push(base);
+    var wh = makeWheel(d, cx, cy, R);
+    wh.m = opts.m || 1.5; wh.spokes = 6; wh.bearing = 'bolas'; wh.rpm = opts.rpm != null ? opts.rpm : 300; wh.len = LEN; wh.look = 'laton';
+    d.parts.push(wh);
+    // los imanes: disco de 11 mm, el norte hacia fuera; cada par a ±abre a lo largo del eje
+    var DS = opts.disc || 0.011, rm = R + DS / 4;
+    for (var f = 0; f < FL; f++) for (var k = 0; k < PASOS; k++) {
+      var a = alpha(f * 180 + k * PASO), abre = MIN + (MAX - MIN) * k / (PASOS - 1);
+      [-1, 1].forEach(function (sz) {
+        var mg = makeMagnet(d, +(cx + rm * Math.cos(a)).toFixed(5), +(cy + rm * Math.sin(a)).toFixed(5), wh.id, 'disc');
+        mg.size = DS; mg.grade = 'n52'; mg.ang = +(a / DEG).toFixed(2); mg.z = +(sz * abre).toFixed(4); mg.soft = DS / 4; mg.poles = true; mg.mu = magnetModel(mg).mu;
+        d.parts.push(mg);
+      });
+    }
+    // la leva (una a cada lado del cilindro, iguales y a la vez: en el dibujo se ven como una):
+    // dos puntas, una por flecha; en la rampa la caída empieza justo después del primer par cerrado
+    var lift = opts.lift != null ? opts.lift : 0.0165, rTip = opts.camR || 0.046;
+    var cam = makeCam(d, cx, cy, rTip);
+    cam.lift = lift; cam.lobes = FL; cam.m = 0.1; cam.bearing = 'bolas'; cam.len = LEN + 0.02;
+    cam.prof = opts.prof || 'rampa'; cam.sg = 1;
+    var thDrop = opts.thDrop != null ? opts.thDrop : 4;   // dónde empieza a caer (0 = el primer par cerrado, justo debajo)
+    cam.drop = opts.drop || 0.13;   // la caída ocupa una décima de cada punta: cae de golpe pero sin esquina viva
+    if (cam.prof === 'rampa') cam.phase = +(((90 + thDrop - TH0 - (1 - camDrop(cam)) * 360 / FL) % 360 + 360) % 360).toFixed(3);
+    else cam.phase = +(((90 + (opts.thPeak != null ? opts.thPeak : 0) - TH0) % 360 + 360) % 360).toFixed(3);   // lisa: la punta donde se pida
+    d.parts.push(cam);
+    var cw = makePin(d, cx, cy, wh.id, cam.id); cw.mode = 'rigid'; d.parts.push(cw);
+    // dónde está la superficie de la leva arriba y abajo al empezar
+    var Lb = cam.lobes, liftK = camLift(cam);
+    cam.th = 0.0015;   // borde fino: el escalón es un escalón de verdad
+    var surf = function (t) { return cam.r - liftK + liftK * camShape(cam, Lb * (t - cam.phase * DEG)) + camRim(cam); };
+    // los dos palos: s = +1 arriba, −1 abajo
+    var ST = opts.stSize || 0.006, WIDE = opts.wide || 0.015, GAP = opts.gap || 0.004, RR = opts.rr || 0.002, WZ = opts.wz != null ? opts.wz : LEN;
+    var top = R + DS / 2;   // cara de fuera de los imanes del cilindro
+    var XE = 0.085;         // hasta dónde llega el palo por el lado del muelle, fuera del cilindro
+    var sticks = [];
+    [1, -1].forEach(function (s) {
+      var rs = top + GAP + ST / 2, ys0 = top + GAP + ST + 0.0025;   // centro del imán y del palo, desde el eje
+      var yRol = surf(s > 0 ? Math.PI / 2 : -Math.PI / 2) + RR;      // centro del rodillo, desde el eje
+      var up = (yRol - (cam.r - liftK + camRim(cam) + RR));                // lo que ya está levantado al empezar
+      var ys = cy + s * (ys0 + up);
+      var bar = makeBar(d, -0.0075, ys, XE, ys); bar.m = opts.stickM || 0.05; bar.th = 0.0025; d.parts.push(bar);
+      var g = makePin(d, 0, ys, null, bar.id); g.mode = 'guia'; g.sang = 90; g.bearing = 'bolas'; d.parts.push(g);
+      var st = makeMagnet(d, 0, +(cy + s * (rs + up)).toFixed(5), bar.id, 'bar');
+      st.size = ST; st.wide = WIDE; st.ang = s > 0 ? -90 : 90; st.grade = opts.stGrade || 'ferrita'; st.wz = WZ; st.z = 0; st.soft = ST / 4; st.poles = true; st.mu = magnetModel(st).mu;
+      d.parts.push(st);
+      var yr = cy + s * yRol;
+      var stem = makeBar(d, 0, ys, 0, +(yr + s * 0.0015).toFixed(5)); stem.m = 0.003; stem.th = 0.0015; stem.plane = 1; d.parts.push(stem);
+      var sw = makePin(d, 0, ys, bar.id, stem.id); sw.mode = 'rigid'; d.parts.push(sw);
+      var rol = makeBall(d, 0, +yr.toFixed(5)); rol.r = RR; rol.m = opts.rolM || 0.01; rol.mat = 'madera'; rol.plane = 1; d.parts.push(rol);
+      var rp = makePin(d, 0, +yr.toFixed(5), stem.id, rol.id); rp.bearing = 'bolas'; d.parts.push(rp);
+      sticks.push(bar);
+    });
+    // los muelles de las puntas (uno a cada lado: en el dibujo, uno con la fuerza de los dos)
+    var xs = XE - 0.016, y1 = sticks[0].y1, y2 = sticks[1].y1;
+    var sp = makeSpring(d, xs, y1, xs, y2, sticks[0].id, sticks[1].id);
+    // muelle largo y blando: tira casi lo mismo esté como esté (1,5 N), lo justo para que los rodillos no se despeguen
+    sp.k = opts.k != null ? opts.k : 10; sp.rest = +((y1 - y2) - (opts.pre != null ? opts.pre : 0.15)).toFixed(4); sp.damp = 0.02;
+    d.parts.push(sp);
+    return d;
+  }
+
+  // El mismo rodillo con las mejoras que propone Claude para que pierda lo menos posible:
+  // 1. leva lisa: sube y baja poco a poco (lo que cuesta subir el palo se devuelve al bajarlo; sin escalón no hay golpe),
+  //    con lo más alto justo en el salto entre flechas;
+  // 2. levanta solo 8 mm (a esa distancia el imán ya casi no tira);
+  // 3. rodillos grandes (16 mm), que giran más despacio y gastan menos en su eje;
+  // 4. muelles más suaves (lo justo para que el rodillo de abajo no se despegue).
+  function exampleArrowsBetter(opts) {
+    opts = opts || {};
+    return exampleArrows({ example: 'flechas2', rpm: opts.rpm, prof: 'lisa', lift: 0.008, thPeak: -5, rr: 0.008, pre: 0.07 });
+  }
+
   var EXAMPLES = {
     mazos: { title: T('Rueda de mazos'), make: exampleMallets },
     bolas: { title: T('Rueda de bolas'), make: exampleBalls },
@@ -658,16 +793,18 @@
     leva: { title: T('Motor de imanes con leva'), make: exampleCamMotor },
     hamster: { title: T('Rueda de hámster con imán'), make: exampleHamster },
     espiral: { title: T('Cilindro de imanes con palanca'), make: exampleSpiral },
-    eficiente: { title: T('La más eficiente'), make: exampleEfficient }
+    eficiente: { title: T('La más eficiente'), make: exampleEfficient },
+    flechas: { title: T('Rodillo de flechas'), make: exampleArrows },
+    flechas2: { title: T('Rodillo de flechas mejorado'), make: exampleArrowsBetter }
   };
 
   root.PerpetuumBuild = {
     build: build, emptyDesign: emptyDesign, find: find, isBodyPart: isBodyPart, ringGeometry: ringGeometry, ringSlots: ringSlots,
     makeWheel: makeWheel, makeCam: makeCam, camProfile: camProfile, makeBall: makeBall, makeBar: makeBar, makeRamp: makeRamp, makePin: makePin,
-    makeSpring: makeSpring, makeMagnet: makeMagnet, partMass: partMass, magSize: magSize,
+    makeSpring: makeSpring, makeMagnet: makeMagnet, partMass: partMass, magSize: magSize, barR: barR, camShape: camShape,
     magnetModel: magnetModel, electroPower: electroPower, GRADES: GRADES, MAG_SHAPES: MAG_SHAPES,
     BEARINGS: BEARINGS, MATERIALS: MATERIALS, GRAVITY: GRAVITY, EXAMPLES: EXAMPLES,
-    BAR_R: BAR_R, RAMP_R: RAMP_R, MAG_R: MAG_R, RIM_R: RIM_R, DIV_R: DIV_R, CAM_R: CAM_R
+    CAM_DROP: CAM_DROP, exampleArrows: exampleArrows, BAR_R: BAR_R, RAMP_R: RAMP_R, MAG_R: MAG_R, RIM_R: RIM_R, DIV_R: DIV_R, CAM_R: CAM_R
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PerpetuumBuild;
 })(typeof window !== 'undefined' ? window : globalThis);
