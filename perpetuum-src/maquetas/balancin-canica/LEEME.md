@@ -105,3 +105,46 @@ la rampa, a varias alturas, y una base debajo de la bisagra.
   bajando, y eso solo pasa si el palo pesa más del lado de la bola; pero esa bola está en el escalón.
 - **Lo que pide la vuelta:** para que la bola vuelva a la bisagra y luego otra vez al final, el palo tendría que
   pesar más de un lado y del otro a la vez, en la misma postura.
+
+### Con la V del dibujo del usuario (`uve.js`, `corre-uve.js`)
+
+El usuario dibujó la forma sobre las fotos:
+
+- **El palo:** sale plano del eje y baja en V hasta el suelo.
+- **La rampa:** en el fondo de la V hay una bisagra con una rampa recta que sube hasta la punta, con un tope.
+- **La bola:** empieza en la punta.
+
+El ciclo:
+
+1. **Baja el lado de la bola:** la punta de la rampa se apoya en el escalón.
+2. **La bola baja a la V:** la rampa queda cuesta abajo hacia la V y la bola rueda hasta el fondo, más cerca del
+   eje.
+3. **La bobina sube el palo:** ahora pesa más y lo levanta; la rampa cuelga y la bola vuelve a la punta.
+
+El modelo:
+
+- la V va de (0,23; 0,22) a (0,32; 0,045);
+- la rampa mide 25 cm;
+- la bisagra deja colgar la rampa de 10° a 30°;
+- el escalón está bajo la punta y el suelo bajo la V.
+
+El barrido (`uve-barrido.jsonl`) prueba 168 combinaciones de:
+
+- cuánto cuelga la rampa;
+- la altura del escalón;
+- la altura del suelo;
+- el contrapeso, de 50 a 110 g (con la bola en la V la bobina tiene que pesar más, y con la bola en la punta
+  menos: eso pasa entre unos 90 y 110 g).
+
+Resultados:
+
+- **Ninguna vuelta completa:** en ninguno de los 168 casos la bola va de la punta a la V y vuelve a la punta. Todos
+  se paran antes de 3,7 s, y el palo baja una vez como mucho.
+- **En 147 casos la bola se queda en la punta:** la punta de la rampa se apoya en el escalón, el escalón aguanta la
+  bola y el palo no la nota.
+- **En 21 casos la bola llega al fondo de la V** (`uve.png`): la bobina pesa más, pero el palo solo sube de 0,3° a
+  1,5°, porque la punta de la rampa sigue apoyada en el escalón y la bisagra ya no se dobla más. Si el contrapeso
+  es ligero, ni eso: el palo se queda abajo con la bola en la V.
+
+Para cerrar el ciclo, la bola tendría que volver del fondo de la V a la punta, que está más alta. Esa subida cuesta
+lo mismo que dio al bajar, y en cada golpe y cada roce se pierde algo.
