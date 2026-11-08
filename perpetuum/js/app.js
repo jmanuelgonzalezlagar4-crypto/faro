@@ -203,6 +203,11 @@
       what: T('El mismo cilindro de latón y el mismo empujón, pero sin imanes que tiren de él, sin leva y sin nada que lo toque: flota en dos cojinetes magnéticos y solo una punta de aguja lo aguanta a lo largo del eje. Lo único que lo frena es el aire y esa punta.'),
       why: T('Es la máquina que más aguanta: a los 10 minutos todavía gira a unas 140 rpm, y tarda una media hora en pararse (en una campana de vacío, casi una hora). Pero no se mueve sola: solo guarda el empujón y lo suelta muy despacio. Ponle un generador (toca el cilindro, «Generador») y devuelve el 84 % del empujón como electricidad; más no se puede, porque el propio generador pierde un 15 % en calor. Nunca devuelve más de lo que le das.')
     },
+    vacio: {
+      title: T('Volante de vacío'), era: T('La propuesta de Claude para llegar por lo menos al 99 %.'),
+      what: T('Un disco de acero de 20 cm y 12 kg dentro de una cámara de vacío, flotando en dos cojinetes magnéticos más fuertes (en cada punta, 16 imanes en el eje dentro de 24 fijos), empujado hasta 3.000 rpm. No lo toca nada salvo una punta de aguja que lo aguanta a lo largo del eje, y no hay aire que lo frene.'),
+      why: T('Guarda casi entera la energía que le das: a los 10 minutos conserva el 99,88 %, a la hora el 99,3 %, y tarda casi hora y media en bajar del 99 %. Lo único que pierde es lo que roza la aguja, y como lleva tanta energía (3.035 J) ese roce apenas se nota. Pero no crea energía: pierde un poco cada segundo y, si le sacas electricidad, también se frena. Es lo más cerca del movimiento perpetuo que se puede llegar: guardar muy bien, nunca crear.')
+    },
     eficiente: {
       title: T('La más eficiente'), era: T('Diseñada por el taller a partir del cilindro de imanes.'),
       what: T('Lo que queda del cilindro de imanes al quitar todo lo que gasta o no aporta: un cilindro de latón que gira en un rodamiento de bolas, con un generador en el eje. Sin leva, sin barra y sin imanes.'),
@@ -1451,12 +1456,12 @@
       h += segField(T('Eje'), 'f_axle', [['fixed', T('Fijo a la pared')], ['levitado', T('Flotando en imanes')], ['free', T('Suelto')]], p.axle, true);
       if (p.axle === 'levitado') {
         h += '<p class="note field wide">' + T('Lo sostienen los imanes que pongas alrededor del eje (imantados a lo largo del eje, con el norte hacia el mismo lado). Una punta de aguja lo aguanta a lo largo: es lo único que roza.') + '</p>';
-        h += field(T('Giro inicial'), 'f_rpm', -600, 600, 1, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
+        h += field(T('Giro inicial'), 'f_rpm', -6000, 6000, 10, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
         h += deviceFields(p);
       }
       if (p.axle === 'fixed') {
         h += selectField(T('Calidad del eje'), 'f_bearing', BEAR_OPTS, p.bearing);
-        h += field(T('Giro inicial'), 'f_rpm', -600, 600, 1, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
+        h += field(T('Giro inicial'), 'f_rpm', -6000, 6000, 10, p.rpm, 'rpm', T('Positivo: sentido de las agujas del reloj. Cuenta como energía de partida.'), 0);
         h += deviceFields(p);
       }
     } else if (p.kind === 'ball') {
@@ -2548,7 +2553,7 @@
     { id: 'eficiencia', title: T('Medio camino'), desc: T('Consigue una eficiencia del 50 %: que la mitad de la energía que gasta tu máquina salga como electricidad útil.') },
     { id: 'perpetuo', title: T('El movimiento perpetuo'), desc: T('Consigue que tu máquina saque más energía de la que tenía. El banco lo vigila en cada prueba.'), impossible: true }
   ];
-  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam', flechas3: 'mag-disc', flotante: 'wheel' };
+  var EX_ICONS = { mazos: 'arm', bolas: 'ring', wilkins: 'ramp', motor: 'mag-bar', pendulo: 'bar', bucle: 'motor', electro: 'mag-electro', leva: 'cam', hamster: 'rim', espiral: 'mag-disc', eficiente: 'gen', flechas: 'mag-disc', flechas2: 'cam', flechas3: 'mag-disc', flotante: 'wheel', vacio: 'wheel' };
   function goalsDone() { return load(KEYS.goals, {}); }
   function completeGoal(id) {
     var g = goalsDone();

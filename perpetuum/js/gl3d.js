@@ -264,7 +264,7 @@
           hub.position.set(l.x, l.y, z0); g.add(addPick(hub, p.id));
         } else if (p.len > 0) {
           // un cilindro largo (como el rodillo de latón de las flechas), con sus dos tapas
-          var brass = p.look === 'laton' ? mat('#cfa043', 0.35, 0.55) : mat(colors.wood, 0.8, 0);
+          var brass = p.look === 'laton' ? mat('#cfa043', 0.35, 0.55) : (p.look === 'acero' ? mat(colors.steel, 0.3, 0.85) : mat(colors.wood, 0.8, 0));
           var tube = zCyl(p.r, p.len, brass, 72);
           tube.position.set(l.x, l.y, z0); g.add(addPick(tube, p.id));
           [-1, 1].forEach(function (sd) {

@@ -275,7 +275,7 @@
       if (p.kind !== 'magnet') return;
       var host = bodyFor(p.host), model = magnetModel(p);
       model.shapes.forEach(function (sh) {
-        var o = { mu: 0.3, e: 0.3, crr: 0.002, part: p.id, massless: true, r: sh.r, t: sh.t, plane: p.plane || 0 };
+        var o = { mu: 0.3, e: 0.3, crr: 0.002, part: p.id, massless: true, r: sh.r, t: sh.t, plane: p.plane || 0, solid: p.solid !== false };
         if (sh.t === 'c') { var l = host.toLocal(sh.x, sh.y); o.x = l.x; o.y = l.y; }
         else { var la = host.toLocal(sh.ax, sh.ay), lb = host.toLocal(sh.bx, sh.by); o.ax = la.x; o.ay = la.y; o.bx = lb.x; o.by = lb.y; }
         host.shapes.push(o);
@@ -794,13 +794,14 @@
   // En el dibujo se ven los dos cojinetes uno encima del otro: los imanes se alternan entre las dos puntas.
   // drop: lo que baja el eje por su peso; el anillo fijo se pone esa altura más arriba para que empiece quieto.
   var BEARING = { n1: 24, n2: 36, s1: 0.012, s2: 0.014, r1: 0.013, r2: 0.031 };
-  function addMagBearing(d, wh, zEnd, drop) {
-    var B = BEARING;
+  function addMagBearing(d, wh, zEnd, drop, cfg) {
+    var B = cfg || BEARING;
     function ring(n, r, size, host, off, dy) {
       for (var k = 0; k < n; k++) {
         var a = (k + off) / n * 2 * Math.PI;
         var m = makeMagnet(d, +(wh.x + r * Math.cos(a)).toFixed(5), +(wh.y + dy + r * Math.sin(a)).toFixed(5), host, 'disc');
-        m.size = size; m.ax = 1; m.ang = 0; m.grade = 'n52'; m.poles = true; m.soft = size / 4; m.plane = 2;
+        // los imanes de un cojinete no se tocan nunca (si lo hicieran, el cojinete ya no funcionaría): sin forma de choque
+        m.size = size; m.ax = 1; m.ang = 0; m.grade = 'n52'; m.poles = true; m.soft = size / 4; m.plane = 2; m.solid = false;
         m.z = k % 2 ? zEnd : -zEnd; m.mu = magnetModel(m).mu;
         d.parts.push(m);
       }
@@ -828,6 +829,27 @@
   }
   var BEARING_DROP = 0.00116;   // medido: con 1,6 kg el eje baja 1,16 mm
 
+  // Volante de vacío: lo que más energía guarda de todo lo que se puede montar. Un disco de acero de 20 cm y
+  // 12 kg dentro de una cámara de vacío (sin aire que frene), flotando en dos cojinetes magnéticos más fuertes
+  // y sujeto a lo largo solo por una punta de aguja, empujado hasta 3.000 rpm. Cuanta más energía lleva, menos
+  // se nota lo poco que roza la aguja: a los 10 minutos conserva más del 99,8 % y a la hora más del 99 %.
+  var BEARING_BIG = { n1: 32, n2: 48, s1: 0.02, s2: 0.025, r1: 0.026, r2: 0.054 };
+  var BEARING_BIG_DROP = 0.0023;   // medido: con 12,3 kg el eje baja 2,3 mm
+  function exampleVacuum(opts) {
+    opts = opts || {};
+    var d = emptyDesign();
+    d.example = 'vacio';
+    d.air = false;   // cámara de vacío
+    var cx = 0, cy = 0.16, R = 0.1, LEN = 0.05;
+    var base = makeRamp(d, -0.16, 0.02, 0.16, 0.02); base.mat = 'madera'; d.parts.push(base);
+    var wh = makeWheel(d, cx, cy, R);
+    wh.m = opts.m || 12.3; wh.spokes = 8; wh.axle = 'levitado'; wh.rpm = opts.rpm != null ? opts.rpm : 3000; wh.len = LEN; wh.look = 'acero';
+    wh.gen = opts.gen || 0; wh.gdest = 'bus';
+    d.parts.push(wh);
+    addMagBearing(d, wh, LEN / 2 + 0.03, opts.drop != null ? opts.drop : BEARING_BIG_DROP, BEARING_BIG);
+    return d;
+  }
+
   // El rodillo de flechas mejorado, flotando en los mismos cojinetes magnéticos en vez de en rodamientos de bolas
   function exampleArrowsFloating(opts) {
     opts = opts || {};
@@ -853,7 +875,8 @@
     flechas: { title: T('Rodillo de flechas'), make: exampleArrows },
     flechas2: { title: T('Rodillo de flechas mejorado'), make: exampleArrowsBetter },
     flechas3: { title: T('Rodillo de flechas flotante'), make: exampleArrowsFloating },
-    flotante: { title: T('Volante flotante'), make: exampleFloating }
+    flotante: { title: T('Volante flotante'), make: exampleFloating },
+    vacio: { title: T('Volante de vacío'), make: exampleVacuum }
   };
 
   root.PerpetuumBuild = {
