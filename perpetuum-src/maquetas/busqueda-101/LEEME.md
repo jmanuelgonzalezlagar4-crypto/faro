@@ -78,3 +78,50 @@ Ninguno es energía de verdad:
   aunque se haya creado energía: la alarma solo saltó en 6 de los 20 péndulos.
 
 Con ninguno de los dos se saca energía de verdad: son errores de cálculo del banco, no algo que pase en un aparato.
+
+## Segunda tanda: aparatos mixtos (`familias2.js`, `todo2.sh`, `resultados2.jsonl`)
+
+12.000 aparatos más, mezclando de todo y sin aire ni rozamiento:
+
+| Familia | Qué lleva | Probados | Apartados | Lo más alto que parecía |
+|---|---|---|---|---|
+| `rampaMagnetica` | Rampa con imanes que suben bolas de acero, hueco y rampa de vuelta | 2.000 | 0 | 100,157 % |
+| `circuito` | Rampas en lazo, bolas de acero, imanes y un electroimán que enciende la rueda de paletas que mueve la bola | 744 | 1.256 | 100,416 % |
+| `levaIman` | Rueda con leva que levanta una palanca con imán, imanes fijos, muelle, generador y motor con acumulador | 922 | 1.078 | 147,4 % |
+| `aguaImanes` | Rueda con flotadores imantados en un tanque, imanes fijos junto al agua | 2.000 | 0 | 100,021 % |
+| `mezcla` | De 2 a 5 módulos al azar: rueda, palanca, péndulo, rampa con bolas, imanes, electroimán, muelle y agua | 3.403 | 597 | 110,0 % |
+
+- **El filtro de piezas metidas es más estricto:** ahora también aparta las piezas que se meten más de 1 cm alguna
+  vez, o más de 4 mm durante 0,25 s en total. Una rampa magnética parecía dar un 500 %, y era una rueda metida 2 cm
+  en una rampa que daba saltos de un sitio a otro, así que el solape aparecía y desaparecía.
+- **30 pasaban del 101 %.** El clasificador (`clasifica.js`, `clasificados2.jsonl`) da 20 de piezas apretadas, 4 de
+  redondeo, 3 de piezas metidas al empezar y 6 sin explicar.
+- **Los 6 sin explicar, mirados a mano** (`mira2.js`):
+  - **Las levas:** la rueda y la leva van soldadas y cada una tiene su propio eje. En el primer paso el banco las
+    encaja de golpe: la rueda gira 19° y sube 2 mm, lo que mete de una vez entre 7 y 35 mJ. Luego todo cuadra.
+  - **Medida desde los 0,1 s:** un aparato de más del 100 % tiene que seguir ganando después del arranque, así que
+    se mide lo que sobra contando solo desde los 0,1 s, con el paso normal y con uno 8 veces más fino
+    (`despues.js`, `despues2.jsonl`). De los 33 que pasaban del 100,5 %, quedan 2.
+  - **La mezcla nº 508 (103 %):** una bola de plomo colgada de un muelle que toca una rueda. El muelle la aprieta
+    contra la rueda, y el banco la separa en cada paso estirando el muelle sin apuntarlo. Con la bola sin tocar la
+    rueda sobran 0,01 mJ, y sin muelle, 0.
+  - **La leva nº 787 (100,85 %):** 0,6 mJ, por debajo del 101 %.
+- Con la misma medida desde los 0,1 s y paso fino, los 26 de la primera tanda que pasaban del 100,5 % se quedan
+  todos en el 100,0 % (`despues1.jsonl`).
+
+## Tercera tanda: ideas clásicas (`familias3.js`, `todo3.sh`, `resultados3.jsonl`)
+
+| Familia | Qué lleva | Probados | Apartados | Lo más alto |
+|---|---|---|---|---|
+| `bhaskara` | Rueda con tubos curvos y bolas que ruedan hacia fuera en un lado | 1.500 | 0 | 100,000 % |
+| `espiral` | Rueda con imanes y un estátor de imanes en espiral | 1.500 | 0 | 100,009 % |
+| `penduloElectro` | Péndulo de acero con imanes fijos y un electroimán que enciende el propio péndulo | 1.500 | 0 | 100,037 % |
+| `cadenaAgua` | Cadena de flotadores ligeros y pesados alrededor de dos ruedas, medio dentro de un tanque | 717 | 783 | 100,000 % |
+
+Ninguno pasa ni del 100,1 %.
+
+## En total
+
+30.200 aparatos de 16 tipos; quitando los imposibles de construir, quedan 26.171. 52 pasaban del 101 %, y ninguno
+era energía de verdad: todos eran fallos del banco (redondeo, piezas metidas al empezar, piezas apretadas, o piezas
+que el banco encaja de golpe en el primer paso). `busqueda-101.png` tiene la tabla de las tres tandas.
