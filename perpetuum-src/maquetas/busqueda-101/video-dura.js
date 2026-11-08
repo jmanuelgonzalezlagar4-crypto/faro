@@ -8,8 +8,10 @@ const FPS = 30;
 function monta() { const d = diseno(fam, seed, n); d.ideal = false; d.parts.filter(p => p.kind === 'spring').forEach(p => { if (!(p.damp > 0)) p.damp = 0.5; }); const info = P.build(d); return { d, info, w: info.world }; }
 // 1. pasada para saber cuánto dura y cuánta energía tiene al final (estado de reposo)
 let m = monta(); const E0 = m.w.energy().E; let quieto = 0, Kmax = 0;
-while (m.w.t < Tmax && !m.w.isStopped() && quieto < 2) { m.w.step(); const K = m.w.kinetic(); Kmax = Math.max(Kmax, K); quieto = K < Math.max(1e-4, 1e-3 * Kmax) ? quieto + m.w.dt : 0; }
-const D = m.w.t, parado = m.w.isStopped() || quieto >= 2, Efin = parado ? m.w.energy().E : null;
+// SIGUE=1: ya se sabe que a los Tmax s sigue en marcha (un volante): no hace falta la primera pasada
+if (process.env.SIGUE === '1') { Kmax = m.w.kinetic(); m.w.t = Tmax; }
+else while (m.w.t < Tmax && !m.w.isStopped() && quieto < 2) { m.w.step(); const K = m.w.kinetic(); Kmax = Math.max(Kmax, K); quieto = K < Math.max(1e-4, 1e-3 * Kmax) ? quieto + m.w.dt : 0; }
+const D = Math.min(m.w.t, Tmax), parado = process.env.SIGUE !== '1' && (m.w.isStopped() || quieto >= 2), Efin = parado ? m.w.energy().E : null;
 console.log('dura', D.toFixed(1), 's', parado ? 'y se para' : 'y sigue');
 // 2. horario del vídeo: 5 s a velocidad normal, hasta el minuto ×10, y el resto en unos 15 s
 const tramos = [[0, Math.min(5, D), 1]]; if (D > 5) tramos.push([5, Math.min(60, D), 10]); if (D > 60) { const v = Math.max(20, Math.round((D - 60) / 15)); tramos.push([60, D, v]); }
