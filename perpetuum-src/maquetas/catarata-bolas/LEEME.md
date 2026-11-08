@@ -244,7 +244,7 @@ suelo, cerca del hueco.
   misma fuerza que la metió, y el agua solo la empuja hacia arriba con 2,7 N.
 - **Las bolas imantadas se pegan entre sí:** en la fila y en el montón de abajo.
 - **Imanes de más de 12 cm:** con el paso de cálculo normal, el banco suma hasta 2.800 J que no existen; la app lo
-  avisaría. Con un paso 8 veces más fino las cuentas cuadran, y son las filas de la tabla.
+  avisaría. Con un paso de 4 a 8 veces más fino las cuentas cuadran, y son las filas de la tabla.
 
 ## Un condensador que se cargue con la caída y use la descarga
 
