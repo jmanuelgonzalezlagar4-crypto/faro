@@ -1,6 +1,6 @@
 // Resumen por familia de resultados.jsonl
 const fs = require('fs'), path = require('path');
-const R = fs.readFileSync(path.join(__dirname, 'resultados.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+const R = fs.readFileSync(path.join(__dirname, process.argv[2] || 'resultados.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
 const fams = [...new Set(R.map(r => r.fam))];
 console.log('familia | probados | apartados | rend. máximo | ≥100,1 % | ≥101 %');
 fams.forEach(f => { const s = R.filter(r => r.fam === f), ok = s.filter(r => r.rend != null && !r.roto);
