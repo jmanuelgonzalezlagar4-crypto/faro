@@ -85,3 +85,55 @@ Tres rampas, en cámara lenta y a velocidad normal:
 - la nº 2492, la mejor;
 - la nº 1364, sin empujón;
 - la nº 723, en la que la bola salta el hueco y se pega al imán.
+
+## La rampa del dibujo del usuario
+
+Archivos: `dibujo-usuario.js`, `barrido-dibujo.js`, `todo-dibujo.sh`, `barrido-dibujo.jsonl`, `barrido-dibujo.png`,
+`video-dibujo.js` y `rampa-dibujo.mp4`.
+
+El usuario dibujó encima del vídeo, sobre la rampa nº 2492, cómo la quería.
+
+### Cómo es
+
+Medido sobre el dibujo, a 1,34 mm por píxel:
+
+- **Una C grande a la izquierda.** Sube desde la mesa y acaba encima del principio de la rampa.
+- **Una rampa de vuelta recta y empinada.** Empieza 12 cm más allá del final de la rampa, 37 mm por debajo, debajo del
+  imán, y baja unos 10° hasta el fondo de la C.
+- **La rampa de arriba.** Mide 23 cm, sube 3,5° y se acaba sin más, sin hueco.
+- **El imán.** Está 15 cm más allá del final y 2 cm más alto.
+- **Lo que se cambió.** En el dibujo, lo alto de la C queda unos 8 cm por encima del principio de la rampa. Eso es más
+  alto que donde cae la bola, así que no podría llegar nunca. Por eso lo alto de la C se pone justo una bola y 6 mm por
+  encima del principio de la rampa, lo más bajo que puede ir.
+
+### Tal como está dibujada
+
+- **Sin empujón**, el imán está demasiado lejos para subir la bola por la rampa, y la bola se vuelve.
+- **Con empujones de hasta 1,2 m/s**, cae por el final y sube por la C, pero le faltan de 41 a 57 mm para pasarla.
+
+### 2.000 variantes
+
+Se cambian la inclinación, el largo, la caída, cuánto sigue la rampa de vuelta, el tamaño de la C, el imán, la bola y el
+empujón. Las cuentas cuadran en 1.877.
+
+| Qué le pasa a la bola | Variantes |
+|---|---|
+| No llega al final (se queda o vuelve rodando abajo) | 1.062 |
+| Vuela hasta el imán y se pega | 111 |
+| Cae por el final y no llega a la C | 291 |
+| Cae por el final y el imán la atrae hasta pegarse | 248 |
+| Llega a la C, pero no la pasa | 157 |
+| Vuelve a la rampa una vez | 8 |
+| **Vuelve a caer por el final una segunda vez** | **0** |
+
+- **Las 8 que vuelven** lo hacen todas con empujones de 0,8 a 1,4 m/s. Después solo suben de 8 a 36 mm por la rampa y
+  se vuelven.
+- **Sin empujón**, ninguna llega a la C.
+- **Energía:** ninguna la gana; como mucho, el 100,113 %.
+- **Por qué no pasa la C.** Para pasar por lo alto de la C, la bola va boca abajo y necesita velocidad. Eso cuesta más
+  de lo que gana al caer.
+
+### Lo que se comprobó en las que vuelven
+
+En las 13 que vuelven a la rampa (5 de la versión con hueco y 8 de la del dibujo), la bola sube por ella entre 8 y 57 mm,
+de los 28 a 44 cm que tiene la rampa.

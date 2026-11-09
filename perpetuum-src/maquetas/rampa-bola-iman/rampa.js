@@ -11,12 +11,12 @@ const P = require(A + '/build.js');
 const DEG = Math.PI / 180, TH = 0.002;
 function monta(o) {
   o = Object.assign({ ang: 5, L: 0.35, rb: 0.009, tam: 0.04, grado: 'n52', forma: 'bar', angIman: 180, angBola: 180, dm: 0.02, hm: 0, caida: 0.04,
-    rh: 0.035, g: 0.006, salida: 78, dx: 0.2, recogida: 'recta', rc: 0.03, v0: 0, x0: 0.08, ideal: false, mat: 'acero', div: 4, hueco: 0.03, tramo: 0.02 }, o || {});
+    rh: 0.035, g: 0.006, salida: 78, dx: 0.2, recogida: 'recta', rc: 0.03, ybot: 0.02, mas: 0.03, v0: 0, x0: 0.08, ideal: false, mat: 'acero', div: 4, hueco: 0.03, tramo: 0.02 }, o || {});
   const d = P.emptyDesign(); d.air = !o.ideal; d.iters = 40; d.dt = 1 / (480 * o.div); if (o.ideal) d.ideal = true;
   const a = o.ang * DEG, u = [Math.cos(a), Math.sin(a)], rb = o.rb;
   // el gancho: su cara de dentro, arriba, queda una bola y «g» por encima del principio de la rampa, para que la bola
-  // quepa entre los dos; su fondo, 2 cm por encima de la mesa. Centro un poco a la derecha del principio de la rampa.
-  const ybot = 0.02, hA = ybot + 2 * o.rh - 2 * rb - o.g, Ap = [0, hA], Ep = [o.L * u[0], hA + o.L * u[1]], C = [o.dx * o.rh, ybot + o.rh];
+  // quepa entre los dos; su fondo, o.ybot por encima de la mesa. Centro un poco a la derecha del principio de la rampa.
+  const ybot = o.ybot, hA = ybot + 2 * o.rh - 2 * rb - o.g, Ap = [0, hA], Ep = [o.L * u[0], hA + o.L * u[1]], C = [o.dx * o.rh, ybot + o.rh];
   // tira fija con la cara en la recta p→q; lado: +1 la cara mira a la izquierda del sentido p→q (arriba si va a la derecha)
   const tira = (p, q, lado = 1) => { const dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy), nx = -dy / l * lado, ny = dx / l * lado;
     const b = P.makeBar(d, p[0] - TH * nx, p[1] - TH * ny, q[0] - TH * nx, q[1] - TH * ny); b.th = TH; b.m = 0.01; d.parts.push(b);
@@ -38,7 +38,7 @@ function monta(o) {
     tira([H2[0], Cr[1]], [H2[0], H2[1] - 2 * TH - 0.002], 1);              // la pared de fuera sigue hacia arriba hasta la rampa
     R1 = q(270);
   } else {
-    R1 = [Ep[0] + 0.03, H1[1] - o.caida];
+    R1 = [Ep[0] + o.mas, H1[1] - o.caida];
     tira([R1[0], R1[1] + 2 * rb + 0.004], R1, 1);                        // tope al final
   }
   tira(R2, R1, 1);
@@ -71,7 +71,7 @@ function prueba(o, T = 30) {
     w.step();
     const x = b.x, y = b.y, h = sobre(x, y);
     if (estado === 'sube') { maxX = Math.max(maxX, x);
-      if (h < -rb * 0.5) { if (x > S.H1[0] - rb && x < S.H2[0] + rb) { estado = 'cae'; caidas++; } else if (x < 0.01) { estado = 'atras'; atras++; } else estado = 'fuera'; } }
+      if (h < -rb * 0.5) { if (x > S.H1[0] - rb && (S.o.tramo < 0.001 || x < S.H2[0] + rb)) { estado = 'cae'; caidas++; } else if (x < 0.01) { estado = 'atras'; atras++; } else estado = 'fuera'; } }
     // tras caer por el hueco: rampa de vuelta hacia la izquierda, gancho (media vuelta por arriba) y otra vez a la rampa
     else if (estado === 'cae' && x < S.C[0] && y > S.C[1]) estado = 'gancho';
     else if (estado === 'gancho' && x > S.C[0] && x < S.C[0] + 0.15 && b.vx > 0 && h > 0 && h < 2.5 * rb) { estado = 'sube'; vueltas++; }

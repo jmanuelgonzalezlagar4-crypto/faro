@@ -1,6 +1,6 @@
 // Dibuja la rampa de lado (SVG): las tiras fijas, el imán fijo y la bola imantada con sus polos (rojo el norte, azul el
 // sur), que giran con ella al rodar.
-function ventana(S) { const xs = [S.C[0] - S.o.rh - 0.01, S.M[0] + S.o.tam / 2 + 0.015], ys = [0, S.M[1] + S.o.tam / 2 + 0.01, S.Ep[1] + 0.03];
+function ventana(S) { const xs = [S.C[0] - S.o.rh - 0.01, S.M[0] + S.o.tam / 2 + 0.015, S.R1[0] + 0.01], ys = [0, S.M[1] + S.o.tam / 2 + 0.01, S.Ep[1] + 0.03];
   return [Math.min(...xs) - 0.01, Math.max(...xs) + 0.01, -0.008, Math.max(...ys)]; }
 function dibuja(S, W, win) {
   const w = S.w, [x0, x1, y0, y1] = win || ventana(S), k = W / (x1 - x0), H = Math.round((y1 - y0) * k), X = x => ((x - x0) * k).toFixed(1), Y = y => ((y1 - y) * k).toFixed(1), K = v => (v * k).toFixed(1);
