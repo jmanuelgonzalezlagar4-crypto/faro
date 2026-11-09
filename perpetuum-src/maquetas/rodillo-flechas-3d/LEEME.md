@@ -57,7 +57,8 @@ Es la misma colocación que el ejemplo «Rodillo de flechas» de la app:
 
 - **Todos con el mismo polo hacia fuera**, como en la app: el norte (en la imagen de la tienda, la cara roja).
   - Antes de meterlos, se comprueba con una brújula o con un imán ya marcado.
-  - Si se pone uno al revés, ese par empuja en vez de atraer.
+  - El imán de cada palo mira al rodillo con su norte, así que palo y rodillo se empujan. Si se pone uno al revés, ese
+    imán atrae al palo en vez de empujarlo.
 - **Se empujan hasta el fondo.** Si alguno queda flojo, una gota de pegamento.
 
 ## Generarlo con otras medidas (`rodillo.py`)
@@ -214,6 +215,10 @@ Da 5,72 vueltas, frente a 1,53 con la leva de la app. Pierde 51 mJ por vuelta, e
   de 100 mJ en cada vuelta. Los de 22 mm dan 4.
 - **Después, la forma.** La rampa deja caer el palo de golpe, y cada caída es un golpe que gasta. La lisa lo baja poco a
   poco y le devuelve a la leva lo que costó subirlo.
+- **En el banco, cada palo lleva un solo rodillo.** El banco ve el rodillo de lado, así que las dos levas y los dos
+  rodillos de cada palo se ven como uno. De verdad son dos por palo, y el eje del segundo rodillo gasta unos 9 mJ más por
+  vuelta en cada palo. La leva elegida perdería unos 70 mJ por vuelta en vez de 51: unas 4 vueltas sin volante y unas 16
+  con él, en vez de 5,7 y 21. Es una cuenta aproximada.
 - **Subir algo ayuda un poco.** Con el palo lejos de los imanes, el rodillo aprieta menos: la elegida da 5,72 vueltas
   frente a 5,19 de una leva redonda.
 
@@ -254,7 +259,7 @@ hay nada.
 
 - 38 imanes de 10 × 6 × 3 mm;
 - una varilla de 8 mm;
-- 4 rodamientos 608: 2 para el eje, en el bastidor, y 2 de rodillos en los palos;
+- 6 rodamientos 608: 2 para el eje, en el bastidor, y 4 de rodillos (cada palo apoya en las dos levas, uno en cada punta);
 - 16 tuercas M12 (DIN 934, de 19 mm entre caras);
 - tornillos M3: 3 de 20 mm para la leva sin volante y 3 de 25 mm para la del volante.
 
