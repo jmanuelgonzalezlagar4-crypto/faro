@@ -71,3 +71,44 @@ python3 vista.py rodillo-flechas && node vista3d.js rodillo-flechas vista3d.png 
 
 Todo se puede cambiar: el diámetro y el largo del cilindro, la separación de los pares (`--min` y `--max`), el número
 de flechas y de pares, y el fondo extra del hueco.
+
+## ¿Mejor con los imanes más juntos? (`juntos.js`, `perfil.js`, `quietos.js`, `figura-juntos.py`, `juntos.png`)
+
+El usuario preguntó si es mejor poner los imanes más juntos. Se probó en el banco con el rodillo de flechas de la app:
+el mismo cilindro, los mismos palos con su imán de ferrita, las mismas levas y muelles, y el mismo empujón de 300 rpm.
+Solo cambia cuántos pares lleva cada flecha. Los imanes son los del usuario: bloques de 10 × 6 × 3 mm de neodimio N35,
+metidos a ras.
+
+| Imanes por flecha | Separación | Vueltas con 300 rpm | Empujón mínimo para dar una vuelta | Baches entre imanes | Cuesta de la flecha |
+|---|---|---|---|---|---|
+| 9 pares (el que se imprime) | 20° | 4,13 | 140 rpm | 7,9 mJ | 2,2 mJ |
+| 12 pares | 15° | 4,10 | 142 rpm | 1,4 mJ | 2,8 mJ |
+| 14 pares (lo más junto que cabe con el lado de 10 mm en la vuelta) | 12,9° | 4,07 | 142 rpm | 1,5 mJ | 3,3 mJ |
+| 20 pares (bloques girados: el lado de 6 mm en la vuelta) | 9° | 3,88 | 148 rpm | 1,2 mJ | 4,5 mJ |
+| Sin imanes en el cilindro | | 4,18 | 138 rpm | | |
+
+- **Los baches se suavizan.** Con los imanes más juntos, el palo nota menos el hueco entre un imán y el siguiente: los
+  baches bajan de 7,9 mJ a 1,4 mJ.
+- **La cuesta de la flecha crece.** Con más imanes, la flecha empuja más mientras se abre, pero el salto a la flecha
+  siguiente cobra lo mismo. En una vuelta entera, la cuenta da cero: la curva de `juntos.png` acaba donde empezó.
+- **Con los palos quietos y sin roce** (`quietos.js`), en todas las colocaciones el cilindro pasa cada vuelta por el
+  mismo sitio a la misma velocidad: 100 rpm, ±0,1 %. Con roce da 65,1 vueltas con imanes y 65,2 sin imanes.
+- **Lo que de verdad frena es la leva.** Sube y baja los palos y gasta unos 900 mJ en golpes cada vez que se lanza el
+  rodillo. Los imanes mueven unos pocos mJ, así que juntarlos casi no cambia nada, y si cambia es a peor: con más
+  imanes, más cuesta.
+- **Con los discos de 11 mm de la app pasa lo mismo, más marcado:** con 9, 12, 15 y 18 pares el rodillo da 3,73, 3,65,
+  3,47 y 3,47 vueltas, y necesita 145, 152, 174 y 183 rpm para dar una vuelta. Sin imanes da 4,16 vueltas.
+
+**Una cosa del banco.** Los bloques se montan en trozos de 3 mm a lo largo del eje. Si cada bloque fuera un imán largo,
+el banco contaría su choque con el imán del palo (también largo, de 130 mm) partiendo el palo en 8 trozos de 16 mm.
+A 4 mm de distancia eso es poco, y la cuenta de la energía se desviaba 30 mJ dentro de cada vuelta. Con trozos cortos
+contra el palo largo, la cuenta es exacta: el error baja a 0,03 mJ. En los ejemplos de la app no pasa, porque los imanes
+del cilindro son discos.
+
+```bash
+node juntos.js juntos.json             # discos de la app: 9, 12, 15 y 18 pares (unos 4 minutos)
+node juntos.js bloques juntos-bloques.json   # bloques de 10 × 6 × 3 mm (unos 40 minutos)
+node perfil.js perfil.json && node perfil.js bloques perfil-bloques.json
+node quietos.js quietos.json           # los palos quietos (unos 15 minutos)
+python3 figura-juntos.py               # juntos.png
+```

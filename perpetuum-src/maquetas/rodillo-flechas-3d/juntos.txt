@@ -1,0 +1,5 @@
+9 pares por flecha (la app), cada 20°    con roce: 3.73 vueltas en 3.01 s · sin roce 10 s: sobra como mucho -6.73 mJ, golpes 946.5 mJ, error 11.11 mJ · empujón mínimo 144.7 rpm · solapes 0 · 40.409 s
+12 pares, cada 15°                       con roce: 3.65 vueltas en 3.51 s · sin roce 10 s: sobra como mucho -6.61 mJ, golpes 900.7 mJ, error 17.68 mJ · empujón mínimo 152.3 rpm · solapes 0 · 47.597 s
+15 pares, cada 12°                       con roce: 3.47 vueltas en 4.51 s · sin roce 10 s: sobra como mucho -6.62 mJ, golpes 903.4 mJ, error -144.07 mJ · empujón mínimo 174 rpm · solapes 0 · 72.528 s
+18 pares, cada 10° (se tocan)            con roce: 3.47 vueltas en 4.01 s · sin roce 10 s: sobra como mucho -6.38 mJ, golpes 914.7 mJ, error 7.4 mJ · empujón mínimo 183.4 rpm · solapes 0 · 69.178 s
+Sin imanes en el cilindro                con roce: 4.16 vueltas en 3.51 s · sin roce 10 s: sobra como mucho -6.62 mJ, golpes 895.9 mJ, error 17.86 mJ · empujón mínimo 138.3 rpm · solapes 0 · 10.814 s
