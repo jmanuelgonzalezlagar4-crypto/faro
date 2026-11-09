@@ -5,6 +5,8 @@
 // Uso: node corre.js familia N semilla [segundos] [división del paso] [vueltas de cálculo]
 const A = require('path').join(__dirname, '../../app');
 const E = require(A + '/engine.js'); global.PerpetuumEngine = E;
+// ARREGLO_GUIAS=1: con el arreglo de las guías montadas en piezas que se mueven (arreglo-guias.js)
+if (process.env.ARREGLO_GUIAS) require('./arreglo-guias.js')(E);
 const P = require(A + '/build.js'), F = Object.assign({}, require('./familias.js'), require('./familias2.js'), require('./familias3.js'), require('./familias4.js'), require('./familias5.js'));
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function diseno(fam, seed, n) { return F[fam](P, mulberry32(seed * 1000003 + n * 7919 + 17)); }
