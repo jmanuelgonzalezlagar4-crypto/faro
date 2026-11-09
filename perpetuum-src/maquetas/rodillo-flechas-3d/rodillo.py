@@ -27,6 +27,10 @@ p.add_argument('--flechas', type=int, default=2)
 p.add_argument('--pares', type=int, default=9)
 p.add_argument('--cierra', action='store_true', help='cada flecha acaba en el mismo ángulo en que empieza la siguiente '
                '(con --flechas 1: el par más abierto en el mismo ángulo que el cerrado)')
+p.add_argument('--borde', action='store_true', help='el primer imán de cada flecha empieza justo en la línea de salida y el '
+               'último acaba justo en ella, sin pasarla (con --flechas 1: la flecha da la vuelta entera)')
+p.add_argument('--tornillos', action='store_true', help='3 agujeros para tornillos M3 en cada cara, para atornillar las levas '
+               '(leva.py) y el volante (volante.py); van a 30 mm del centro, a 30°, 140° y 250°: la leva solo encaja de una manera')
 p.add_argument('--eje', type=float, default=8.0, help='diámetro de la varilla del eje (mm); 0 = sin agujero')
 p.add_argument('--holgura-eje', type=float, default=0.3)
 p.add_argument('--rodamiento', action='store_true', help='asientos para rodamientos 608 (22 x 7 mm) en las dos caras')
@@ -37,6 +41,7 @@ p.add_argument('--probeta', action='store_true', help='solo la pieza de prueba: 
 a = p.parse_args()
 
 R, L = a.diametro / 2, a.largo
+TORNILLOS, TORN_R = (30.0, 140.0, 250.0), 30.0   # los mismos en leva.py y volante.py
 dh = a.iman_h + a.fondo_extra                                            # fondo del hueco
 
 def a_trimesh(man):
@@ -94,10 +99,14 @@ if a.probeta:
     sys.exit(0)
 
 huecos, lista = [], []
-paso = 360.0 / a.flechas / (a.pares - 1 if a.cierra else a.pares)
+# lo que ocupa un imán a lo largo de la vuelta, en grados, en la cara del cilindro
+largo_vuelta = a.iman_d if a.forma == 'disco' else (a.iman_largo if a.largo_en == 'vuelta' else a.iman_ancho)
+w_imán = math.degrees(2 * math.asin(largo_vuelta / 2 / R))
+if a.borde: paso, th1 = (360.0 / a.flechas - w_imán) / (a.pares - 1), w_imán / 2
+else: paso, th1 = 360.0 / a.flechas / (a.pares - 1 if a.cierra else a.pares), 0.0
 for f in range(a.flechas):
     for k in range(a.pares):
-        th_deg = f * 360.0 / a.flechas + k * paso
+        th_deg = f * 360.0 / a.flechas + th1 + k * paso
         abre = a.min + (a.max - a.min) * k / (a.pares - 1)
         for sz in (-1, 1):
             z = L / 2 + sz * abre
@@ -114,6 +123,12 @@ if a.rodamiento:
 # marca en la cara de arriba: una ranura donde empieza cerrada la primera flecha (0°)
 marca = m3.Manifold.cube((8.0, 1.6, 1.6)).translate((R - 12.0, -0.8, L - 0.8))
 cortes = cortes + marca
+if a.tornillos:
+    # agujeros de 2,5 mm y 15 mm de fondo en las dos caras: el tornillo M3 se rosca solo en el PLA
+    for ang in TORNILLOS:
+        x, y = TORN_R * math.cos(math.radians(ang)), TORN_R * math.sin(math.radians(ang))
+        for z0 in (-1.0, L - 15.0):
+            cortes = cortes + m3.Manifold.cylinder(16.0, 1.25, 1.25, 32).translate((x, y, z0))
 
 pieza = cuerpo - cortes
 # (trimesh sin procesar: si junta vértices muy cercanos, la pieza deja de estar cerrada)
@@ -123,7 +138,10 @@ if not tm.is_watertight: print('NO CERRADA'); sys.exit(1)
 tm.export(a.salida + '.stl')
 tm.export(a.salida + '.3mf')
 vol = tm.volume / 1000.0
-print(f'{a.salida}: {len(lista)} huecos de {tam_hueco}, {dh:.2f} mm de fondo; cilindro {a.diametro:g} x {a.largo:g} mm; '
+print(f'{a.salida}: {len(lista)} huecos de {tam_hueco}, un paso de {paso:.2f}° entre pares'
+      + (f' (el primero empieza en la línea y el último acaba en ella; cada imán ocupa {w_imán:.2f}°)' if a.borde else '')
+      + (', con 3 agujeros para tornillos M3 en cada cara' if a.tornillos else ''))
+print(f'   {len(lista)} huecos de {tam_hueco}, {dh:.2f} mm de fondo; cilindro {a.diametro:g} x {a.largo:g} mm; '
       f'volumen {vol:.0f} cm³ (macizo, unos {vol * 1.24:.0f} g de PLA; con relleno, bastante menos)')
 with open(a.salida + '-huecos.csv', 'w') as fh:
     fh.write('flecha,par,angulo_grados,posicion_mm_desde_el_centro\n')

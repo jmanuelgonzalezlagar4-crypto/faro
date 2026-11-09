@@ -18,7 +18,10 @@ for r in H:
     gv = LV * 360 / (2 * np.pi * R)   # el largo a lo largo de la vuelta, en grados
     ax2.add_patch(plt.Rectangle((th - gv / 2, z - LE / 2), gv, LE, color='#2a78d6' if fl == 1 else '#eb6834', alpha=0.9))
     if z > 0: ax2.text(th, z + 8, str(par), ha='center', fontsize=8, color='#52514e')
-ax2.set_xlim(-15, 360); ax2.set_ylim(-L / 2, L / 2); ax2.set_aspect(360 / (2 * np.pi * R))   # 1 mm a lo largo del eje = 1 mm a lo largo de la vuelta
+nfl0 = max(int(r['flecha']) for r in H)
+for k in range(nfl0 + 1):   # la línea donde empieza (y acaba) cada flecha
+    ax2.axvline(k * 360 / nfl0, color='#9a9893', lw=0.9, ls=(0, (4, 3)))
+ax2.set_xlim(-15, 375); ax2.set_ylim(-L / 2, L / 2); ax2.set_aspect(360 / (2 * np.pi * R))   # 1 mm a lo largo del eje = 1 mm a lo largo de la vuelta
 ax2.axhline(0, color='#c9c7c0', lw=0.8)
 ax2.set_xlabel('ángulo alrededor del eje (°); 0° = la ranura de la cara de arriba', fontsize=10)
 ax2.set_ylabel('posición a lo largo del eje (mm, 0 = el centro)', fontsize=10)

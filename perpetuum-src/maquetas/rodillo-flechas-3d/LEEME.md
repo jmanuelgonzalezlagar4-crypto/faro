@@ -12,6 +12,11 @@ El cilindro de la maqueta del usuario, con los huecos de los imanes ya hechos pa
 | `rodillo-flechas-huecos.csv` | Dónde va cada imán: flecha, par, ángulo y posición desde el centro |
 | `vista3d.png`, `vista.png`, `probeta-3d.png` | El rodillo en 3D, la vuelta desenrollada a escala y la pieza de prueba |
 | `una-flecha-vista.png` | La vuelta desenrollada con una sola flecha que acaba y empieza en el mismo punto (la que se probó) |
+| `rodillo-una-flecha.3mf`, `.stl` | **El rodillo de una sola flecha**: 19 pares; el último acaba justo en la línea donde empieza el primero. Lleva 3 agujeros para tornillos M3 en cada cara |
+| `rodillo-una-flecha-huecos.csv`, `rodillo-una-flecha-vista.png` | Dónde va cada imán, y la vuelta desenrollada |
+| `leva.3mf`, `.stl`, `leva.csv` | **La leva más eficiente** (se imprimen dos, una por cara), y su radio en cada ángulo |
+| `volante.3mf`, `.stl` | **El volante de inercia**: Ø170 mm, con huecos para 16 tuercas M12. Sale ya en la postura de imprimir |
+| `montaje.png`, `leva-3d.png`, `volante-3d.png` | El conjunto y las dos piezas nuevas en 3D |
 | `rodillo.py`, `vista.py`, `vista3d.js` | Para generarlo todo con otras medidas |
 
 ## Qué es
@@ -67,13 +72,16 @@ python3 rodillo.py --largo-en eje                           # el lado de 10 mm a
 python3 rodillo.py --eje 8 --rodamiento                     # con asientos para rodamientos 608
 python3 rodillo.py --iman-largo 12 --iman-ancho 6 --iman-h 2   # otros bloques
 python3 rodillo.py --forma disco --iman-d 10 --iman-h 3     # imanes de disco
-python3 rodillo.py --flechas 1 --pares 19 --cierra --salida rodillo-una-flecha   # una flecha que acaba donde empieza
+python3 rodillo.py --flechas 1 --pares 19 --borde --tornillos --salida rodillo-una-flecha   # la flecha única, con tornillos para las levas
+python3 leva.py --prof lisa --subida 12 --punta 20          # la leva más eficiente
+python3 volante.py                                          # el volante (Ø170, 16 tuercas M12); --cerrado: tuercas dentro
 python3 vista.py rodillo-flechas && node vista3d.js rodillo-flechas vista3d.png   # las vistas
 ```
 
 Todo se puede cambiar: el diámetro y el largo del cilindro, la separación de los pares (`--min` y `--max`), el número
 de flechas y de pares, y el fondo extra del hueco. Con `--cierra`, cada flecha acaba en el mismo ángulo en que empieza
-la siguiente (con una sola flecha, el par más abierto va en el mismo ángulo que el cerrado).
+la siguiente (con una sola flecha, el par más abierto va en el mismo ángulo que el cerrado). Con `--borde`, el primer imán
+empieza justo en la línea y el último acaba justo en ella, sin pasarla.
 
 ## ¿Mejor con los imanes más juntos? (`juntos.js`, `perfil.js`, `quietos.js`, `figura-juntos.py`, `juntos.png`)
 
@@ -150,4 +158,127 @@ El usuario pidió probarlo con una sola flecha por vuelta que acabe y empiece en
 ```bash
 for i in 0 1 2 3 4; do node una-flecha.js $i & done; wait   # unos 25 minutos el más lento
 node una-flecha.js tabla && python3 figura-una-flecha.py
+```
+
+## La flecha que acaba justo en la línea, la leva más eficiente y un volante de inercia (`leva.js`, `volante.js`, `leva.py`, `volante.py`, `figura-leva.py`, `leva-volante.png`)
+
+El usuario pidió tres cosas:
+
+- que la flecha acabe justo donde empieza, sin pasar de la línea;
+- la leva más eficiente;
+- un volante de inercia.
+
+Todo se probó con el rodillo que se va a imprimir: de PLA, unos 400 g con los imanes, no el de latón de 1,5 kg de la app.
+
+### La flecha
+
+19 pares, de 6 a 50 mm.
+
+- **El primero** empieza justo en la línea (a 0°), con su borde en ella.
+- **El último** acaba justo en la línea, con su borde al otro lado.
+- **Los demás**, repartidos por igual entre los dos: uno cada 19,36°. Cada imán ocupa 11,48° en la cara del rodillo.
+
+### La leva más eficiente (`leva.js`: 279 levas)
+
+**Qué se probó:**
+
+- **Forma:** lisa, o en rampa con caída.
+- **Cuánto sube:** de 0 a 16,5 mm.
+- **Dónde está lo más alto, o dónde cae:** varios ángulos.
+- **Los rodillos de los palos:** de 4, 16 y 22 mm de diámetro. Los de 22 mm son rodamientos 608.
+- **Los muelles:** varias fuerzas.
+
+**Cómo se midió:** las vueltas que da con un empujón de 300 rpm. Además, en cada leva se comprueba que los rodillos no se
+despeguen de ella. Con muelles flojos los imanes empujan los palos hacia fuera, los rodillos se despegan y el palo ya no
+lo lleva la leva. Esas levas dan algo más de vueltas, pero no valen: de 279, valen 176.
+
+**La elegida** (`leva.py --prof lisa --subida 12 --punta 20`):
+
+- es lisa;
+- sube 12 mm, con lo más alto 20° después de la línea; es casi un círculo descentrado 6 mm;
+- los rodillos son rodamientos 608;
+- los muelles tiran 1 N entre los dos lados (unos 50 g cada uno).
+
+Da 5,72 vueltas, frente a 1,53 con la leva de la app. Pierde 51 mJ por vuelta, en vez de 179.
+
+| Leva (sin volante, 300 rpm) | Vueltas |
+|---|---|
+| La de la app: rampa de 16,5 mm, rodillos de 4 mm | 1,53 |
+| Lisa de 12 mm con rodillos de 4 mm | 1,98 |
+| Una leva redonda (no sube nada), rodillos 608 | 5,19 |
+| La mejor en rampa, rodillos 608 | 5,30 |
+| **La elegida: lisa de 12 mm, rodillos 608, muelles de 1 N** | **5,72** |
+| La mejor del barrido: lisa de 16,5 mm (golpea más: 6,6 mJ frente a 1,3) | 5,75 |
+
+- **Lo que más importa son los rodillos.** Los de 4 mm dan 23 vueltas por cada vuelta del rodillo, y su eje se lleva más
+  de 100 mJ en cada vuelta. Los de 22 mm dan 4.
+- **Después, la forma.** La rampa deja caer el palo de golpe, y cada caída es un golpe que gasta. La lisa lo baja poco a
+  poco y le devuelve a la leva lo que costó subirlo.
+- **Subir algo ayuda un poco.** Con el palo lejos de los imanes, el rodillo aprieta menos: la elegida da 5,72 vueltas
+  frente a 5,19 de una leva redonda.
+
+### El volante (`volante.js`, `volante.py`)
+
+Es un disco de Ø170 mm (cabe en todas las Bambu) con 16 tuercas M12 a 68 mm del centro. Pesa unos 373 g y tiene
+1,6 g·m² de inercia, tres veces la del rodillo de PLA.
+
+| Con el empujón de 300 rpm | Vueltas | Gasta por vuelta | Empujón mínimo para dar una vuelta |
+|---|---|---|---|
+| Leva de la app, sin volante | 1,5 | 179 mJ | 234 rpm |
+| Leva de la app, con volante | 5,9 | 177 mJ | 121 rpm |
+| Leva elegida, sin volante | 5,7 | 51 mJ | 126 rpm |
+| **Leva elegida, con volante** | **21,4** | **52 mJ** | **64 rpm** |
+| Leva elegida, con volante y la misma energía (154 rpm) | 5,8 | 51 mJ | 64 rpm |
+| Sin imanes, leva elegida, con volante | 21,8 | 50 mJ | 64 rpm |
+
+- **El volante no gasta menos.** Pierde lo mismo en cada vuelta: 52 mJ con volante y 51 sin él.
+- **Guarda más del mismo empujón.** A 300 rpm, el volante tiene cuatro veces más energía, y por eso da cuatro veces más
+  vueltas. Con la misma energía (154 rpm con volante, igual que 300 sin él), da las mismas: 5,8 frente a 5,7.
+- **Pasa los baches con menos empujón.** Basta con 64 rpm para dar una vuelta, en vez de 126.
+- **Ningún montaje gana energía.** Sin rozamiento, ninguno pasa en ningún momento de la energía con que se lanzó. Sin
+  imanes, el rodillo da algo más de vueltas que con ellos (21,8 frente a 21,4).
+
+**Una cosa del banco.** Una rueda lisa del banco choca siempre en el plano de delante, aunque se le ponga otro, y el
+primer volante rozaba con los palos. En el banco, el volante es una bola con la misma inercia en un plano en el que no
+hay nada.
+
+### Cómo montarlo
+
+**Para imprimir (PLA):**
+
+- `rodillo-una-flecha.3mf`, de pie;
+- `leva.3mf`, dos veces;
+- `volante.3mf`, tal como sale: la cara de las tuercas en la cama y el cubo arriba.
+
+**Para comprar:**
+
+- 38 imanes de 10 × 6 × 3 mm;
+- una varilla de 8 mm;
+- 4 rodamientos 608: 2 para el eje, en el bastidor, y 2 de rodillos en los palos;
+- 16 tuercas M12 (DIN 934, de 19 mm entre caras);
+- tornillos M3: 3 de 20 mm para la leva sin volante y 3 de 25 mm para la del volante.
+
+**Para montarlo:**
+
+1. **Los imanes**, como siempre: todos con el norte hacia fuera.
+2. **Las levas.** Una en cada cara, atornilladas con 3 tornillos M3. Los agujeros no son simétricos, así que la leva solo
+   entra de una manera. La raya de la leva queda frente a la ranura del rodillo.
+3. **El volante**, por fuera de una de las levas, con los mismos 3 agujeros y tornillos más largos. Tiene 6 agujeros
+   para poder ir en cualquiera de las dos caras. Su cubo lo separa 10 mm de la leva, para que quepa el brazo del rodillo
+   del palo.
+4. **Las tuercas.** Entran a presión, con una gota de pegamento. Con `volante.py --cerrado` quedan dentro: la impresora
+   para en una capa, se meten y sigue.
+5. **El sentido de giro.** El rodillo tiene que girar como las agujas del reloj mirando la cara de la ranura, para que
+   bajo el palo pasen los pares del 1 al 19.
+6. **Los rodillos de los palos.** Cada uno va justo debajo del centro del imán de su palo, apoyado en la leva.
+7. **Los muelles,** blandos y largos, que tiren unos 50 g cada uno.
+
+El bastidor, los palos y sus guías no están dibujados.
+
+```bash
+for i in 0 1 2 3; do node leva.js barrido $i 4 & done; wait   # las 279 levas (una hora larga con 4 núcleos)
+node leva.js mejores
+for i in 0 1 2 3 4 5; do node volante.js $i & done; wait      # el volante (unos 6 minutos)
+node volante.js tabla && python3 figura-leva.py
+node vista3d.js "rodillo-una-flecha,leva@e0a040@130,leva@e0a040@-8,volante@8a8780@-32" montaje.png
 ```
