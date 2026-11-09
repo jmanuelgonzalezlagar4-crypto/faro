@@ -11,6 +11,7 @@ El cilindro de la maqueta del usuario, con los huecos de los imanes ya hechos pa
 | `probeta-huecos.3mf`, `.stl` | La pieza de prueba: tres huecos iguales a los del rodillo, con holgura 0,1, 0,2 y 0,3 mm |
 | `rodillo-flechas-huecos.csv` | Dónde va cada imán: flecha, par, ángulo y posición desde el centro |
 | `vista3d.png`, `vista.png`, `probeta-3d.png` | El rodillo en 3D, la vuelta desenrollada a escala y la pieza de prueba |
+| `una-flecha-vista.png` | La vuelta desenrollada con una sola flecha que acaba y empieza en el mismo punto (la que se probó) |
 | `rodillo.py`, `vista.py`, `vista3d.js` | Para generarlo todo con otras medidas |
 
 ## Qué es
@@ -66,11 +67,13 @@ python3 rodillo.py --largo-en eje                           # el lado de 10 mm a
 python3 rodillo.py --eje 8 --rodamiento                     # con asientos para rodamientos 608
 python3 rodillo.py --iman-largo 12 --iman-ancho 6 --iman-h 2   # otros bloques
 python3 rodillo.py --forma disco --iman-d 10 --iman-h 3     # imanes de disco
+python3 rodillo.py --flechas 1 --pares 19 --cierra --salida rodillo-una-flecha   # una flecha que acaba donde empieza
 python3 vista.py rodillo-flechas && node vista3d.js rodillo-flechas vista3d.png   # las vistas
 ```
 
 Todo se puede cambiar: el diámetro y el largo del cilindro, la separación de los pares (`--min` y `--max`), el número
-de flechas y de pares, y el fondo extra del hueco.
+de flechas y de pares, y el fondo extra del hueco. Con `--cierra`, cada flecha acaba en el mismo ángulo en que empieza
+la siguiente (con una sola flecha, el par más abierto va en el mismo ángulo que el cerrado).
 
 ## ¿Mejor con los imanes más juntos? (`juntos.js`, `perfil.js`, `quietos.js`, `figura-juntos.py`, `juntos.png`)
 
@@ -111,4 +114,40 @@ node juntos.js bloques juntos-bloques.json   # bloques de 10 × 6 × 3 mm (unos 
 node perfil.js perfil.json && node perfil.js bloques perfil-bloques.json
 node quietos.js quietos.json           # los palos quietos (unos 15 minutos)
 python3 figura-juntos.py               # juntos.png
+```
+
+## Una sola flecha que acaba y empieza en el mismo punto (`una-flecha.js`, `flechas-n.js`, `figura-una-flecha.py`, `una-flecha.png`)
+
+El usuario pidió probarlo con una sola flecha por vuelta que acabe y empiece en el mismo punto.
+
+- **Los imanes:** 19 pares, uno cada 20°, que se abren de 6 a 50 mm a lo largo de toda la vuelta. El par 19, el más
+  abierto, va en el mismo ángulo que el par 1, el cerrado (a 0°), uno al lado del otro a lo largo del eje.
+- **La leva:** con una flecha, la leva lleva una sola punta. Sube los palos poco a poco durante toda la vuelta y los
+  deja caer justo después de ese punto, una vez por vuelta en vez de dos. La caída ocupa el mismo ángulo que en la app.
+- **El montaje:** `flechas-n.js` es el rodillo de la app con el número de flechas como opción. Con 2 flechas sale
+  idéntico al de la app.
+
+| | Vueltas con 300 rpm | Empujón mínimo para dar una vuelta | Cuesta más alta |
+|---|---|---|---|
+| Dos flechas de 9 pares (el que se imprime) | 4,13 | 140 rpm | 9,6 mJ |
+| Una flecha de 19 pares que acaba y empieza en el mismo punto | 5,30 | 128 rpm | 22,0 mJ |
+| Una flecha de 18 pares, sin cerrar (acaba 20° antes) | 5,31 | 127 rpm | 8,6 mJ |
+| Sin imanes, leva de una punta | 5,49 | 126 rpm | |
+| Sin imanes, leva de dos puntas | 4,18 | 138 rpm | |
+
+- **Da más vueltas, pero por la leva.** Con una sola punta, los palos caen una vez por vuelta en vez de dos. Sin imanes,
+  la leva de una punta ya da 5,49 vueltas, frente a 4,18 la de dos. Con la flecha única, los imanes le quitan un poco:
+  5,30 vueltas.
+- **Cerrarla en el mismo punto crea un bache más grande.** Donde coinciden el par cerrado y el abierto hay el doble de
+  imán, y cada palo nota allí una cuesta de 22 mJ en vez de 8. En la figura son los dos picos, uno por palo. Lo que
+  cuesta subirla se devuelve al bajarla: las vueltas casi no cambian (5,30 frente a 5,31).
+- **Sin roce y con los palos quietos**, el cilindro pasa cada vuelta por el mismo sitio a la misma velocidad: 100 rpm,
+  ±0,03 %. Las cuentas cuadran con 0,02 mJ de error. Con roce da 64,2 vueltas, frente a 65,2 sin imanes.
+- **La flecha casi no se nota.** El imán del palo es tan largo como el cilindro, así que a un imán del cilindro le da casi
+  igual estar a 6 o a 50 mm del centro. Solo cambia algo cerca de las puntas del palo. Lo que se nota es cuánto imán hay
+  en cada ángulo.
+
+```bash
+for i in 0 1 2 3 4; do node una-flecha.js $i & done; wait   # unos 25 minutos el más lento
+node una-flecha.js tabla && python3 figura-una-flecha.py
 ```

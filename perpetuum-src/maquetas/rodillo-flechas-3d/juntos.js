@@ -11,7 +11,8 @@ function rodillo(o) {
   // bloque: { t: grueso (de sur a norte, hacia fuera), w: lo que ocupa a lo largo de la vuelta, z: a lo largo del eje },
   // metido a ras del cilindro; los palos se ponen a la misma distancia de su cara que en la app (4 mm)
   const B = o.bloque;
-  const d = P.EXAMPLES.flechas.make({ rpm: o.rpm, disc: B ? 1e-9 : o.ds });
+  // fl: flechas por vuelta (la leva lleva una punta por flecha); cierra: el último par va en el mismo ángulo que el primero
+  const d = require('./flechas-n.js').flechas({ rpm: o.rpm, disc: B ? 1e-9 : o.ds, fl: o.fl || 2 });
   const wh = d.parts.find(p => p.kind === 'wheel' && p.style !== 'cam');
   d.parts = d.parts.filter(p => !(p.kind === 'magnet' && p.host === wh.id));
   if (o.solo) {   // el cilindro con su leva, sin palos ni muelles
@@ -19,9 +20,10 @@ function rodillo(o) {
     d.parts = d.parts.filter(p => keep.has(p.id) || (p.kind === 'pin' && p.b === cam.id) || p.kind === 'ramp');
   }
   if (!o.sin && !o.solo) {
-    const R = wh.r, rm = B ? R - B.t / 2 : R + o.ds / 4, TH0 = 40, alpha = th => (90 + th - TH0) * DEG, PASO = 180 / o.pasos;
-    for (let f = 0; f < 2; f++) for (let k = 0; k < o.pasos; k++) {
-      const a = alpha(f * 180 + k * PASO), abre = o.min + (o.max - o.min) * k / (o.pasos - 1);
+    const FL = o.fl || 2, R = wh.r, rm = B ? R - B.t / 2 : R + o.ds / 4, TH0 = 40, alpha = th => (90 + th - TH0) * DEG;
+    const PASO = 360 / FL / (o.cierra ? o.pasos - 1 : o.pasos);
+    for (let f = 0; f < FL; f++) for (let k = 0; k < o.pasos; k++) {
+      const a = alpha(f * 360 / FL + k * PASO), abre = o.min + (o.max - o.min) * k / (o.pasos - 1);
       for (const sz of [-1, 1]) {
         if (B) {
           // el bloque, en trozos de 3 mm o menos a lo largo del eje: cada trozo es un imán plano de su ancho y grueso.

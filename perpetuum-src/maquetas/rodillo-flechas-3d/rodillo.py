@@ -25,6 +25,8 @@ p.add_argument('--min', type=float, default=6.0, help='separación del par cerra
 p.add_argument('--max', type=float, default=50.0, help='separación del par abierto: del centro a cada imán (mm)')
 p.add_argument('--flechas', type=int, default=2)
 p.add_argument('--pares', type=int, default=9)
+p.add_argument('--cierra', action='store_true', help='cada flecha acaba en el mismo ángulo en que empieza la siguiente '
+               '(con --flechas 1: el par más abierto en el mismo ángulo que el cerrado)')
 p.add_argument('--eje', type=float, default=8.0, help='diámetro de la varilla del eje (mm); 0 = sin agujero')
 p.add_argument('--holgura-eje', type=float, default=0.3)
 p.add_argument('--rodamiento', action='store_true', help='asientos para rodamientos 608 (22 x 7 mm) en las dos caras')
@@ -92,7 +94,7 @@ if a.probeta:
     sys.exit(0)
 
 huecos, lista = [], []
-paso = 360.0 / a.flechas / a.pares
+paso = 360.0 / a.flechas / (a.pares - 1 if a.cierra else a.pares)
 for f in range(a.flechas):
     for k in range(a.pares):
         th_deg = f * 360.0 / a.flechas + k * paso
