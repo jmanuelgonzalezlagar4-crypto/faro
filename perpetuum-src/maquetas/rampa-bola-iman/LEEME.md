@@ -33,8 +33,8 @@ está llegando al imán, cae y vuelve a rodar hacia él.
   - hueco, último tramo, caída hasta la rampa de vuelta y gancho;
   - sitio de salida y empujón;
   - la mitad, sin rozamiento.
-- **Cuentas bien:** 2.791 de las 3.000. Las otras 209 tienen la bola pegada contra el imán, donde el banco no lleva bien
-  las cuentas.
+- **Cuentas bien:** 2.791 de las 3.000. Se apartan las otras 209: en 139, la bola acaba pegada contra el imán, donde
+  el banco no lleva bien las cuentas; las otras 70 no se paran en los 30 s.
 
 ## Resultados (`figuras.js`, `barrido.png`)
 
