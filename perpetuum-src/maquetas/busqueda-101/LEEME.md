@@ -143,8 +143,53 @@ Ninguno pasa ni del 100,1 %.
   luego todo se para. Sin esa bola, o con los raíles 4 mm más abajo, sobran 0,000 mJ.
 - Los otros cinco tipos no llegan ni al 100,2 %.
 
+## Quinta tanda: pistones, guías, agua, muelles y ruedas sueltas (`familias5.js`, `todo5.sh`, `resultados5.jsonl`)
+
+| Familia | Qué lleva | Probados | Apartados | Lo más alto que parecía |
+|---|---|---|---|---|
+| `pistonIman` | Motor de imanes de pistón: un imán en un pistón con biela y volante, y un imán fijo delante | 2.000 | 0 | 100,000 % |
+| `deslizantes` | Rueda con pesas que se deslizan por guías (hacia fuera o torcidas), sujetas al centro con muelles | 2.000 | 0 | 387,7 % (con el arreglo, 102,8 %) |
+| `palancaAgua` | Palanca con un flotador dentro de un tanque y un contrapeso fuera, y bolas sueltas | 2.000 | 0 | 100,000 % |
+| `rebote` | Bolas que botan sobre una plataforma con muelle, entre dos paredes, con imanes arriba | 2.000 | 0 | 102,8 % |
+| `trampolin` | Una bola baja por una rampa, bota en una tabla con muelle y salta a una repisa con imanes | 1.965 | 35 | 100,38 % |
+| `ruedaLoca` | Rueda suelta, sin eje, con una pesa descentrada, un péndulo o bolas dentro, sobre una vía que sube y baja | 1.895 | 105 | 128,1 % |
+
+- **Las ruedas con pesas deslizantes sacaron un fallo nuevo del banco** (abajo). Sin arreglarlo, 1.956 de las 2.000
+  pasaban del 101 %. Con el arreglo (`ARREGLO_GUIAS=1`, `resultados5-arreglo.jsonl`) solo pasa una, la nº 1609
+  (102,8 %). Con un paso 8 veces más fino, esa y la nº 1952 (100,6 %) dan el 100,000 % y el 100,001 %
+  (`clasificados5-arreglo.jsonl`, `despues5-arreglo.jsonl`).
+- **De los otros cinco tipos, 5 pasaban del 100,5 %** (`clasificados5.jsonl`, `despues5.jsonl`):
+  - 3 de redondeo: las ruedas sueltas nº 1423 (128 %) y nº 1229, y la plataforma nº 1768. Con el paso fino, 100,0 %.
+  - 2 ruedas sueltas con una pieza metida 2 mm al empezar. Desde los 0,1 s, 100,0 %.
+- **El trampolín nº 220 se queda en el 100,11 %, pero sus cuentas acaban 116 J desviadas.** Una bola de acero se pega
+  a un imán y el banco no puede seguirla: su velocidad se dispara mientras la energía total no cambia, y con el paso
+  normal apunta golpes enormes. Con un paso 8 veces más fino no sobra nada. Es el fallo ya conocido de las bolas de acero
+  pegadas a imanes.
+
+## Un fallo más del banco: las guías que giran (`guia-gira.js`, `guia-gira.jsonl`, `arreglo-guias.js`)
+
+- **Qué es una guía.** Es una pieza que se desliza por una recta. Hasta ahora, en los ejemplos del banco, las guías
+  estaban fijas al suelo.
+- **El fallo.** Si la guía va montada en una pieza que se mueve, como una rueda, el banco aplica su fuerza sobre la
+  rueda en el punto donde empezó la pesa, no donde está ahora. Con gravedad, las pesas aprietan sus guías y esa fuerza
+  tuerce la rueda con un brazo equivocado: la rueda se acelera sola.
+- **La prueba.** Una rueda sin rozamiento con 7 pesas de 300 g en guías, sujetas al centro con muelles, es un sistema
+  cerrado: su energía no puede cambiar.
+  - Sin el arreglo, gana de 6,5 a 21 J en 4 s, de los 15,8 J que tiene, y con un paso más fino no mejora.
+  - Sin gravedad, la energía casi no cambia.
+  - Con el arreglo (el punto de la guía es el de la pesa en cada momento), como mucho sube 3,5 mJ.
+- **Dónde se aplica el arreglo.** Solo en los scripts de la búsqueda; la app no cambia. Las guías fijas al suelo,
+  como las de los ejemplos, dan lo mismo con y sin él.
+
 ## En total
 
-42.200 aparatos de 22 tipos; quitando los imposibles de construir, quedan 37.418. 66 pasaban del 101 %, y ninguno
-era energía de verdad: todos eran fallos del banco (redondeo, piezas metidas al empezar, piezas apretadas, o piezas
-que el banco encaja de golpe en el primer paso). `busqueda-101.png` tiene la tabla de las cuatro tandas.
+54.200 aparatos de 28 tipos; quitando los imposibles de construir, quedan 49.278.
+
+- **71 pasaban del 101 %**, sin contar las ruedas de pesas deslizantes antes de arreglar las guías.
+- **Ninguno era energía de verdad.** Todos eran fallos del banco:
+  - redondeo;
+  - piezas metidas al empezar;
+  - piezas apretadas;
+  - piezas que el banco encaja de golpe en el primer paso;
+  - guías que giran con una rueda.
+- `busqueda-101.png` tiene la tabla de las cinco tandas.
