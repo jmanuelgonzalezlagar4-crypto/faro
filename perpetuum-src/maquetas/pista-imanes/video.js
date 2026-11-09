@@ -4,7 +4,7 @@
 //  2. Con el roce de rodar: la misma pista con imanes y sin imanes, lado a lado, hasta que se paran.
 //  3. Lo que sale en las 2.000 pistas.
 const path = require('path'), fs = require('fs'), { execSync } = require('child_process');
-const { monta } = require('./pista.js'), { dibuja } = require('./dibujo.js');
+const { monta } = require('./pista.js'), { dibuja, ventana } = require('./dibujo.js');
 const sel = JSON.parse(fs.readFileSync(process.argv[2] || path.join(__dirname, 'elegidas.json'), 'utf8'));
 const out = process.argv[3] || path.join(__dirname, 'pista.mp4'), FPS = 30, coma = (v, n = 2) => v.toFixed(n).replace('.', ',');
 // gráfica de velocidad contra el sitio de la vuelta (0° = justo antes de los imanes)
@@ -48,16 +48,16 @@ function nuevo(o) { const M = monta(o); M._prev = Math.atan2(M.b.y, M.b.x); M._g
     }
   }
   // 2. con roce: con imanes y sin imanes
-  const e = sel.real, A = nuevo(e.o), Bm = nuevo(Object.assign({}, e.o, { sinImanes: true })), T = e.T || 120, dur = e.dur || 20;
+  const e = sel.real, A = nuevo(e.o), Bm = nuevo(Object.assign({}, e.o, { sinImanes: true })), T = e.T || 120, dur = e.dur || 20, LA = ventana(A);
   for (let i = 0; i < (dur + 4) * FPS; i++) {
     const ts = Math.min(T, T * (i + 1) / (dur * FPS));
     const pan = [[A, 'Con imanes'], [Bm, 'La misma pista sin imanes']].map(([M, et]) => { while (M.w.t < ts && !M._para) { M.w.step(); sigue(M); if (Math.hypot(M.b.vx, M.b.vy) < 0.003) { M._q = (M._q || 0) + M.w.dt; if (M._q > 1) M._para = M.w.t; } else M._q = 0; }
-      const v = Math.hypot(M.b.vx, M.b.vy); return `<div><div class="et">${et}</div>${dibuja(M, 470)}<div class="cnt">Velocidad: <b>${coma(v)} m/s</b> · vueltas: <b>${coma(M._giro / (2 * Math.PI), 1)}</b>${M._para ? ' · <b style="color:#b3361b">parada a los ' + coma(M._para, 0) + ' s</b>' : ''}</div></div>`; }).join('');
+      const v = Math.hypot(M.b.vx, M.b.vy); return `<div><div class="et">${et}</div>${dibuja(M, 470, { L: LA })}<div class="cnt">Velocidad: <b>${coma(v)} m/s</b> · vueltas: <b>${coma(M._giro / (2 * Math.PI), 1)}</b>${M._para ? ' · <b style="color:#b3361b">parada a los ' + coma(M._para, 0) + ' s</b>' : ''}</div></div>`; }).join('');
     await foto('Con el roce de rodar', `t = ${coma(ts, 0)} s (×${coma(T / dur, 0)})`, pan, null, i < dur * FPS ? e.tx : e.fin);
   }
   // 3. resumen
   const img = 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, 'barrido.png')).toString('base64');
-  for (let i = 0; i < 9 * FPS; i++) await foto('2.000 pistas al azar', '', '', img, sel.resumen);
+  for (let i = 0; i < 9 * FPS; i++) await foto('1.597 pistas al azar', '', '', img, sel.resumen);
   await br.close();
   execSync(`ffmpeg -y -loglevel error -framerate ${FPS} -i ${dir}/f%05d.jpg -c:v libx264 -pix_fmt yuv420p -crf 22 -movflags +faststart ${out}`);
   fs.rmSync(dir, { recursive: true, force: true }); console.log(n, 'fotogramas →', out);

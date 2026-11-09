@@ -1,6 +1,10 @@
 // Dibuja la pista vista desde arriba (SVG): el canal, los imanes (rojo el norte, azul el sur) y la bola o el carrito.
+// la ventana (medio ancho, en m): que quepan la pista y todos los imanes
+function ventana(M) { const tam = new Map(); M.d.parts.filter(p => p.kind === 'magnet').forEach(p => (M.info.magnetOf[p.id] || []).forEach(m => tam.set(m, p.size)));
+  return Math.max(M.o.R + 0.05, ...M.w.magnets.map(m => Math.hypot(m.wx, m.wy) + (tam.get(m) || 0.02) / 2 + 0.01)); }
 function dibuja(M, W, o) {
-  o = o || {}; const w = M.w, R = M.o.R, L = R + 0.09, S = W / (2 * L), X = x => ((x + L) * S).toFixed(1), Y = y => ((L - y) * S).toFixed(1), K = v => (v * S).toFixed(1);
+  o = o || {}; const w = M.w, R = M.o.R;
+  const L = o.L || ventana(M), S = W / (2 * L), X = x => ((x + L) * S).toFixed(1), Y = y => ((L - y) * S).toFixed(1), K = v => (v * S).toFixed(1);
   const cara = M.o.movil === 'bola' ? M.o.rb : 0.012;
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${W}" viewBox="0 0 ${W} ${W}"><rect width="${W}" height="${W}" fill="#f6f5f1"/>`;
   s += `<circle cx="${X(0)}" cy="${Y(0)}" r="${K(R)}" fill="none" stroke="#d9d6cc" stroke-width="${K(2 * cara + 0.006)}"/>`;
@@ -13,4 +17,4 @@ function dibuja(M, W, o) {
   s += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(b.x)}" y2="${Y(b.y)}" stroke="#c9c7c0" stroke-width="1" stroke-dasharray="3 3"/><circle cx="${X(0)}" cy="${Y(0)}" r="4" fill="#f2c94c" stroke="#555"/>`;
   return s + (o.extra || '') + '</svg>';
 }
-module.exports = { dibuja };
+module.exports = { dibuja, ventana };
