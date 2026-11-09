@@ -3,16 +3,22 @@
 #  - 2 flechas por vuelta, 9 pares en cada una, uno cada 20°: las 18 posiciones de la vuelta;
 #  - en cada par, dos imanes a ±«abre» del centro a lo largo del eje; abre va de 6 mm (par cerrado) a 50 mm (abierto);
 #    donde acaba abierta una flecha empieza cerrada la otra.
-# Se imprime de pie (el eje en vertical). Los huecos son horizontales: llevan un pico de 45° arriba para que salgan
-# redondos sin soportes, y un chaflán en la boca para que el imán entre fácil.
-# Uso: python3 rodillo.py [--iman-d 11] [--iman-h 3] [--holgura 0.2] [--eje 8] [--rodamiento] [--salida rodillo]
+# Se imprime de pie (el eje en vertical). Los huecos son horizontales y llevan un chaflán en la boca para que el imán
+# entre fácil. Los imanes pueden ser bloques (10 x 6 x 3 mm, polos en las caras grandes) o discos; los huecos de disco
+# llevan un pico de 45° arriba para que salgan redondos sin soportes.
+# Uso: python3 rodillo.py [--forma bloque --iman-largo 10 --iman-ancho 6 --iman-h 3] [--holgura 0.2] [--eje 8] [--rodamiento]
+#      python3 rodillo.py --probeta   (la pieza de prueba de los huecos)
 import argparse, math, numpy as np, manifold3d as m3, trimesh
 
 p = argparse.ArgumentParser()
 p.add_argument('--diametro', type=float, default=100.0, help='diámetro del cilindro (mm)')
 p.add_argument('--largo', type=float, default=130.0, help='largo del cilindro (mm)')
-p.add_argument('--iman-d', type=float, default=11.0, help='diámetro del imán (mm)')
-p.add_argument('--iman-h', type=float, default=3.0, help='grueso del imán (mm)')
+p.add_argument('--forma', choices=['bloque', 'disco'], default='bloque', help='imán en bloque (rectangular) o en disco')
+p.add_argument('--iman-largo', type=float, default=10.0, help='bloque: lado largo (mm)')
+p.add_argument('--iman-ancho', type=float, default=6.0, help='bloque: lado corto (mm)')
+p.add_argument('--largo-en', choices=['vuelta', 'eje'], default='vuelta', help='bloque: el lado largo a lo largo de la vuelta o del eje')
+p.add_argument('--iman-d', type=float, default=11.0, help='disco: diámetro (mm)')
+p.add_argument('--iman-h', type=float, default=3.0, help='grueso del imán, entre sus dos polos (mm)')
 p.add_argument('--holgura', type=float, default=0.2, help='lo que el hueco es más ancho que el imán (mm, en el diámetro)')
 p.add_argument('--fondo-extra', type=float, default=0.2, help='lo que el hueco es más hondo que el imán (mm)')
 p.add_argument('--min', type=float, default=6.0, help='separación del par cerrado: del centro a cada imán (mm)')
@@ -29,34 +35,12 @@ p.add_argument('--probeta', action='store_true', help='solo la pieza de prueba: 
 a = p.parse_args()
 
 R, L = a.diametro / 2, a.largo
+dh = a.iman_h + a.fondo_extra                                            # fondo del hueco
 
 def a_trimesh(man):
     mesh = man.to_mesh()
     return trimesh.Trimesh(vertices=np.asarray(mesh.vert_properties)[:, :3], faces=np.asarray(mesh.tri_verts), process=False)
 
-if a.probeta:
-    # taco de 60 x 16 x 22 mm, de pie como el rodillo: tres huecos en la cara de delante, con holgura 0,1, 0,2 y 0,3 mm;
-    # encima de cada uno, 1, 2 o 3 marcas para saber cuál es
-    import sys
-    ancho, fondo, alto = 60.0, a.iman_h + 6.0, 22.0
-    taco = m3.Manifold.cube((ancho, fondo, alto))
-    cortes = []
-    for i, hol in enumerate((0.1, 0.2, 0.3)):
-        r = (a.iman_d + hol) / 2
-        sec = m3.CrossSection.circle(r, 96)
-        if not a.sin_pico: sec = sec + m3.CrossSection.square((r, r)).rotate(45.0)
-        h = m3.Manifold.extrude(sec, a.iman_h + a.fondo_extra + 3.0) + m3.Manifold.cylinder(1.6, r, r + 1.6, 96).translate((0, 0, a.iman_h + a.fondo_extra - 0.3))
-        x = 10.0 + 20.0 * i
-        # hueco hacia -Y (la cara de delante, y = 0): eje local Z → -Y, Y local → +Z
-        M = [[-1, 0, 0, x], [0, 0, -1, a.iman_h + a.fondo_extra], [0, 1, 0, 9.0]]
-        cortes.append(h.transform(M))
-        for j in range(i + 1): cortes.append(m3.Manifold.cube((1.2, 1.2, 1.0)).translate((x - 2.4 * i / 2 + 2.4 * j - 0.6, fondo / 2 - 0.6, alto - 0.8)))
-    t = a_trimesh(taco - m3.Manifold.batch_boolean(cortes, m3.OpType.Add))
-    if not t.is_watertight: print('NO CERRADA'); sys.exit(1)
-    t.export('probeta-huecos.stl'); t.export('probeta-huecos.3mf')
-    print(f'probeta-huecos: huecos de {a.iman_d + 0.1:.2f}, {a.iman_d + 0.2:.2f} y {a.iman_d + 0.3:.2f} mm (1, 2 y 3 marcas), {a.iman_h + a.fondo_extra:.2f} mm de fondo')
-    sys.exit(0)
-rh, dh = (a.iman_d + a.holgura) / 2, a.iman_h + a.fondo_extra          # radio y fondo del hueco
 seg = a.segmentos
 cuerpo = m3.Manifold.cylinder(L, R, R, seg)                              # de z = 0 a z = L
 
@@ -69,16 +53,43 @@ def orienta(man, th, base_r, z):
     M = [[ex[0], ey[0], ez[0], t[0]], [ex[1], ey[1], ez[1], t[1]], [ex[2], ey[2], ez[2], t[2]]]
     return man.transform(M)
 
-# el hueco: círculo (con pico de 45° hacia arriba) extruido desde el fondo hasta fuera del cilindro, y chaflán en la boca
-sec = m3.CrossSection.circle(rh, 96)
-if not a.sin_pico:
-    lado = rh * math.sqrt(2) / math.sqrt(2)      # cuadrado de lado rh girado 45°: su esquina queda a rh·√2 del centro
-    sq = m3.CrossSection.square((rh, rh)).rotate(45.0)
-    sec = sec + sq
-largo_corte = dh + 3.0
-hueco = m3.Manifold.extrude(sec, largo_corte)
-chaflan = m3.Manifold.cylinder(1.6, rh, rh + 1.6, 96).translate((0, 0, dh - 0.3))   # se abre 1,6 mm por cada lado hacia fuera
-hueco = hueco + chaflan
+def hacer_hueco(hol):
+    """El hueco de un imán, a lo largo de +Z local desde el fondo (z = 0) hasta fuera, con +Y local hacia arriba
+    (a lo largo del eje del rodillo) y +X local a lo largo de la vuelta. Lleva un chaflán en la boca."""
+    if a.forma == 'disco':
+        r = (a.iman_d + hol) / 2
+        sec = m3.CrossSection.circle(r, 96)
+        if not a.sin_pico: sec = sec + m3.CrossSection.square((r, r)).rotate(45.0)   # pico de 45° hacia arriba
+        h = m3.Manifold.extrude(sec, dh + 3.0)
+        return h + m3.Manifold.cylinder(1.6, r, r + 1.6, 96).translate((0, 0, dh - 0.3))
+    lx, ly = (a.iman_largo, a.iman_ancho) if a.largo_en == 'vuelta' else (a.iman_ancho, a.iman_largo)
+    lx, ly = lx + hol, ly + hol
+    h = m3.Manifold.cube((lx, ly, dh + 3.0)).translate((-lx / 2, -ly / 2, 0))
+    ch = m3.Manifold.extrude(m3.CrossSection.square((lx, ly)).translate((-lx / 2, -ly / 2)), 1.6, 1, 0.0, ((lx + 3.2) / lx, (ly + 3.2) / ly))
+    return h + ch.translate((0, 0, dh - 0.3))
+hueco = hacer_hueco(a.holgura)
+tam_hueco = (f'{a.iman_d + a.holgura:.2f} mm de diámetro' if a.forma == 'disco' else
+             f'{(a.iman_largo if a.largo_en == "vuelta" else a.iman_ancho) + a.holgura:.2f} mm a lo largo de la vuelta x '
+             f'{(a.iman_ancho if a.largo_en == "vuelta" else a.iman_largo) + a.holgura:.2f} mm a lo largo del eje')
+
+if a.probeta:
+    # taco de pie, como el rodillo: tres huecos en la cara de delante, con holgura 0,1, 0,2 y 0,3 mm, en la misma
+    # postura que en el rodillo; encima de cada uno, 1, 2 o 3 marcas para saber cuál es
+    import sys
+    ancho, fondo, alto = 66.0, dh + 6.0, 24.0
+    taco = m3.Manifold.cube((ancho, fondo, alto))
+    cortes = []
+    for i, hol in enumerate((0.1, 0.2, 0.3)):
+        x = 11.0 + 22.0 * i
+        # hueco hacia -Y (la cara de delante, y = 0): Z local → -Y, Y local → +Z, X local → -X
+        cortes.append(hacer_hueco(hol).transform([[-1, 0, 0, x], [0, 0, -1, dh], [0, 1, 0, alto / 2 - 1.5]]))
+        for j in range(i + 1): cortes.append(m3.Manifold.cube((1.2, 1.2, 1.0)).translate((x - 2.4 * i / 2 + 2.4 * j - 0.6, fondo / 2 - 0.6, alto - 0.8)))
+    t = a_trimesh(taco - m3.Manifold.batch_boolean(cortes, m3.OpType.Add))
+    if not t.is_watertight: print('NO CERRADA'); sys.exit(1)
+    t.export('probeta-huecos.stl'); t.export('probeta-huecos.3mf')
+    print(f'probeta-huecos: tres huecos como el del rodillo ({tam_hueco} con holgura 0,2), con holgura 0,1, 0,2 y 0,3 mm '
+          f'(1, 2 y 3 marcas), {dh:.2f} mm de fondo')
+    sys.exit(0)
 
 huecos, lista = [], []
 paso = 360.0 / a.flechas / a.pares
@@ -110,7 +121,7 @@ if not tm.is_watertight: print('NO CERRADA'); sys.exit(1)
 tm.export(a.salida + '.stl')
 tm.export(a.salida + '.3mf')
 vol = tm.volume / 1000.0
-print(f'{a.salida}: {len(lista)} huecos de {2 * rh:.2f} mm x {dh:.2f} mm; cilindro {a.diametro:g} x {a.largo:g} mm; '
+print(f'{a.salida}: {len(lista)} huecos de {tam_hueco}, {dh:.2f} mm de fondo; cilindro {a.diametro:g} x {a.largo:g} mm; '
       f'volumen {vol:.0f} cm³ (macizo, unos {vol * 1.24:.0f} g de PLA; con relleno, bastante menos)')
 with open(a.salida + '-huecos.csv', 'w') as fh:
     fh.write('flecha,par,angulo_grados,posicion_mm_desde_el_centro\n')
