@@ -120,8 +120,31 @@ Con ninguno de los dos se saca energía de verdad: son errores de cálculo del b
 
 Ninguno pasa ni del 100,1 %.
 
+## Cuarta tanda: más ideas de los vídeos (`familias4.js`, `todo4.sh`, `resultados4.jsonl`)
+
+2.000 aparatos de cada tipo, 10 s cada uno, sin aire ni rozamiento:
+
+| Familia | Qué lleva | Probados | Apartados | Lo más alto que parecía |
+|---|---|---|---|---|
+| `palancaCurva` | La palanca de metacrilato de la captura con todo al azar: brazo, curva, cazoleta, contrapeso, raíles y 1 o 2 bolas | 1.793 | 207 | 117,3 % |
+| `gauss` | Acelerador de Gauss: imanes junto a la vía (a un lado) con filas de bolas de acero, y una cuesta al final | 2.000 | 0 | 100,000 % |
+| `puertaV` | Rueda con imanes que pasa entre dos filas de imanes que se cierran en V | 2.000 | 0 | 100,19 % |
+| `catapulta` | Una bola cae sobre un balancín y lanza la otra a una repisa que la devuelve | 1.999 | 1 | 100,001 % |
+| `elevador` | Las bolas caen en una noria con generador; un motor con esa energía las sube con otra noria | 1.455 | 545 | 100,03 % |
+| `bessler` | Rueda con palancas con pesa en el borde, unidas en cruz con muelles | 2.000 | 0 | 100,02 % |
+
+- **14 pasaban del 101 %, todas palancas.** Por encima del 100,5 % había 17 (`clasificados4.jsonl`, `despues4.jsonl`):
+  - 13 de piezas apretadas: se meten una en otra de 2,5 a 4 mm, cuando el banco deja como mucho 2 mm;
+  - 2 de piezas metidas al empezar;
+  - 1 de redondeo.
+  Contando solo desde los 0,1 s y con el paso fino, 16 se quedan entre el 100,0 % y el 100,1 %.
+- **La que quedaba, la palanca nº 1061** (`mira4.js`): una bola de acero de 44 g empieza apretada entre la curva y los
+  raíles. El banco las separa poco a poco y, al hacerlo, sube el contrapeso 0,74 mJ en el primer medio segundo;
+  luego todo se para. Sin esa bola, o con los raíles 4 mm más abajo, sobran 0,000 mJ.
+- Los otros cinco tipos no llegan ni al 100,2 %.
+
 ## En total
 
-30.200 aparatos de 16 tipos; quitando los imposibles de construir, quedan 26.171. 52 pasaban del 101 %, y ninguno
+42.200 aparatos de 22 tipos; quitando los imposibles de construir, quedan 37.418. 66 pasaban del 101 %, y ninguno
 era energía de verdad: todos eran fallos del banco (redondeo, piezas metidas al empezar, piezas apretadas, o piezas
-que el banco encaja de golpe en el primer paso). `busqueda-101.png` tiene la tabla de las tres tandas.
+que el banco encaja de golpe en el primer paso). `busqueda-101.png` tiene la tabla de las cuatro tandas.
