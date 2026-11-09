@@ -1,0 +1,5 @@
+Bloques: 9 pares por flecha, cada 20° (como el que imprimes) con roce: 4.13 vueltas en 3.51 s · sin roce 10 s: sobra como mucho -6.66 mJ, golpes 902.5 mJ, error 23.49 mJ · empujón mínimo 139.5 rpm · solapes 0 · 181.469 s
+Bloques: 12 pares, cada 15°              con roce: 4.1 vueltas en 3.76 s · sin roce 10 s: sobra como mucho -6.65 mJ, golpes 908.4 mJ, error 17.72 mJ · empujón mínimo 141.8 rpm · solapes 0 · 305.574 s
+Bloques: 14 pares, cada 12,9° (lo más junto que cabe) con roce: 4.07 vueltas en 4.51 s · sin roce 10 s: sobra como mucho -6.62 mJ, golpes 903.5 mJ, error 22.7 mJ · empujón mínimo 142.4 rpm · solapes 0 · 324.506 s
+Bloques girados (6 mm en la vuelta): 20 pares, cada 9° con roce: 3.88 vueltas en 3.26 s · sin roce 10 s: sobra como mucho -6.66 mJ, golpes 910 mJ, error 26.8 mJ · empujón mínimo 148.2 rpm · solapes 0 · 1251.838 s
+Sin imanes en el cilindro                con roce: 4.18 vueltas en 3.51 s · sin roce 10 s: sobra como mucho -6.62 mJ, golpes 897.3 mJ, error 14.67 mJ · empujón mínimo 138.3 rpm · solapes 0 · 13.146 s
