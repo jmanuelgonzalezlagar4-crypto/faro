@@ -137,3 +137,56 @@ empujón. Las cuentas cuadran en 1.877.
 
 En las 13 que vuelven a la rampa (5 de la versión con hueco y 8 de la del dibujo), la bola sube por ella entre 8 y 57 mm,
 de los 28 a 44 cm que tiene la rampa.
+
+## Más pruebas
+
+### Lo que se pierde al dar la vuelta (`vuelta.js`, `vuelta.jsonl`)
+
+Sin imán, la bola rueda hasta el final de la rampa de su dibujo, cae o rebota, y vuelve. Se compara su energía
+(movimiento y altura) al llegar al final con la que lleva cuando, ya de vuelta, pasa por la mitad de la rampa de vuelta.
+Se prueba con tres formas de dar la vuelta, a 0,6, 0,9, 1,2 y 1,5 m/s, de acero y de goma, con y sin rozamiento.
+
+| Cómo da la vuelta | Vuelven | Energía que conserva |
+|---|---|---|
+| Cae a la rampa de vuelta (recta) | 12 de 16 | del 23 % al 54 % |
+| Recogida curva | 0 de 16 | — |
+| Rebota en una pared justo después del final | 16 de 16 | del 37 % al 74 % |
+
+- **La rampa recta y la recogida curva** solo recogen la bola si llega despacio. Si llega deprisa, vuela por encima del
+  tope o de la recogida y se sale.
+- **La pared** la recoge siempre. Lo mejor es una bola de goma a 0,9 m/s, que aun así pierde una cuarta parte.
+
+**Por qué se pierde tanto.** La bola sube hacia el imán girando hacia un lado, y para volver por abajo tiene que girar
+al revés. Ese cambio solo se puede hacer resbalando o con golpes.
+
+### Una fila de imanes junto a la rampa (`barrido-fila.js`, `todo-fila.sh`, `barrido-fila.jsonl`, `despues-fila.js`, `despues-fila.jsonl`)
+
+Además del imán del final, se ponen de 1 a 6 imanes a un lado de la rampa, sin tocar la bola, para que tiren de ella
+rampa arriba. Al final de la rampa hay una pared (en dos de cada tres variantes) para que la bola no salga volando. Se
+prueban 2.000 variantes con la forma del dibujo, y 1.923 tienen las cuentas bien.
+
+- **Sale peor.** La bola se queda atrapada junto a los imanes de la fila: 1.761 no llegan al final.
+- **Ninguna vuelve a la rampa.** Con empujón, la que más se acerca se queda a 9,7 mm de pasar la C. Sin empujón, solo
+  una llega a la C, y le faltan 67 mm.
+- **Cinco pasaban del 100,5 %** (como mucho, el 102 %).
+  - Lo que sobra aparece al arrancar, con la bola lanzada dentro del campo de la fila.
+  - Contando solo desde los 0,1 s, se quedan entre el 100,0 % y el 100,14 % con un paso 16 veces más fino.
+  - Lo que queda baja al afinar el paso, así que es redondeo.
+
+### Adónde va la energía en una vuelta (`adonde-va.js`, `adonde-va.png`)
+
+La mejor variante del dibujo, la nº 655, con roce y un empujón de 0,8 m/s. Energía de la bola en mJ: movimiento, altura
+sobre la mesa y la de los imanes.
+
+| Momento | Energía (mJ) | Qué se ha perdido desde el momento anterior |
+|---|---|---|
+| Sale, con el empujón | 6,95 | |
+| Deja la rampa, junto al imán | 6,93 | 0,02 en roces |
+| Ya rueda de vuelta | 4,95 | 1,98 al caer y dar la vuelta |
+| En el fondo de la C | 3,37 | 1,57 en rebotes en la rampa de vuelta |
+| Otra vez en la rampa | 2,79 | 0,58 dentro de la C |
+| Lo más alto que sube | 2,16 | 0,63 rodando rampa arriba |
+
+- **Lo que pone el imán:** 0,13 mJ al acercarse, que le quita al alejarse.
+- **Lo que cuesta dar la vuelta:** 16 veces eso, solo al caer y girar.
+- **Lo que le falta:** para volver a llegar al final y caer otra vez necesitaría al menos 5,31 mJ, y le quedan 2,16.

@@ -40,6 +40,8 @@ function monta(o) {
   } else {
     R1 = [Ep[0] + o.mas, H1[1] - o.caida];
     tira([R1[0], R1[1] + 2 * rb + 0.004], R1, 1);                        // tope al final
+    // «pared»: una pared justo después del final de la rampa, contra la que la bola rebota y cae hacia atrás
+    if (o.recogida === 'pared') { const xp = H1[0] + 2 * rb + (o.hueco || 0) + 0.003; tira([xp, R1[1]], [xp, H1[1] + 4 * rb], 1); }
   }
   tira(R2, R1, 1);
   // el gancho, por dentro: del fondo (270°) sube por la izquierda, pasa por lo alto (90°) y sigue hasta «salida» grados,
@@ -57,6 +59,10 @@ function monta(o) {
   const bx = o.x0 * u[0] - (rb + 0.0004) * u[1], by = hA + o.x0 * u[1] + (rb + 0.0004) * u[0];
   const b = P.makeBall(d, bx, by); b.r = rb; b.m = 7500 * 4 / 3 * Math.PI * rb ** 3; b.mat = o.mat; d.parts.push(b);
   const mb = P.makeMagnet(d, bx, by, b.id, 'disc'); mb.ang = o.angBola; mb.grade = o.grado === 'ferrita' ? 'n35' : o.grado; mb.size = 2 * rb; mb.solid = false; mb.mu = P.magnetModel(mb).mu; d.parts.push(mb);
+  // «fila»: más imanes junto a la rampa (a un lado, fuera del plano, sin tocar la bola), a la altura de la bola, en las
+  // fracciones del largo de la rampa que se den: tiran de ella rampa arriba
+  (o.fila || []).forEach(q => { const px = q.f * o.L * u[0] - (rb) * u[1], py = hA + q.f * o.L * u[1] + rb * u[0];
+    const m = P.makeMagnet(d, px, py, null, o.forma); m.ang = q.ang; m.grade = o.grado; m.size = q.tam || o.tam; m.z = q.z; m.solid = false; m.mu = P.magnetModel(m).mu; d.parts.push(m); });
   const info = P.build(d), w = info.world, bb = info.bodyOf[b.id];
   w.steel = w.steel.filter(s => s.body !== bb);                        // es un imán, no acero que se imanta
   if (o.v0) { bb.vx = o.v0 * u[0]; bb.vy = o.v0 * u[1]; bb.w = -o.v0 / rb; }
