@@ -1,0 +1,93 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Noria de bolas flotantes</title><style>
+:root{--bg:#eef1ea;--ink:#1b2926;--ink2:#485a54;--muted:#77766f;--water:#9fd3ef;--water2:#5fa9d6;--steel:#b9c2cc;--wood:#b07a4a;--good:#1f8a5a;--bad:#c2372f;--accent:#2639a6;--card:#f8f9f5;--line:#d7dcd3}
+html,body{margin:0;background:var(--bg);font-family:"DejaVu Sans",system-ui,sans-serif;color:var(--ink)}
+#wrap{display:flex;width:1600px;height:1000px}
+#esc{width:820px;height:1000px}
+#cuentas{width:780px;padding:46px 46px 30px 10px;box-sizing:border-box}
+h1{font-size:30px;margin:0 0 6px}h2{font-size:21px;margin:0 0 14px;color:var(--ink2);font-weight:400}
+table{border-collapse:collapse;width:100%;font-size:17px}
+td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{text-align:right;white-space:nowrap;font-weight:700;width:110px}
+tr.g td.n{color:var(--good)} tr.b td.n{color:var(--bad)}
+tr.tot td{border-bottom:2px solid var(--ink);font-weight:700}
+.sub{display:block;font-size:14px;color:var(--ink2);font-weight:400;margin-top:2px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin-top:14px;font-size:15.5px;line-height:1.42}
+.box b{display:block;font-size:16.5px;margin-bottom:3px}
+.res{background:#fbeceb;border-color:#e9b8b4}
+</style></head><body><div id="wrap"><svg id="esc" viewBox="0 0 820 1000"></svg><div id="cuentas">
+<h1>Las cuentas de una bola en cada vuelta</h1>
+<h2>Bola de acero hueca de 10 cm (247 g) en un tanque de 1 m de agua</h2>
+<table>
+<tr class="g"><td>① Al subir, el agua la empuja hacia arriba<span class="sub">empuje 5,14 N menos su peso 2,42 N, durante 1 m</span></td><td class="n">+2,72 J</td></tr>
+<tr class="g"><td>② Al bajar por fuera, en la noria, empuja su peso<span class="sub">2,42 N durante 1 m</span></td><td class="n">+2,42 J</td></tr>
+<tr class="tot"><td>Lo más que puede dar una bola</td><td class="n" style="color:var(--good)">5,14 J</td></tr>
+<tr class="b"><td>④ Meterla por abajo, contra el agua del tanque<span class="sub">el agua aprieta con 9.810 Pa en el fondo; apartar medio litro cuesta</span></td><td class="n">−5,14 J</td></tr>
+<tr class="b"><td>Roces: la válvula de abajo, el eje de la noria, el agua que se escapa<span class="sub">en una maqueta, fácil 1 J o más</span></td><td class="n">−1 J</td></tr>
+<tr class="tot"><td>Lo que queda</td><td class="n" style="color:var(--bad)">−1 J</td></tr>
+</table>
+<div class="box res"><b>Por qué sale siempre igual</b>La fuerza con que el agua empuja la bola hacia arriba sale de la presión del agua. Esa misma presión es la que la bola tiene que vencer para entrar por abajo. Lo que gana al subir lo paga, justo, al entrar. Da igual la altura del tanque, el tamaño de las bolas o cuántas pongas.</div>
+<div class="box"><b>Si las bolas suben sueltas por el tubo</b>Suben a 1,2 m/s, y a esa velocidad el agua las frena tanto que se come 2,5 de los 2,7 J del empuje en remolinos. Para aprovecharlo, las bolas tendrían que tirar de una cadena dentro del tanque.</div>
+<div class="box"><b>Con aire o gas en vez de bolas</b>Para meter medio litro de aire en el fondo hay que comprimirlo a la presión del fondo: cuesta 5,38 J, y al subir devuelve 5,38 J. Con un compresor normal (70 %) cuesta 7,7 J.</div>
+<div class="box"><b>Con una esclusa (cámara con dos puertas)</b>Cada bola que entra deja salir medio litro de agua por abajo, y subirlo otra vez arriba cuesta los mismos 5,14 J.</div>
+</div></div>
+<script>
+const NS = 'http://www.w3.org/2000/svg', svg = document.getElementById('esc');
+const el = (t, a, tx) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (tx != null) e.textContent = tx; svg.appendChild(e); return e; };
+const C = { ink: '#1b2926', ink2: '#485a54', water: '#9fd3ef', water2: '#5fa9d6', steel: '#b9c2cc', wood: '#b07a4a', good: '#1f8a5a', bad: '#c2372f', accent: '#2639a6' };
+el('defs', {}).innerHTML = `
+  <marker id="fa" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${C.accent}"/></marker>
+  <marker id="fg" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${C.good}"/></marker>
+  <marker id="fr" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${C.bad}"/></marker>
+  <radialGradient id="bola" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#f4f7fa"/><stop offset="0.55" stop-color="#b9c2cc"/><stop offset="1" stop-color="#6d7680"/></radialGradient>`;
+el('text', { x: 40, y: 62, 'font-size': 30, 'font-weight': 700, fill: C.ink }, 'Noria de bolas flotantes');
+el('text', { x: 40, y: 92, 'font-size': 18, fill: C.ink2 }, 'el ciclo cerrado de cada bola');
+// suelo
+el('rect', { x: 30, y: 902, width: 760, height: 14, rx: 4, fill: '#cdbb9c' });
+// tanque
+const NX = 600, NYc = 440, NR = 150;
+const TX = 110, TW = 140, TY = 190, TB = 880, WY = 230;
+el('rect', { x: TX, y: WY, width: TW, height: TB - WY, fill: C.water, opacity: 0.85 });
+for (let k = 0; k < 6; k++) el('path', { d: `M${TX} ${WY + 6 + k * 3} q ${TW / 8} -6 ${TW / 4} 0 t ${TW / 4} 0 t ${TW / 4} 0 t ${TW / 4} 0`, fill: 'none', stroke: C.water2, 'stroke-width': 1.2, opacity: 0.5 - k * 0.07 });
+el('path', { d: `M${TX} ${TY} V ${TB} H ${TX + TW} V ${TY}`, fill: 'none', stroke: C.ink, 'stroke-width': 5, 'stroke-linejoin': 'round' });
+// cota de 1 m
+el('line', { x1: TX - 34, y1: WY, x2: TX - 34, y2: TB, stroke: C.ink2, 'stroke-width': 1.5, 'marker-start': 'url(#fa)', 'marker-end': 'url(#fa)' });
+el('text', { x: TX - 44, y: (WY + TB) / 2, 'font-size': 18, 'font-weight': 700, fill: C.ink2, 'text-anchor': 'middle', transform: `rotate(-90 ${TX - 44} ${(WY + TB) / 2})` }, '1 m de agua');
+// bolas subiendo
+const bola = (x, y, r) => { el('circle', { cx: x, cy: y, r, fill: 'url(#bola)', stroke: '#566069', 'stroke-width': 1.5 }); };
+for (let k = 0; k < 6; k++) { const y = 800 - k * 100; bola(TX + TW / 2 - 10, y, 24); el('line', { x1: TX + TW / 2 + 32, y1: y + 22, x2: TX + TW / 2 + 32, y2: y - 22, stroke: C.good, 'stroke-width': 3, 'marker-end': 'url(#fg)' }); }
+// rampa de arriba hacia la noria
+el('path', { d: `M${TX + TW / 2 + 10} ${WY - 6} L ${TX + TW + 30} ${WY - 30} L ${NX - 14} ${NYc - NR - 26}`, fill: 'none', stroke: C.wood, 'stroke-width': 8, 'stroke-linecap': 'round' });
+bola(TX + TW + 26, WY - 58, 24);
+// noria
+el('circle', { cx: NX, cy: NYc, r: NR, fill: 'none', stroke: C.wood, 'stroke-width': 10 });
+for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; el('line', { x1: NX, y1: NYc, x2: NX + NR * Math.cos(a), y2: NYc + NR * Math.sin(a), stroke: C.wood, 'stroke-width': 6 }); }
+for (let k = 0; k < 8; k++) {
+  const a = k * Math.PI / 4 + Math.PI / 8, cx = NX + (NR + 6) * Math.cos(a), cy = NYc + (NR + 6) * Math.sin(a);
+  el('path', { d: `M${cx - 24} ${cy - 8} q 24 44 48 0`, fill: 'none', stroke: '#7a4f2a', 'stroke-width': 5, transform: `rotate(${a * 180 / Math.PI - 90} ${cx} ${cy})` });
+  if (Math.cos(a) > 0.2) bola(NX + (NR + 14) * Math.cos(a), NYc + (NR + 14) * Math.sin(a), 22);
+}
+el('circle', { cx: NX, cy: NYc, r: 34, fill: '#2b3137' }); el('circle', { cx: NX, cy: NYc, r: 12, fill: '#f2c94c' });
+el('text', { x: NX, y: NYc + 62, 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 700, fill: C.ink }, 'generador');
+el('path', { d: `M ${NX + 70} ${NYc - NR - 30} A ${NR + 40} ${NR + 40} 0 0 1 ${NX + NR + 40} ${NYc - 60}`, fill: 'none', stroke: C.accent, 'stroke-width': 4, 'marker-end': 'url(#fa)' });
+// rampa de bajada a la entrada
+el('path', { d: `M ${NX + 20} ${NYc + NR + 22} L 470 845 L ${TX + TW + 74} 862`, fill: 'none', stroke: C.wood, 'stroke-width': 8, 'stroke-linecap': 'round' });
+bola(470, 818, 24);
+// la entrada de abajo: esclusa
+const EX = TX + TW, EY = 828;
+el('rect', { x: EX, y: EY - 8, width: 70, height: 60, fill: C.water, opacity: 0.85, stroke: C.bad, 'stroke-width': 4, rx: 4 });
+el('line', { x1: EX + 70, y1: EY - 8, x2: EX + 70, y2: EY + 52, stroke: C.bad, 'stroke-width': 7 });
+el('line', { x1: EX, y1: EY - 8, x2: EX, y2: EY + 52, stroke: C.bad, 'stroke-width': 7, 'stroke-dasharray': '7 5' });
+bola(EX + 35, EY + 22, 22);
+el('line', { x1: EX + 120, y1: EY + 22, x2: EX + 84, y2: EY + 22, stroke: C.bad, 'stroke-width': 3, 'marker-end': 'url(#fr)' });
+// números del ciclo
+const nota = (n, x, y, t1, t2, col) => {
+  el('circle', { cx: x, cy: y, r: 16, fill: col || C.accent }); el('text', { x, y: y + 6, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 700, fill: '#fff' }, n);
+  el('text', { x: x + 24, y: y + 6, 'font-size': 17, 'font-weight': 700, fill: C.ink }, t1);
+  if (t2) el('text', { x: x + 24, y: y + 27, 'font-size': 15, fill: C.ink2 }, t2);
+};
+nota('1', TX + TW + 30, 610, 'Suben solas', 'el agua las empuja', C.good);
+nota('2', 330, 130, 'Caen en la noria', 'y la hacen girar', C.good);
+nota('3', 560, 700, 'Bajan rodando', 'hasta la entrada');
+nota('4', 420, 945, 'Entran por abajo', '¡contra la presión del agua!', C.bad);
+window.listo = true;
+</script></body></html>

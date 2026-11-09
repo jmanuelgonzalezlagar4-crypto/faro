@@ -1,0 +1,12 @@
+{"arreglo":false,"pesas":1,"gravedad":true,"paso":"1/480 s","torcidas":0,"energia_mJ":6456,"sube_max_mJ":25.2,"baja_max_mJ":-17.4}
+{"arreglo":false,"pesas":7,"gravedad":false,"paso":"1/480 s","torcidas":0,"energia_mJ":382,"sube_max_mJ":0,"baja_max_mJ":-0.6}
+{"arreglo":false,"pesas":7,"gravedad":true,"paso":"1/480 s","torcidas":0,"energia_mJ":15759,"sube_max_mJ":6475.6,"baja_max_mJ":-405.8}
+{"arreglo":false,"pesas":7,"gravedad":true,"paso":"1/3840 s","torcidas":0,"energia_mJ":15759,"sube_max_mJ":8443.5,"baja_max_mJ":-860.3}
+{"arreglo":false,"pesas":7,"gravedad":true,"paso":"1/480 s","torcidas":23,"energia_mJ":15759,"sube_max_mJ":17273.8,"baja_max_mJ":-343.7}
+{"arreglo":false,"pesas":7,"gravedad":true,"paso":"1/3840 s","torcidas":23,"energia_mJ":15759,"sube_max_mJ":21092.1,"baja_max_mJ":-35.7}
+{"arreglo":true,"pesas":1,"gravedad":true,"paso":"1/480 s","torcidas":0,"energia_mJ":6456,"sube_max_mJ":0,"baja_max_mJ":-10.1}
+{"arreglo":true,"pesas":7,"gravedad":false,"paso":"1/480 s","torcidas":0,"energia_mJ":382,"sube_max_mJ":0,"baja_max_mJ":-2.4}
+{"arreglo":true,"pesas":7,"gravedad":true,"paso":"1/480 s","torcidas":0,"energia_mJ":15759,"sube_max_mJ":2.2,"baja_max_mJ":-72.6}
+{"arreglo":true,"pesas":7,"gravedad":true,"paso":"1/3840 s","torcidas":0,"energia_mJ":15759,"sube_max_mJ":3.5,"baja_max_mJ":-5.6}
+{"arreglo":true,"pesas":7,"gravedad":true,"paso":"1/480 s","torcidas":23,"energia_mJ":15759,"sube_max_mJ":0,"baja_max_mJ":-80.5}
+{"arreglo":true,"pesas":7,"gravedad":true,"paso":"1/3840 s","torcidas":23,"energia_mJ":15759,"sube_max_mJ":0,"baja_max_mJ":-12.8}

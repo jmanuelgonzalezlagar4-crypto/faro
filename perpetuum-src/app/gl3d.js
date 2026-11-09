@@ -195,6 +195,10 @@
     wallTex.offset.set(0.5, 0.5);
     wallTex.needsUpdate = true;
 
+    // un cilindro largo (con «len») empuja hacia delante lo que va en el plano de delante (levas, rodillos)
+    var maxLen = 0;
+    design.parts.forEach(function (p) { if (p.kind === 'wheel' && p.len > 0) maxLen = Math.max(maxLen, p.len); });
+    FRONT = Math.max(0.06, maxLen / 2 + 0.016);
     var w = info.world, Z = depthMap(info, design);
     var inkM = mat(colors.ink, 0.45, 0.6), ink2M = mat(colors['ink-2'], 0.5, 0.5);
     function zb(b) { return Z.get(b) || 0; }
@@ -217,6 +221,10 @@
           cg.translate(0, 0, zc - 0.01);
           var cm = new THREE.Mesh(cg, mat(colors.steel, 0.35, 0.85));
           g.add(addPick(cm, p.id));
+          if (maxLen > 0 && zc !== z0) {
+            // en un cilindro largo hay una leva igual en cada lado
+            var cm2 = cm.clone(); cm2.position.z = -2 * (zc - z0); g.add(addPick(cm2, p.id));
+          }
           var hc = zCyl(Math.max(0.008, (p.r - (p.lift || 0)) * 0.3), zc - z0 + 0.03, ink2M.clone(), 20);
           hc.position.set(l.x, l.y, (zc + z0) / 2); g.add(addPick(hc, p.id));
         } else if (p.style === 'rim') {
@@ -254,6 +262,17 @@
           });
           var hub = zCyl(geo.hub, D, mat(colors.wood, 0.7, 0), 32);
           hub.position.set(l.x, l.y, z0); g.add(addPick(hub, p.id));
+        } else if (p.len > 0) {
+          // un cilindro largo (como el rodillo de latón de las flechas), con sus dos tapas
+          var brass = p.look === 'laton' ? mat('#cfa043', 0.35, 0.55) : (p.look === 'acero' ? mat(colors.steel, 0.3, 0.85) : mat(colors.wood, 0.8, 0));
+          var tube = zCyl(p.r, p.len, brass, 72);
+          tube.position.set(l.x, l.y, z0); g.add(addPick(tube, p.id));
+          [-1, 1].forEach(function (sd) {
+            var lid = new THREE.Mesh(new THREE.TorusGeometry(p.r - 0.002, 0.0025, 8, 72), p.look === 'laton' ? mat('#a8812f', 0.4, 0.6) : inkM.clone());
+            lid.position.set(l.x, l.y, z0 + sd * p.len / 2); g.add(addPick(lid, p.id));
+          });
+          var hbl = zCyl(Math.max(0.008, p.r * 0.15), p.len + 0.01, ink2M.clone(), 24);
+          hbl.position.set(l.x, l.y, z0); g.add(addPick(hbl, p.id));
         } else {
           var disc = zCyl(p.r, 0.024, mat(colors.wood, 0.8, 0), 72);
           disc.position.set(l.x, l.y, z0); g.add(addPick(disc, p.id));
@@ -267,6 +286,14 @@
           }
           var hb = zCyl(Math.max(0.025, p.r * 0.09), 0.05, ink2M.clone(), 24);
           hb.position.set(l.x, l.y, z0); g.add(addPick(hb, p.id));
+        }
+        if (p.axle === 'levitado') {
+          var hl = (p.len || 0.024) / 2 + 0.03;
+          var shaft = zCyl(0.006, 2 * hl, inkM.clone(), 16); shaft.position.set(l.x, l.y, z0); g.add(addPick(shaft, p.id));
+          var needle = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.03, 12), mat(colors.steel, 0.3, 0.9));
+          needle.rotation.x = -Math.PI / 2; needle.position.set(p.x, p.y, z0 + hl + 0.015); machine.add(needle);
+          var jw = info.wheelJoint[p.id];
+          if (jw) addDevices(p, jw, machine, p.x, p.y, z0 - hl - 0.04);
         }
         if (p.axle === 'fixed') {
           var ax = zCyl(0.012, z0 - WALL_Z, inkM.clone(), 16);
@@ -286,8 +313,21 @@
       } else if (p.kind === 'bar') {
         b = info.bodyOf[p.id]; g = groupFor(b);
         var a1 = local(b, p.x1, p.y1), a2 = local(b, p.x2, p.y2);
-        m = segCyl(a1.x, a1.y, a2.x, a2.y, P.BAR_R, mat(colors['ink-2'], 0.35, 0.75), zb(b));
+        if (p.len > 0) {
+          // un palo largo que cruza a lo largo del eje: una tabla con ese fondo
+          var bl = Math.hypot(a2.x - a1.x, a2.y - a1.y) + 2 * P.barR(p);
+          m = box(bl, 2 * P.barR(p), p.len, mat(p.look === 'madera' ? colors.wood : colors['ink-2'], 0.6, p.look === 'madera' ? 0 : 0.6));
+          m.position.set((a1.x + a2.x) / 2, (a1.y + a2.y) / 2, zb(b)); m.rotation.z = Math.atan2(a2.y - a1.y, a2.x - a1.x);
+        } else m = segCyl(a1.x, a1.y, a2.x, a2.y, P.barR(p), mat(colors['ink-2'], 0.35, 0.75), zb(b));
         g.add(addPick(m, p.id));
+      } else if (p.kind === 'tank') {
+        // agua: un bloque azul transparente, con la superficie un poco más marcada
+        var tw = p.x2 - p.x1, th = p.y2 - p.y1, td = 0.24;
+        var wm = new THREE.MeshStandardMaterial({ color: col('#5fb0e0'), transparent: true, opacity: 0.28, roughness: 0.1, metalness: 0, depthWrite: false });
+        m = box(tw, th, td, wm); m.position.set((p.x1 + p.x2) / 2, (p.y1 + p.y2) / 2, 0); m.renderOrder = 2;
+        machine.add(addPick(m, p.id));
+        var sm = new THREE.Mesh(new THREE.PlaneGeometry(tw, td), new THREE.MeshStandardMaterial({ color: col('#9fd6f2'), transparent: true, opacity: 0.55, roughness: 0.05, side: THREE.DoubleSide, depthWrite: false }));
+        sm.rotation.x = -Math.PI / 2; sm.position.set((p.x1 + p.x2) / 2, p.y2, 0); sm.renderOrder = 3; machine.add(sm);
       } else if (p.kind === 'ramp') {
         var L = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
         m = box(L + 2 * P.RAMP_R, 2 * P.RAMP_R, 0.2, mat(p.mat === 'acero' ? colors.steel : (p.mat === 'goma' ? colors.rubber : colors.wood), 0.75, p.mat === 'acero' ? 0.8 : 0));
@@ -299,7 +339,7 @@
         g = host.isStatic ? machine : groupFor(host);
         var o = host.isStatic ? { x: 0, y: 0 } : { x: host.x0 || 0, y: host.y0 || 0 };
         // los imanes pegados a una pieza van en su cara delantera, para que se vean
-        var zm = host.isStatic ? 0 : zb(host) + 0.014 + P.magnetModel(p).size / 4;
+        var zm = p.z != null ? zb(host) + (+p.z || 0) : (host.isStatic ? 0 : zb(host) + 0.014 + P.magnetModel(p).size / 4);
         var mgrp = buildMagnet(p, g, o, zm);
         if (host.isStatic) {
           var mount = zCyl(0.008, zm - WALL_Z, inkM.clone(), 10);
@@ -310,6 +350,16 @@
         }
       } else if (p.kind === 'pin') {
         var jp = info.jointOf[p.id];
+        if (p.mode === 'guia' && jp) {
+          // la guía: un carril fijo por el que corre la pieza, y un patín en la pieza
+          var ga = (p.sang != null ? p.sang : 90) * DEG, zg = zb(jp.b) - 0.016;
+          var rail = box(0.09, 0.008, 0.008, mat(colors.steel, 0.3, 0.85));
+          rail.position.set(p.x, p.y, zg); rail.rotation.z = ga;
+          (jp.a.isStatic ? machine : groupFor(jp.a)).add(addPick(rail, p.id));
+          var shoe = box(0.016, 0.012, 0.012, inkM.clone());
+          shoe.position.set(jp.lbx, jp.lby, zg); shoe.rotation.z = ga; groupFor(jp.b).add(addPick(shoe, p.id));
+          return;
+        }
         if (p.mode === 'rigid' || !jp) {
           b = info.bodyOf[p.b] || w.ground; g = b.isStatic ? machine : groupFor(b); l = b.isStatic ? { x: p.x, y: p.y } : local(b, p.x, p.y);
           m = box(0.022, 0.022, 0.03, inkM.clone());
@@ -373,7 +423,18 @@
     grp.position.set(p.x - o.x, p.y - o.y, z);
     grp.rotation.z = a;
     function half(len, wdt, dep, material, cx) { var m = box(len, wdt, dep, material); m.position.x = cx; grp.add(addPick(m, p.id)); return m; }
-    if (model.shape === 'disc') {
+    if (model.shape === 'disc' && p.ax) {
+      // imantado a lo largo del eje: un disco de cara a nosotros, con el norte delante o detrás
+      [[p.ax > 0 ? nM : sM, 1], [p.ax > 0 ? sM : nM, -1]].forEach(function (e) {
+        var cm = zCyl(L / 2, L / 4, e[0], 24); cm.position.z = e[1] * L / 8; grp.add(addPick(cm, p.id));
+      });
+    } else if (model.shape === 'disc' && p.z != null) {
+      // un disco tumbado sobre la superficie (el norte hacia fuera): su eje va en la dirección del imán
+      [[nM, 1], [sM, -1]].forEach(function (e) {
+        var cg = new THREE.CylinderGeometry(L / 2, L / 2, L / 4, 24); cg.rotateZ(-Math.PI / 2);
+        var cm = new THREE.Mesh(cg, e[0]); cm.position.x = e[1] * L / 8; grp.add(addPick(cm, p.id));
+      });
+    } else if (model.shape === 'disc') {
       [[nM, -Math.PI / 2], [sM, Math.PI / 2]].forEach(function (e) {
         var sh = new THREE.Shape(); sh.moveTo(0, 0); sh.absarc(0, 0, L / 2, e[1], e[1] + Math.PI, false);
         var geo = new THREE.ExtrudeGeometry(sh, { depth: L / 2, bevelEnabled: false, curveSegments: 20 });
@@ -405,9 +466,10 @@
       var tipN = box(L * 0.06, wb * 0.62, wb * 0.62, nM); tipN.position.x = L / 2 - L * 0.03; grp.add(addPick(tipN, p.id));
       electros.push({ id: p.id, mat: coilMat, tip: nM });
     } else {
-      var wb2 = L / 2;
-      half(L / 2, wb2, wb2, nM, L / 4);
-      half(L / 2, wb2, wb2, sM, -L / 4);
+      // de barra: con «wide» es plano y ancho, con «wz» largo a lo largo del eje
+      var wb2 = L / 2, Wd = p.wide > 0 ? p.wide : wb2, Dz = p.wz > 0 ? p.wz : Wd;
+      half(L / 2, Wd, Dz, nM, L / 4);
+      half(L / 2, Wd, Dz, sM, -L / 4);
     }
     g.add(grp);
     return grp;

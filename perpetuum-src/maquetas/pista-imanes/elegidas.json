@@ -1,0 +1,79 @@
+{
+ "ideal": [
+  {
+   "o": {
+    "tipo": "V",
+    "movil": "iman",
+    "n": 13,
+    "arco": 187.7117,
+    "grado": "n52",
+    "giro": -14.4494,
+    "torcido": 28.7745,
+    "inv": false,
+    "tam": 0.0246,
+    "polo": 90,
+    "d0": 0.0275,
+    "d1": 0.0173,
+    "rb": 0.0105,
+    "mc": 0.0531,
+    "v0": 1.248,
+    "R": 0.2663
+   },
+   "T": 8,
+   "dur": 16,
+   "vmax": 2.4,
+   "et": "Imán en un carrito, imanes en V (pista nº 1597)",
+   "tx": "Sin rozamiento. El imán del carrito entra en la V y sale disparado hasta 2 m/s, pero al salir los mismos imanes lo frenan hasta 0,13 m/s. Vuelta tras vuelta, la velocidad en cada sitio es la misma: las curvas caen unas encima de otras."
+  },
+  {
+   "o": {
+    "tipo": "rampa",
+    "movil": "bola",
+    "n": 11,
+    "arco": 31.2457,
+    "grado": "n35",
+    "giro": -59.6555,
+    "torcido": 59.9779,
+    "inv": true,
+    "tam": 0.0562,
+    "polo": 0,
+    "d0": 0.0628,
+    "d1": 0.0041,
+    "rb": 0.0107,
+    "mc": 0.0311,
+    "v0": 0.3653,
+    "R": 0.1961
+   },
+   "T": 12,
+   "dur": 16,
+   "vmax": 2.4,
+   "et": "Bola de acero, imanes en rampa (pista nº 1848)",
+   "tx": "Lo mismo con una bola de acero y una fila de imanes que se va acercando a la pista: acelera de 0,3 a 2 m/s al entrar y frena lo mismo al salir. Ninguna vuelta gana nada."
+  }
+ ],
+ "real": {
+  "o": {
+   "tipo": "rampa",
+   "movil": "bola",
+   "n": 16,
+   "arco": 239.4206,
+   "grado": "n35",
+   "giro": 53.2133,
+   "torcido": 57.5542,
+   "inv": true,
+   "tam": 0.0429,
+   "polo": 0,
+   "d0": 0.0753,
+   "d1": 0.014,
+   "rb": 0.0121,
+   "mc": 0.0591,
+   "v0": 0.5648,
+   "R": 0.1214
+  },
+  "T": 110,
+  "dur": 20,
+  "tx": "Con el roce de rodar: la pista que más vueltas da de más de las 1.597. A la izquierda, con imanes; a la derecha, la misma pista sin imanes.",
+  "fin": "Con imanes da 20,8 vueltas y sin ellos 20,1. Esas 0,7 vueltas las pagan los imanes una sola vez: la bola acaba balanceándose junto a un imán, 2,7 mJ más abajo en su «cuesta» que al empezar. Si se la lanza otra vez, no las vuelve a ganar."
+ },
+ "resumen": "1.597 pistas distintas. Sin rozamiento, ninguna vuelta gana energía (lo que parecía sobrar era redondeo). Con roce, las que dan más vueltas que sin imanes las pagan con la energía de los imanes, una sola vez; 1.203 dan menos vueltas, y 249 de ellas se quedan atrapadas entre los imanes."
+}

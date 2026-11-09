@@ -1,0 +1,12 @@
+{"que":"sin rozamiento","n":51,"movil":"iman","tipo":"escalera","rend":100.803,"rend8":100.0124,"rend32":100.0124,"atrapada":true}
+{"que":"sin rozamiento","n":350,"movil":"iman","tipo":"V","rend":100.5011,"rend8":100.0071,"rend32":100.0071,"atrapada":false}
+{"que":"sin rozamiento","n":354,"movil":"iman","tipo":"escalera","rend":100.5165,"rend8":100.0078,"rend32":100.0078,"atrapada":true}
+{"que":"sin rozamiento","n":460,"movil":"iman","tipo":"V","rend":100.8101,"rend8":100.0123,"rend32":100.0123,"atrapada":true}
+{"que":"sin rozamiento","n":696,"movil":"iman","tipo":"rampa","rend":100.6246,"rend8":100.0096,"rend32":100.0096,"atrapada":true}
+{"que":"sin rozamiento","n":699,"movil":"iman","tipo":"escalera","rend":101.2645,"rend8":100.0177,"rend32":100.0177,"atrapada":false}
+{"que":"sin rozamiento","n":1028,"movil":"iman","tipo":"V","rend":100.6051,"rend8":100.0087,"rend32":100.0087,"atrapada":true}
+{"que":"sin rozamiento","n":1378,"movil":"iman","tipo":"V","rend":100.5011,"rend8":100.0071,"rend32":100.0071,"atrapada":false}
+{"que":"sin rozamiento","n":1382,"movil":"iman","tipo":"escalera","rend":100.5165,"rend8":100.0078,"rend32":100.0078,"atrapada":true}
+{"que":"sin rozamiento","n":1488,"movil":"iman","tipo":"V","rend":100.8101,"rend8":100.0123,"rend32":100.0123,"atrapada":true}
+{"que":"sin rozamiento","n":1671,"movil":"iman","tipo":"escalera","rend":100.6421,"rend8":100.009,"rend32":100.009,"atrapada":true}
+{"que":"con roce","mas_vueltas":133,"caben_en_la_bajada_o_no_paran":133,"no_caben":[]}

@@ -1,0 +1,17 @@
+1ae75ad	Arrow roller
+47af33c	A model by one of the app's users, built from their drawing.
+7df9c5f	A brass cylinder with two rows of magnets in arrow shapes: two arrows per turn, each with nine pairs that open from narrow to wide; where one ends wide open, the next starts closed. Above it, a bar with a magnet as long as the cylinder, and below it another one just the same. Both bars slide up and down in guides, pushed by a ramp cam on each side of the cylinder: it rises little by little and drops at once, just after the first closed pair goes by. A spring at each end presses the bars against the cams. Seen from one side, looking along the axle.
+1dcb631	Every time the cam lifts the bars it spends energy from the spin, against the pull of the magnets and the springs, and when they drop at once that energy is lost in the knock. Pushed at 300 rpm it turns about 4 times; the same cylinder on its own, with no magnets or cam, turns 35. Look at the «Improved arrow roller» to see how far it can go.
+784274a	Improved arrow roller
+e1fdbc1	The arrow roller with the improvements Claude suggests.
+27b10c0	The same cylinder, the same magnets and the same bars in their guides. Four things change: the cam is smooth (it rises and falls little by little, highest just at the jump from one arrow to the next), it lifts only 8 mm, the rollers are big (16 mm) and the springs are softer.
+36b60ae	With a smooth cam, what it costs to lift the bars comes back when they go down, and with no step there is no knock; big rollers spin slower and lose less in their axles. With the same push it turns about 13 times instead of 4. Even so it does not run on its own: the cylinder with no magnets or cam turns 35. Magnets add no energy; the best you can do is make them waste little.
+d0f2807	Shape
+30ee217	Smooth: rises and falls gently
+9bf8d76	Ramp: rises little by little and drops at once
+fc0ac0c	The ramp rises when turning
+d293ef6	Clockwise
+5f6daf6	The other way
+8c4be28	Guide
+c90a665	Guide direction
+b4a7977	 In a guide the part does not turn: it only slides along the rail (90° is up and down).

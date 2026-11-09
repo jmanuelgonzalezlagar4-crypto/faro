@@ -1,0 +1,17 @@
+04a3bb1	Water tank
+dc6f243	Drag from one corner to the other: the water reaches the top. It pushes up the balls you put inside.
+c760f21	Floating-ball water wheel
+27c1327	A prototype by one of the app's users: hollow balls that rise by themselves through water.
+f405143	A 1 m column of water full of 10 cm hollow steel balls. The water pushes them up; the ones inside push the ones above, which come out at the top and fall down a chute onto a paddle wheel with a generator. Then they roll down another chute to a hole at the bottom of the column, where they have to get back in. The hole lets the balls through but not the water: the best possible seal, with no friction.
+f05ec6d	Float wheel
+289fc19	The classic idea of floating balls, on a wheel.
+ab1efa6	A wheel with 8 hollow balls on its rim: the right half is inside a water tank and the left half outside, and the balls cross the wall through perfect seals, with no friction and no water lost. On the right the water pushes the balls up; on the left their weight pulls them down: both push the wheel the same way.
+77577cc	At the bottom, each ball has to enter the water against the pressure, and that brakes the wheel as much as the others push it. If you add up the wheel's energy over a whole turn, it comes out exactly zero: it goes up and down 1.2 J depending on where the balls are and returns to the same value. That's why, however you push it, it moves a little and settles at a balance point; and the faster it goes, the more the water brakes it.
+954d272	Water drag
+0bafbd4	the water, which brakes
+36815dc	Bottom corner X
+1172433	Bottom corner Y
+4fb4e00	Width
+3674eae	Water height
+91a6d2e	The water pushes up the balls inside it (more the bigger and hollower they are) and brakes them as they move. To put a ball in through the bottom you have to beat the water pressure. Walls, if you want them, are ramps.
+3baeb62	The balls rise, the wheel turns four and a half times and stops, because at the bottom the balls cannot get in. At the bottom the water presses with almost 10,000 Pa: to push a ball in you need up to 72 N, and the balls piled up in front of the hole push with about 11 N. Getting a ball in costs 5 J, exactly what it gives going up and coming down. On top of that, of what it had, the water eats a part braking the balls and another part goes into knocks.
